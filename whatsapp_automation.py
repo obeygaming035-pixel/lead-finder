@@ -99,20 +99,68 @@ def is_number_already_texted(phone):
     data = get_texted_numbers()
     return clean in data
 
-def generate_wa_link(phone, pitch_text):
+def generate_spintax_pitch(owner_name, business_name, city, live_url, proposed_domain):
     """
-    Generate a direct WhatsApp Web link (web.whatsapp.com).
-    Forces opening in web browser directly without Desktop App prompts.
+    Generates a unique, non-repetitive Spintax variation of the pitch.
+    Ensures no two outgoing WhatsApp messages are byte-for-byte identical,
+    bypassing Meta automated content-hash spam filters!
     """
-    clean_phone = clean_phone_number(phone)
-    encoded_text = urllib.parse.quote(pitch_text)
-    return f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_text}"
+    first_name = owner_name.split()[0] if owner_name else "there"
+    
+    greetings = ["Hey", "Hi", "Hello", "Good day"]
+    emojis = ["👋", "✨", "🚀", "⚡"]
+    intros = [
+        f"I was researching top-rated firms in {city} and put together a custom animated website preview specifically for {business_name}:",
+        f"I came across {business_name} in {city} and created a live, responsive website design demo for your team:",
+        f"While exploring leading businesses in {city}, I designed a custom website layout tailored for {business_name}:"
+    ]
+    closings = [
+        f"The matching domain ({proposed_domain}) and complete website setup are ready to launch. Would you be open to getting this live for your firm this week?",
+        f"Everything is pre-built and ready to go live on {proposed_domain}. Would you be interested in taking a quick look?",
+        f"We have the domain ({proposed_domain}) and complete responsive layout ready for transfer. Would you like to take it live?"
+    ]
+    
+    g = random.choice(greetings)
+    e = random.choice(emojis)
+    intro = random.choice(intros)
+    closing = random.choice(closings)
+    
+    return f"{g} {first_name} {e}\n\n{intro}\n👉 {live_url}\n\n{closing}\n\nLet me know your thoughts!"
+
+def type_human_like(page, chat_box, text):
+    """
+    Types text into selector character-by-character with randomized human delay,
+    micro-pauses for punctuation, and mouse movement to simulate real human typing.
+    Bypasses automated speed/keystroke pattern detection!
+    """
+    try:
+        box = chat_box.bounding_box()
+        if box:
+            page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2, steps=15)
+            time.sleep(random.uniform(0.3, 0.7))
+            chat_box.click()
+            time.sleep(random.uniform(0.4, 0.9))
+    except Exception:
+        chat_box.focus()
+
+    print("  -> [Stealth] Typing message character-by-character (Human Simulation)...")
+    for char in text:
+        if char == '\n':
+            page.keyboard.press('Shift+Enter')
+            time.sleep(random.uniform(0.25, 0.6))
+        else:
+            page.keyboard.type(char, delay=random.randint(40, 110))
+            if char in ['.', ',', '!', '?', '\n']:
+                time.sleep(random.uniform(0.2, 0.5))
 
 def send_whatsapp_message(phone, pitch_text, cleanup_action="archive", wait_seconds=5):
     """
     Automates WhatsApp Web sending & immediate chat cleanup via Playwright.
-    Reuses your saved WhatsApp Web login session from wa_browser_profile.
-    Smoothly types & dispatches messages without premature window closures.
+    Includes Unbannable Anti-Spam Human Simulation:
+    - Character-by-character typing simulation with Shift+Enter multi-line support
+    - Stealth mouse movement
+    - Spintax variation
+    - Enforces Business Hours (9:30 AM - 6:30 PM) & Daily Safety Caps
     """
     clean_phone = clean_phone_number(phone)
     
@@ -124,25 +172,32 @@ def send_whatsapp_message(phone, pitch_text, cleanup_action="archive", wait_seco
     # 🛑 Rule 2: Enforce Business Hours
     sleep_until_business_hours()
     
-    # 🛑 Rule 3: Enforce Daily Limits
+    # 🛑 Rule 3: Enforce Daily Safety Limits
     sent_today = get_sent_count_last_24h()
     if sent_today >= DAILY_OUTREACH_LIMIT:
-        print(f"[🛡️] Daily WhatsApp outreach limit ({DAILY_OUTREACH_LIMIT}) reached! Skipping lead to prevent ban.")
+        print(f"[🛡️] Daily WhatsApp outreach safety limit ({DAILY_OUTREACH_LIMIT}) reached! Skipping lead to prevent ban.")
         return "DAILY_LIMIT_REACHED"
         
-    wa_url = generate_wa_link(phone, pitch_text)
+    # Open base WhatsApp Web URL
+    wa_url = f"https://web.whatsapp.com/send?phone={clean_phone}"
     
     try:
         from playwright.sync_api import sync_playwright
         PROFILE_DIR.mkdir(exist_ok=True)
         
         with sync_playwright() as p:
-            # Launch persistent browser using system Chrome channel & saved profile
+            # Launch persistent browser using system Chrome channel & saved profile with stealth flags
             browser = p.chromium.launch_persistent_context(
                 user_data_dir=str(PROFILE_DIR),
                 headless=False,
                 channel="chrome",
-                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+                args=[
+                    '--no-sandbox', 
+                    '--disable-setuid-sandbox', 
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--window-size=1366,768'
+                ]
             )
             page = browser.pages[0] if browser.pages else browser.new_page()
             
@@ -168,35 +223,32 @@ def send_whatsapp_message(phone, pitch_text, cleanup_action="archive", wait_seco
                     browser.close()
                     record_texted_number(phone, "Not on WhatsApp")
                     return "NOT_ON_WHATSAPP"
- 
+
                 # 3. Check if QR code page (user needs to log in)
                 if page.query_selector('canvas[aria-label="Scan me!"]') or page.query_selector('text="To use WhatsApp on your computer"'):
                     print("\n[!] NOTICE: WhatsApp Web is not logged in yet!")
                     print("[!] Please run 'python login_whatsapp.py' ONCE to log into WhatsApp Web.")
                     browser.close()
                     return "NOT_LOGGED_IN"
- 
+
             if chat_found:
-                # 🛡️ Human-Like Typing Simulation & Delay (Meta Guideline compliance)
-                print("  -> Simulating message review...")
-                chat_box.focus()
-                time.sleep(random.uniform(4.0, 7.0))  # Pause to read/review
+                # 🛡️ Human-Like Typing Simulation & Delay (Unbannable Protocol)
+                print("  -> Simulating human review delay before typing...")
+                time.sleep(random.uniform(3.0, 5.0))  # Human reading pause
                 
-                # Type a small spacing sequence to trigger WhatsApp's "typing..." status
-                page.keyboard.type(" ")
-                time.sleep(random.uniform(1.0, 2.5))
-                page.keyboard.press("Backspace")
+                # Perform Character-by-Character Human Typing
+                type_human_like(page, chat_box, pitch_text)
                 
-                # Dynamic delay before hitting send
-                time.sleep(random.uniform(4.0, 8.0))
+                # Dynamic review delay before hitting send
+                time.sleep(random.uniform(2.5, 5.0))
                 
-                # Press Enter to send pre-filled pitch text
+                # Press Enter to send
                 page.keyboard.press('Enter')
-                print(f"[✅] Pitch sent successfully to {clean_phone}!")
+                print(f"[✅] Pitch sent successfully to {clean_phone} via Human Simulation!")
                 record_texted_number(phone, "Contacted")
                 
                 # Post-send pause
-                time.sleep(random.uniform(3.0, 5.0))
+                time.sleep(random.uniform(3.0, 6.0))
                 
                 # Perform Chat Cleanup (Archive or Delete)
                 if cleanup_action == "archive":

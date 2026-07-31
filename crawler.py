@@ -1334,7 +1334,9 @@ def run_crawler_loop():
                 
                 # 2. Upload to GitHub Pages 24/7 Permanent Cloud Host & Create Pitches
                 pub_url = get_github_pages_url(lead_id)
-                init_pitch, follow_pitch = create_pitches(lead_id, biz_name, proposed_domain, city, owner_name, public_url=pub_url)
+                import whatsapp_automation
+                init_pitch = whatsapp_automation.generate_spintax_pitch(owner_name, biz_name, city, pub_url, proposed_domain)
+                _, follow_pitch = create_pitches(lead_id, biz_name, proposed_domain, city, owner_name, public_url=pub_url)
                 
                 cursor.execute('''
                     UPDATE leads SET initial_pitch = ?, followup_pitch = ? WHERE id = ?
@@ -1350,7 +1352,6 @@ def run_crawler_loop():
                 max_del = settings.get("max_delay", 180)
                 
                 try:
-                    import whatsapp_automation
                     if not whatsapp_enabled:
                         print(f"  -> [Outreach] Auto-WhatsApp is disabled in settings. Lead #{lead_id} status set to 'New'.")
                         whatsapp_automation.update_lead_status(lead_id, "New")
@@ -1358,7 +1359,7 @@ def run_crawler_loop():
                         print(f"  -> [Safe] Lead #{lead_id} ({phone}) was ALREADY messaged in permanent history. Skipping outreach.")
                         whatsapp_automation.update_lead_status(lead_id, "Contacted")
                     else:
-                        print(f"  -> [Outreach] Instant Auto-Sending WhatsApp Outreach Pitch to {phone}...")
+                        print(f"  -> [Outreach] Instant Auto-Sending WhatsApp Outreach Pitch (Human Typed) to {phone}...")
                         res = whatsapp_automation.send_whatsapp_message(phone, init_pitch)
                         
                         if res == "NOT_ON_WHATSAPP":
