@@ -1,0 +1,6 @@
+{
+  "whatsapp_enabled": false,
+  "min_delay": 90,
+  "max_delay": 180,
+  "max_results": 100
+}

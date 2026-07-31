@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Urban Craft Tax Advisors & CA (Jaipur) - Jaipur's Premier Chartered Accountants & Tax Advisory Firms</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #34d399;
+            --accent-sec: #059669;
+            --bg: #0b0f19;
+            --card: #131b2e;
+            --card-border: #23304d;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        h1, h2, h3, h4, .brand { font-family: 'Outfit', sans-serif; }
+        body { background-color: var(--bg); color: var(--text-main); line-height: 1.6; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+
+        @keyframes floatAnim {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-7px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+            50% { box-shadow: 0 0 30px #34d399; }
+            100% { box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+        }
+
+        /* NAV */
+        nav { background: rgba(19, 27, 46, 0.85); backdrop-filter: blur(12px); padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 0.5rem; }
+        .brand { font-size: 1.4rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.4rem; }
+        .brand span { color: var(--accent); }
+        .nav-links { display: none; }
+        .btn-call { background: var(--accent); color: #000; padding: 0.5rem 1.2rem; border-radius: 30px; font-weight: 700; font-size: 0.85rem; text-decoration: none; transition: transform 0.2s; animation: pulseGlow 3s infinite; white-space: nowrap; }
+        .btn-call:hover { transform: scale(1.05); }
+
+        /* HERO */
+        .hero { padding: 3rem 5% 2.5rem; text-align: center; background: linear-gradient(135deg, #064e3b, #0f172a); position: relative; border-bottom: 1px solid var(--card-border); overflow: hidden; }
+        .city-pill { background: rgba(255,255,255,0.08); border: 1px solid var(--accent); color: var(--accent); padding: 0.4rem 1rem; border-radius: 30px; font-size: 0.8rem; font-weight: 700; display: inline-block; margin-bottom: 1.2rem; animation: floatAnim 4s ease-in-out infinite; }
+        .hero h1 { font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; color: #fff; word-break: break-word; }
+        .hero p { font-size: 1rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 2rem; }
+
+        /* STATS */
+        .stats-ribbon { display: grid; grid-template-columns: 1fr; gap: 0.8rem; max-width: 1000px; margin: 0 auto; z-index: 10; position: relative; }
+        .stat-card { background: rgba(19, 27, 46, 0.9); backdrop-filter: blur(10px); padding: 1rem; border-radius: 12px; border: 1px solid var(--card-border); text-align: center; }
+        .stat-card .val { font-size: 1.3rem; font-weight: 800; color: var(--accent); font-family: 'Outfit', sans-serif; }
+        .stat-card .lbl { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem; }
+
+        /* SECTIONS */
+        .section { padding: 3rem 5%; max-width: 1200px; margin: 0 auto; }
+        .sec-header { text-align: center; margin-bottom: 2rem; }
+        .sec-header h2 { font-size: 1.6rem; font-weight: 800; color: #fff; }
+        .sec-header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.4rem; }
+
+        /* SERVICE CARDS */
+        .grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
+        .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 1.5rem; transition: all 0.35s ease; display: flex; flex-direction: column; justify-content: space-between; }
+        .card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        .card h3 { font-size: 1.15rem; color: #fff; margin-bottom: 0.6rem; }
+        .card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.6; }
+        .card-badge { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-block; width: fit-content; }
+
+        /* OWNER CARD */
+        .owner-card { background: linear-gradient(135deg, #131b2e, #0b1220); border: 1px solid var(--card-border); border-left: 4px solid var(--accent); padding: 1.5rem; border-radius: 14px; margin-top: 2rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; }
+        .owner-avatar { background: var(--accent); color: #000; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; }
+        .owner-info h4 { font-size: 1.1rem; color: #fff; }
+        .owner-info p { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.3rem; }
+
+        /* TESTIMONIAL */
+        .testimonial-box { background: var(--card); border: 1px solid var(--card-border); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; font-style: italic; color: #e2e8f0; font-size: 0.92rem; }
+
+        /* WHATSAPP FLOAT */
+        .whatsapp-float { position: fixed; bottom: 20px; right: 16px; background: #25d366; color: white; padding: 0.7rem 1.1rem; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 8px 20px rgba(37, 211, 102, 0.4); z-index: 1000; animation: floatAnim 3s ease-in-out infinite; }
+
+        /* FOOTER */
+        footer { background: #070a12; padding: 2rem 5%; text-align: center; border-top: 1px solid var(--card-border); color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }
+
+        /* ====== TABLET (600px+) ====== */
+        @media (min-width: 600px) {
+            .stats-ribbon { grid-template-columns: repeat(3, 1fr); }
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            .hero h1 { font-size: 2.4rem; }
+            .owner-card { flex-direction: row; text-align: left; align-items: center; }
+        }
+
+        /* ====== DESKTOP (900px+) ====== */
+        @media (min-width: 900px) {
+            nav { padding: 1.2rem 6%; }
+            .brand { font-size: 1.6rem; }
+            .nav-links { display: flex; gap: 2rem; list-style: none; align-items: center; }
+            .nav-links a { color: var(--text-main); text-decoration: none; font-size: 0.95rem; font-weight: 600; transition: color 0.3s; }
+            .nav-links a:hover { color: var(--accent); }
+            .hero { padding: 5.5rem 6% 4rem; }
+            .hero h1 { font-size: 3.4rem; }
+            .hero p { font-size: 1.25rem; }
+            .city-pill { font-size: 0.9rem; padding: 0.5rem 1.4rem; }
+            .stat-card { padding: 1.5rem; }
+            .stat-card .val { font-size: 1.9rem; }
+            .section { padding: 5rem 6%; }
+            .sec-header h2 { font-size: 2.4rem; }
+            .grid { grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+            .card { padding: 2.2rem; border-radius: 16px; }
+            .card:hover { transform: translateY(-8px); box-shadow: 0 12px 35px rgba(0,0,0,0.5); }
+            .card h3 { font-size: 1.35rem; }
+            .owner-card { padding: 2.5rem; gap: 2rem; flex-direction: row; text-align: left; align-items: center; border-left-width: 5px; }
+            .owner-avatar { width: 70px; height: 70px; font-size: 1.8rem; }
+            .owner-info h4 { font-size: 1.3rem; }
+            .testimonial-box { padding: 2rem; }
+            .whatsapp-float { bottom: 30px; right: 30px; padding: 0.8rem 1.4rem; font-size: 0.9rem; }
+            footer { padding: 3rem 6%; font-size: 0.95rem; margin-top: 5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand"><span>UR</span> Urban Craft Tax Advisors & CA (Jaipur)</div>
+        <ul class="nav-links">
+            <li><a href="#services">Services</a></li>
+            <li><a href="#owner">About Founder</a></li>
+            <li><a href="#reviews">Client Reviews</a></li>
+        </ul>
+        <a href="tel:+919800000000" class="btn-call">Call CA</a>
+    </nav>
+
+    <section class="hero">
+        <span class="city-pill">Registered Office: Jaipur, India</span>
+        <h1>Urban Craft Tax Advisors & CA (Jaipur)</h1>
+        <p>Corporate Audit, GST Filing, Income Tax Advisory & Business Setup in Jaipur</p>
+
+        <div class="stats-ribbon">
+            <div class="stat-card">
+                <div class="val">500+ Corporate Retainers</div>
+                <div class="lbl">Track Record</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">15+ Years Practice</div>
+                <div class="lbl">Professional Credential</div>
+            </div>
+            <div class="stat-card">
+                <div class="val">ICAI Registered Firm</div>
+                <div class="lbl">Client Satisfaction</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="services">
+        <div class="sec-header">
+            <h2>Our Core Professional Services</h2>
+            <p>Directly supervised by CA Darshan Shah (FCA Partner) in Jaipur.</p>
+        </div>
+
+        <div class="grid">
+            
+            <div class="card">
+                <div>
+                    <h3>Corporate Tax & Annual GST Filing</h3>
+                    <p>GST registration, monthly GSTR-1 & GSTR-3B filings, annual GST audits, and tax representation.</p>
+                </div>
+                <div class="card-badge">ICAI Certified Firm</div>
+            </div>
+            
+            <div class="card">
+                <div>
+                    <h3>Company Incorporation & Compliance</h3>
+                    <p>Pvt Ltd & LLP incorporation, ROC filings, secretarial audits, and startup fundraising compliance.</p>
+                </div>
+                <div class="card-badge">Fast 3-Day Incorporation</div>
+            </div>
+            
+            <div class="card">
+                <div>
+                    <h3>Statutory Financial Audits & Due Diligence</h3>
+                    <p>Balance sheet audit certification, internal financial controls audit, and corporate M&A due diligence.</p>
+                </div>
+                <div class="card-badge">100% Tax Audit Accuracy</div>
+            </div>
+            
+        </div>
+
+        <div class="owner-card" id="owner">
+            <div class="owner-avatar">C</div>
+            <div class="owner-info">
+                <h4>Senior Partner CA CA Darshan Shah (FCA Partner)</h4>
+                <p>Senior Partner & FCA at Urban Craft Tax Advisors & CA (Jaipur), Jaipur. Fellow Member of the Institute of Chartered Accountants of India (ICAI) specializing in corporate taxation, GST audits, and financial advisory.</p>
+            </div>
+        </div>
+
+        <div class="testimonial-box" id="reviews">
+            <p>"CA CA Darshan Shah (FCA Partner) has handled our company's corporate tax filings and GST audits in Jaipur for 6 years. Extremely knowledgeable and proactive." — Suresh Patel, CFO</p>
+        </div>
+    </section>
+
+    <a href="https://wa.me/919800000000" target="_blank" class="whatsapp-float">
+        WhatsApp CA
+    </a>
+
+    <footer>
+        <p>&copy; 2026 Urban Craft Tax Advisors & CA (Jaipur) (Jaipur). All rights reserved.</p>
+        <p>Direct Office Contact: CA Darshan Shah (FCA Partner) | Jaipur, India</p>
+    </footer>
+
+</body>
+</html>

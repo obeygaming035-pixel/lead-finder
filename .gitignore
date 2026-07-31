@@ -1,0 +1,27 @@
+# Environment & Secrets
+.env
+*.env
+
+# Python Cache & Databases
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+leads.db
+*.db
+
+# Dynamic Session / Tunnel Files
+tunnel_url.txt
+dashboard_url.txt
+git_portable/
+
+# Generated Mockups (Tracked for GitHub Pages 24/7 Hosting)
+!mockups/
+
+# IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+wa_browser_profile/
