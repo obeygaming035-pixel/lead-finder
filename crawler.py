@@ -107,10 +107,70 @@ def get_random_images(industry, count=4):
             "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
             "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40",
             "https://images.unsplash.com/photo-1450133064473-71024230f91b"
+        ],
+        "cake shops / custom bakeries": [
+            "https://images.unsplash.com/photo-1578985545062-69928b1d9587",
+            "https://images.unsplash.com/photo-1509440159596-0249088772ff",
+            "https://images.unsplash.com/photo-1555507036-ab1f4038808a",
+            "https://images.unsplash.com/photo-1517433670267-08bbd4be890f"
+        ],
+        "cafes": [
+            "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
+            "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb",
+            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
+            "https://images.unsplash.com/photo-1559925393-8be0ec4767c8"
+        ],
+        "restaurants": [
+            "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
+            "https://images.unsplash.com/photo-1555396273-367ea4eb4db5",
+            "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c",
+            "https://images.unsplash.com/photo-1544025162-d76694265947"
+        ],
+        "florists / wedding floral businesses": [
+            "https://images.unsplash.com/photo-1561181286-d3fee7d55364",
+            "https://images.unsplash.com/photo-1526047932273-341f2a7631f9",
+            "https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11",
+            "https://images.unsplash.com/photo-1563241527-3004b7be0ffd"
+        ],
+        "boutiques / designer clothing stores": [
+            "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
+            "https://images.unsplash.com/photo-1490481651871-ab68de25d43d",
+            "https://images.unsplash.com/photo-1558769132-cb1aea458c5e",
+            "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f"
+        ],
+        "jewellery boutiques": [
+            "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908",
+            "https://images.unsplash.com/photo-1605100804763-247f67b3557e",
+            "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f",
+            "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338"
+        ],
+        "boutique hotels / guesthouses": [
+            "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+            "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
+            "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4",
+            "https://images.unsplash.com/photo-1571896349842-33c89424de2d"
+        ],
+        "travel agencies": [
+            "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
+            "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800",
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+            "https://images.unsplash.com/photo-1476514525535-ce74f45814d2"
         ]
     }
     
-    niche_defaults = defaults.get(industry, defaults["architects & interior design studios"])
+    # Try exact match or keyword match
+    niche_defaults = None
+    if industry in defaults:
+        niche_defaults = defaults[industry]
+    else:
+        for k, v in defaults.items():
+            if any(w in industry.lower() for w in k.lower().split()):
+                niche_defaults = v
+                break
+                
+    if not niche_defaults:
+        niche_defaults = defaults["architects & interior design studios"]
+        
     return random.choices(niche_defaults, k=count)
 
 
@@ -1354,23 +1414,148 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 </html>"""
 
     # ==========================================
-    # TEMPLATE 6: GENERAL FALLBACK
+    # TEMPLATE 6: DYNAMIC INDUSTRY SOLUTION
     # ==========================================
     else:
-        if not services_imgs[0].startswith("http"):
-            services_imgs = [
-                "https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8",
-                "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
-                "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
-            ]
-            hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
+        # Dynamic content customization based on industry keywords
+        if "cake" in ind or "bakery" in ind or "bakeries" in ind:
+            hero_tag = "Artisan Bakery & Cake Studio"
+            hero_headline = f"Handcrafted <span>Artisan Cakes</span> & Fresh Daily Bakes"
+            hero_subtitle = f"Bespoke wedding cakes, custom celebration tiers, and gourmet viennoiserie baked fresh daily in {city}."
+            sec_title = "Handcrafted Bakery Specialties"
+            s1_title, s1_desc = "🎂 Custom Tier & Wedding Cakes", f"Bespoke fondant & cream tier cake designs handcrafted for weddings, anniversaries, and galas in {city}."
+            s2_title, s2_desc = "🥐 Fresh Viennoiserie & Breads", f"Flaky butter croissants, artisan sourdough loaves, and French pastries baked fresh every morning."
+            s3_title, s3_desc = "🧁 Gourmet Dessert Tables & Gifts", f"Custom dessert tables, macaron towers, and curated bakery hampers for corporate and family events."
+            calc_title = "Custom Cake & Order Estimator"
+            calc_label1 = "Cake Tiers / Event Type"
+            calc_opt1 = '<option value="2000">1-Tier Celebration Cake (10-15 Guests)</option><option value="4500">2-Tier Custom Cake (25-40 Guests)</option><option value="9000">3-Tier Luxury Wedding Cake (50+ Guests)</option>'
+            calc_label2 = "Weight / Order Quantity: <span id='unitVal' style='color:var(--accent); font-weight:800;'>2 kg</span>"
+            calc_unit_text = " kg"
+            btn_text = "Reserve Custom Bakery Order"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1578985545062-69928b1d9587",
+                    "https://images.unsplash.com/photo-1509440159596-0249088772ff",
+                    "https://images.unsplash.com/photo-1555507036-ab1f4038808a"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1517433670267-08bbd4be890f"
+
+        elif "cafe" in ind or "restaurant" in ind or "dining" in ind:
+            hero_tag = "Boutique Cafe & Culinary Bistro"
+            hero_headline = f"Artisan Coffee & <span>Gourmet Culinary</span> Dining"
+            hero_subtitle = f"Specialty single-origin coffee, artisanal all-day dining, and private chef specials in {city}."
+            sec_title = "Culinary & Espresso Offerings"
+            s1_title, s1_desc = "☕ Specialty Brew Bar & Espresso", f"Hand-poured pour-overs, cold brews, and signature espresso beverages in {city}."
+            s2_title, s2_desc = "🍽️ Chef's Seasonal Tasting Menu", f"Fresh farm-to-table artisanal dishes, wood-fired sourdough pizzas, and gourmet entrees."
+            s3_title, s3_desc = "🎉 Private Table & Event Dining", f"Reserved dining booths, chef's table experiences, and private party hosting."
+            calc_title = "Table Reservation & Dining Estimator"
+            calc_label1 = "Dining Experience"
+            calc_opt1 = '<option value="1500">Bistro High-Tea / Breakfast (Per Head)</option><option value="2800">4-Course Chef Dinner Tasting (Per Head)</option><option value="5000">VIP Private Dining Room Experience</option>'
+            calc_label2 = "Number of Guests: <span id='unitVal' style='color:var(--accent); font-weight:800;'>4 Guests</span>"
+            calc_unit_text = " Guests"
+            btn_text = "Reserve Dining Table"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1554118811-1e0d58224f24",
+                    "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb",
+                    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1559925393-8be0ec4767c8"
+
+        elif "flor" in ind or "floral" in ind or "flower" in ind:
+            hero_tag = "Luxury Botanical & Floral Studio"
+            hero_headline = f"Exquisite Floral Curation & <span>Wedding Blooms</span>"
+            hero_subtitle = f"Grand wedding floral installations, exotic flower arches, and luxury gift bouquets in {city}."
+            sec_title = "Floral Design Services"
+            s1_title, s1_desc = "💐 Wedding Floral Installations", f"Grand floral arches, stage backdrops, and aisle bloom styling in {city}."
+            s2_title, s2_desc = "🌹 Exotic Bouquets & Gift Hampers", f"Premium imported roses, lilies, orchids, and custom luxury floral boxes."
+            s3_title, s3_desc = "🌿 Corporate & Hotel Floral Styling", f"Weekly fresh floral lobby arrangements and luxury venue transformations."
+            calc_title = "Floral Installation Budget Estimator"
+            calc_label1 = "Design Scope"
+            calc_opt1 = '<option value="8000">Boutique Bouquet & Table Styling</option><option value="25000">Full Venue Floral Entrance Archways</option><option value="60000">Grand Luxury Wedding Floral Curation</option>'
+            calc_label2 = "Arrangement Scale: <span id='unitVal' style='color:var(--accent); font-weight:800;'>50 Units</span>"
+            calc_unit_text = " Units"
+            btn_text = "Consult Floral Designer"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1561181286-d3fee7d55364",
+                    "https://images.unsplash.com/photo-1526047932273-341f2a7631f9",
+                    "https://images.unsplash.com/photo-1582794543139-8ac9cb0f7b11"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1563241527-3004b7be0ffd"
+
+        elif "boutique" in ind or "jewel" in ind or "clothing" in ind or "fashion" in ind:
+            hero_tag = "Haute Couture & Jewellery Atelier"
+            hero_headline = f"Bespoke Couture & <span>Fine Jewellery</span> Atelier"
+            hero_subtitle = f"Handcrafted bridal lehengas, heritage Kundan & Polki jewellery, and custom fashion styling in {city}."
+            sec_title = "Atelier Collections"
+            s1_title, s1_desc = "💎 Handcrafted Fine Jewellery", f"Intricate bridal sets, heritage Kundan, Polki, and certified solitaire jewellery in {city}."
+            s2_title, s2_desc = "👗 Bespoke Designer Couture", f"Hand-embroidered bridal lehengas, sherwanis, and couture evening gowns."
+            s3_title, s3_desc = "🧵 Private Styling Appointments", f"One-on-one bridal consultations and custom couture tailor fittings."
+            calc_title = "Bespoke Couture & Ensemble Estimator"
+            calc_label1 = "Ensemble Category"
+            calc_opt1 = '<option value="15000">Designer Festive Trousseau</option><option value="45000">Bespoke Bridal Lehenga / Sherwani</option><option value="120000">Heritage Bridal Jewellery & Couture</option>'
+            calc_label2 = "Ensemble Count: <span id='unitVal' style='color:var(--accent); font-weight:800;'>1 Piece</span>"
+            calc_unit_text = " Piece"
+            btn_text = "Book Private Fitting"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908",
+                    "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
+                    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1605100804763-247f67b3557e"
+
+        elif "hotel" in ind or "guesthouse" in ind or "travel" in ind:
+            hero_tag = "Boutique Hospitality & Stays"
+            hero_headline = f"Curated Stays & <span>Luxury Hospitality</span>"
+            hero_subtitle = f"Boutique heritage suites, organic dining, and private curated local travel itineraries in {city}."
+            sec_title = "Guest & Travel Experiences"
+            s1_title, s1_desc = "🏨 Heritage Suites & Luxury Stay", f"Elegantly appointed suites featuring local craftsmanship and modern amenities in {city}."
+            s2_title, s2_desc = "🍽️ In-House Gourmet Dining & Spa", f"Organic farm-to-table breakfasts and holistic wellness experiences."
+            s3_title, s3_desc = "✈️ Tailored Private Itineraries", f"Guided heritage walks, private airport transfers, and bespoke local experiences."
+            calc_title = "Stay & Experience Rate Calculator"
+            calc_label1 = "Accommodation Category"
+            calc_opt1 = '<option value="4500">Deluxe Heritage Room (Per Night)</option><option value="9000">Executive Luxury Suite (Per Night)</option><option value="18000">Private Royal Villa (Per Night)</option>'
+            calc_label2 = "Duration of Stay: <span id='unitVal' style='color:var(--accent); font-weight:800;'>2 Nights</span>"
+            calc_unit_text = " Nights"
+            btn_text = "Check Availability & Book"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+                    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
+                    "https://images.unsplash.com/photo-1488646953014-85cb44e25828"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4"
+
+        else:
+            hero_tag = f"Premium {industry.title()}"
+            hero_headline = f"Bespoke <span>{industry.title()}</span> Curation"
+            hero_subtitle = f"Professional bespoke services and custom execution delivered for local clients in {city}."
+            sec_title = "Core Capabilities"
+            s1_title, s1_desc = "Custom Services Curation", f"Bespoke service solutions and high-standard operational setup in {city}."
+            s2_title, s2_desc = "Quality Assurance & Supervision", f"Turnkey supervision, quality material sourcing, and execution control."
+            s3_title, s3_desc = "Turnkey Management", f"Guaranteed compliance with quality standards and complete delivery."
+            calc_title = "Project Budget Estimator"
+            calc_label1 = "Project Scope"
+            calc_opt1 = '<option value="5000">Standard Scope</option><option value="15000">Premium Bespoke Scope</option><option value="35000">Turnkey Curation</option>'
+            calc_label2 = "Project Scale: <span id='unitVal' style='color:var(--accent); font-weight:800;'>100 Units</span>"
+            calc_unit_text = " Units"
+            btn_text = "Request Direct Consultation"
+            if not services_imgs[0].startswith("http"):
+                services_imgs = [
+                    "https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8",
+                    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
+                    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
+                ]
+                hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
 
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{business_name} | Premium {industry.title()} in {city}</title>
+    <title>{business_name} | {hero_tag} in {city}</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root {{ 
@@ -1388,22 +1573,20 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         
         {glow_bg_styles}
 
-        /* Premium Sticky Navigation */
         nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: rgba(250, 250, 249, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
         .brand {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.5px; }}
         .brand span {{ color: var(--accent); }}
         .btn-consult {{ background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 0.8rem; transition: background 0.3s; }}
         .btn-consult:hover {{ background: var(--accent); }}
 
-        /* Immersive Split Hero */
         .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 4rem; align-items: center; padding: 5rem 3rem; max-width: 1200px; margin: 0 auto; }}
-        .hero-info h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }}
+        .hero-tag-badge {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); font-weight: 800; margin-bottom: 0.8rem; display: inline-block; background: #f0fdfa; padding: 0.3rem 0.8rem; border-radius: 20px; border: 1px solid rgba(15, 118, 110, 0.2); }}
+        .hero-info h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.6rem); line-height: 1.15; margin-bottom: 1.2rem; }}
         .hero-info h1 span {{ color: var(--accent); font-style: italic; font-weight: 400; }}
         .hero-info p {{ color: #57534e; font-size: 1.05rem; line-height: 1.7; margin-bottom: 2rem; }}
-        .hero-img {{ border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.02); }}
+        .hero-img {{ border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.04); height: 420px; }}
         .hero-img img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 
-        /* Capabilities Grid */
         .section {{ padding: 6rem 3rem; max-width: 1200px; margin: 0 auto; }}
         .sec-title {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }}
         .services-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem; }}
@@ -1414,7 +1597,6 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         .service-info h3 {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }}
         .service-info p {{ color: #57534e; font-size: 0.9rem; line-height: 1.6; }}
 
-        /* Dynamic Budget Planner */
         .calc-wrapper {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); }}
         .calc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem; }}
         .calc-field label {{ font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: #57534e; display: block; margin-bottom: 0.5rem; }}
@@ -1422,104 +1604,101 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         .calc-result {{ background: #f0fdfa; padding: 2rem; border-radius: 8px; border: 1px solid rgba(15, 118, 110, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }}
         .calc-val {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); font-weight: 700; }}
 
-        /* Footer */
         footer {{ padding: 5rem 3rem; background: var(--primary); color: #fff; text-align: center; }}
         .footer-logo {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }}
         .footer-buttons {{ display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }}
-        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 0.85rem; transition: background 0.3s; }}
-        .btn-call:hover {{ background: rgba(255,255,255,0.05); }}
-        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 800; font-size: 0.85rem; transition: background 0.3s; }}
-        .btn-wa:hover {{ background: var(--accent-hover); }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 0.85rem; }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 800; font-size: 0.85rem; }}
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="brand">{business_name.split()[0]} <span>Solutions</span></div>
+        <div class="brand">{business_name.split()[0]} <span>Studio</span></div>
         <a href="https://wa.me/{clean_phone}" class="btn-consult">Direct Inquiry</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-info">
-            <h1>Premium <span>{industry.title()}</span> Services & Turnkey Management</h1>
-            <p>Professional bespoke services and custom end-to-end execution directed by {owner_name} in {city}. Custom-crafted to meet the highest local operational standards.</p>
-            <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Senior Partner</a>
+            <span class="hero-tag-badge">{hero_tag} &bull; {city}</span>
+            <h1>{hero_headline}</h1>
+            <p>{hero_subtitle}</p>
+            <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">{btn_text} &rarr;</a>
         </div>
         <div class="hero-img">
-            <img src="{hero_img}" alt="{industry.title()}">
+            <img src="{hero_img}" alt="{business_name}">
         </div>
     </section>
 
     <section class="section scroll-reveal">
-        <h2 class="sec-title">Core Operations</h2>
+        <h2 class="sec-title">{sec_title}</h2>
         <div class="services-grid">
             <div class="service-card">
-                <img src="{services_imgs[0]}" alt="Bespoke consultation">
+                <img src="{services_imgs[0]}" alt="{s1_title}">
                 <div class="service-info">
-                    <h3>Strategic Consulting</h3>
-                    <p>Statutory audits, project roadmap designs, and professional strategic setup tailored for {city}.</p>
+                    <h3>{s1_title}</h3>
+                    <p>{s1_desc}</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="{services_imgs[1]}" alt="Turnkey management">
+                <img src="{services_imgs[1]}" alt="{s2_title}">
                 <div class="service-info">
-                    <h3>Turnkey Curation</h3>
-                    <p>Complete project supervision, resource deployments, and operational quality control guarantees.</p>
+                    <h3>{s2_title}</h3>
+                    <p>{s2_desc}</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="{services_imgs[2]}" alt="Custom execution">
+                <img src="{services_imgs[2]}" alt="{s3_title}">
                 <div class="service-info">
-                    <h3>Statutory Compliance</h3>
-                    <p>Guaranteed adherence to regulatory standards, verification controls, and final handover certifications.</p>
+                    <h3>{s3_title}</h3>
+                    <p>{s3_desc}</p>
                 </div>
             </div>
         </div>
     </section>
 
     <section class="section scroll-reveal" id="estimator">
-        <h2 class="sec-title">Project Budget Planner</h2>
+        <h2 class="sec-title">{calc_title}</h2>
         <div class="calc-wrapper">
             <div class="calc-grid">
                 <div class="calc-field">
-                    <label>Operational Scale</label>
+                    <label>{calc_label1}</label>
                     <select id="projectScale" onchange="calcProjectCost()">
-                        <option value="5000">Standard Professional Scope</option>
-                        <option value="12000">Corporate Premium Scope</option>
-                        <option value="25000">Enterprise Bespoke Curation</option>
+                        {calc_opt1}
                     </select>
                 </div>
                 <div class="calc-field">
-                    <label>Project Units / Size: <span id="unitVal" style="color:var(--accent); font-weight:800;">100 Units</span></label>
-                    <input type="range" id="unitRange" min="20" max="500" step="10" value="100" oninput="calcProjectCost()">
+                    <label>{calc_label2}</label>
+                    <input type="range" id="unitRange" min="1" max="100" step="1" value="10" oninput="calcProjectCost()">
                 </div>
             </div>
             <div class="calc-result">
                 <div>
-                    <p style="font-size:0.75rem; text-transform:uppercase; color:#57534e; font-weight:700;">Estimated Setup Budget:</p>
-                    <div id="projectResult" class="calc-val">₹5.00 Lakhs</div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#57534e; font-weight:700;">Estimated Budget / Quote:</p>
+                    <div id="projectResult" class="calc-val">₹4,500</div>
                 </div>
-                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Initiate Engagement &rarr;</button>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">{btn_text} &rarr;</button>
             </div>
         </div>
     </section>
 
     <footer>
         <div class="footer-logo">{business_name}</div>
-        <p style="font-size:0.9rem; color:#a8a29e; margin-top:0.3rem;">Turnkey Direct Solutions &bull; {city}</p>
+        <p style="font-size:0.9rem; opacity:0.8; margin-top:0.3rem;">{hero_tag} &bull; {city}</p>
         <div class="footer-buttons">
-            <a href="tel:{phone}" class="btn-call">Direct Call</a>
-            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
+            <a href="tel:{phone}" class="btn-call">Direct Phone</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry &rarr;</a>
         </div>
     </footer>
 
     <script>
         function calcProjectCost() {{
-            var rate = parseFloat(document.getElementById("projectScale").value);
+            var base = parseFloat(document.getElementById("projectScale").value);
             var units = parseFloat(document.getElementById("unitRange").value);
-            document.getElementById("unitVal").innerText = units + " Units";
-            var total = (rate * units) / 100000;
-            document.getElementById("projectResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
+            var uText = "{calc_unit_text}";
+            document.getElementById("unitVal").innerText = units + uText;
+            var total = base + (units * (base > 10000 ? 500 : 150));
+            document.getElementById("projectResult").innerText = "₹" + total.toLocaleString('en-IN');
         }}
     </script>
     {glow_bg_js}
