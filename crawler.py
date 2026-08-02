@@ -392,11 +392,11 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             scroll-behavior: smooth !important;
         }
         
-        /* Smooth Scroll Reveal */
+        /* Snappier organic Scroll Reveal */
         .scroll-reveal {
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(20px);
+            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
         }
         .scroll-reveal.visible {
@@ -432,27 +432,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     """
 
     glow_bg_js = """
-    <!-- Include Lenis Smooth Scroll Library -->
-    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
     <script>
-        // Initialize Lenis Smooth Scroll
-        const lenis = new Lenis({
-            duration: 1.2,
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            orientation: 'vertical',
-            gestureOrientation: 'vertical',
-            smoothWheel: true,
-            smoothTouch: false,
-            wheelMultiplier: 1,
-            touchMultiplier: 1.5,
-            normalizeWheel: true
-        });
-
-        function raf(time) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-        requestAnimationFrame(raf);
 
         // IntersectionObserver for Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
