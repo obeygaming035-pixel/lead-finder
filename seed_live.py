@@ -8,6 +8,7 @@ def seed_live():
     try:
         conn_init = sqlite3.connect(DB_PATH)
         conn_init.execute("DELETE FROM leads")
+        conn_init.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'leads'")
         conn_init.commit()
         conn_init.close()
     except Exception:
