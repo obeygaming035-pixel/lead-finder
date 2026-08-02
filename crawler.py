@@ -902,9 +902,11 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     {glow_bg_js}
 </body>
 </html>"""
-        # ==================================================
+
+    # ==========================================
     # TEMPLATE 3: CUSTOM FURNITURE & WOODWORK
-    # ====================================    elif "furniture" in ind or "woodwork" in ind:
+    # ==========================================
+    elif "furniture" in ind or "woodwork" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
                 "https://images.unsplash.com/photo-1617806118233-18e1de247200",
@@ -919,123 +921,139 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{business_name} | Custom Solid Teak Woodwork</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root {{ 
-            --bg: #f5f3f0; 
+            --bg: #FAF9F6; 
             --primary: #1c1917; 
-            --accent: #d97706; 
+            --accent: #b45309; 
+            --accent-warm: #d97706;
             --card: #ffffff; 
-            --border: #e7e5e4; 
-            --glow-primary: rgba(217, 119, 6, 0.10);
-            --glow-secondary: rgba(6, 78, 59, 0.06);
+            --border: #f2efe9; 
+            --glow-primary: rgba(180, 83, 9, 0.12);
+            --glow-secondary: rgba(6, 78, 59, 0.08);
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
         {glow_bg_styles}
 
-        /* Clean Header Block */
-        header {{ text-align: center; padding: 3rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }}
-        .badge {{ display: inline-block; background: #fef3c7; color: #b45309; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }}
-        h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 0.5rem; }}
-        .owner-title {{ color: #78716c; font-size: 1rem; font-weight: 600; margin-bottom: 1.5rem; }}
-        .header-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }}
-        .btn {{ text-decoration: none; padding: 0.6rem 1.4rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; }}
-        .btn-accent {{ background: var(--accent); color: #fff; }}
-        .btn-outline {{ background: transparent; border: 1px solid var(--primary); color: var(--primary); }}
+        /* Elegant Luxury Navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: rgba(250, 249, 246, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
+        .brand {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.5px; }}
+        .brand span {{ color: var(--accent); font-style: italic; }}
+        .nav-links {{ display: flex; gap: 2rem; list-style: none; }}
+        .nav-links a {{ color: var(--primary); text-decoration: none; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .btn-consult {{ background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 0.8rem; transition: background 0.3s; }}
+        .btn-consult:hover {{ background: var(--accent); }}
 
-        /* Main Hero Card */
-        .hero-banner {{ max-width: 1100px; margin: 2rem auto; border-radius: 8px; overflow: hidden; height: 420px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.03); }}
-        .hero-banner img {{ width: 100%; height: 100%; object-fit: cover; }}
+        /* Split-screen Immersive Hero */
+        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 4rem; align-items: center; padding: 5rem 3rem; max-width: 1200px; margin: 0 auto; }}
+        .hero-info h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }}
+        .hero-info h1 span {{ color: var(--accent); font-style: italic; font-weight: 400; }}
+        .hero-info p {{ color: #57534e; font-size: 1.05rem; line-height: 1.7; margin-bottom: 2rem; }}
+        .hero-img {{ border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.02); }}
+        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 
         /* Crafts Showcase Grid */
-        .section {{ padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }}
-        .sec-title {{ font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-left: 5px solid var(--accent); padding-left: 0.8rem; }}
-        .craft-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
-        .craft-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }}
-        .craft-card img {{ width: 100%; height: 220px; object-fit: cover; }}
-        .craft-info {{ padding: 1.5rem; }}
-        .craft-info h3 {{ font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; }}
-        .craft-info p {{ color: #57534e; font-size: 0.85rem; line-height: 1.5; }}
+        .section {{ padding: 6rem 3rem; max-width: 1200px; margin: 0 auto; }}
+        .sec-title {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }}
+        .craft-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; }}
+        .craft-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: all 0.3s ease; }}
+        .craft-card:hover {{ transform: translateY(-5px); box-shadow: 0 20px 40px rgba(180, 83, 9, 0.06); border-color: var(--accent); }}
+        .craft-card img {{ width: 100%; height: 260px; object-fit: cover; }}
+        .craft-info {{ padding: 2rem; }}
+        .craft-info h3 {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }}
+        .craft-info p {{ color: #57534e; font-size: 0.9rem; line-height: 1.6; }}
 
         /* Timber finish calculator widget */
-        .wood-selector {{ background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2.5rem; }}
-        .selector-row {{ display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
-        .select-btn {{ background: var(--bg); border: 1px solid var(--border); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }}
+        .wood-selector {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); }}
+        .selector-row {{ display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }}
+        .select-btn {{ background: var(--bg); border: 1px solid var(--border); color: var(--primary); padding: 0.7rem 1.4rem; border-radius: 30px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }}
         .select-btn.active {{ background: var(--accent); color: #fff; border-color: var(--accent); }}
-        .selector-output {{ background: var(--bg); padding: 1.5rem; border-radius: 4px; border-left: 4px solid var(--accent); }}
+        .selector-output {{ border-left: 4px solid var(--accent); background: var(--bg); padding: 2rem; border-radius: 6px; }}
 
         /* Footer */
-        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
-        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
+        footer {{ padding: 5rem 3rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-logo {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 0.85rem; transition: background 0.3s; }}
+        .btn-call:hover {{ background: rgba(255,255,255,0.05); }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 800; font-size: 0.85rem; transition: background 0.3s; }}
+        .btn-wa:hover {{ background: var(--accent-warm); }}
     </style>
 </head>
 <body>
 
-    <header class="scroll-reveal">
-        <span class="badge">CP Solid Teak Woodwork</span>
-        <h1>{business_name}</h1>
-        <p class="owner-title">Handcrafted Joinery & custom designs in {city} &bull; Directed by {owner_name}</p>
-        <div class="header-buttons">
-            <a href="https://wa.me/{clean_phone}" class="btn btn-accent">Request Workshop Call</a>
-            <a href="#showcase" class="btn btn-outline">Explore Craftworks</a>
-        </div>
-    </header>
+    <nav>
+        <div class="brand">{business_name.split()[0]} <span>Studios</span></div>
+        <ul class="nav-links">
+            <li><a href="#showcase">Showcase</a></li>
+            <li><a href="#selector">Finishes</a></li>
+        </ul>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult">Direct Inquiry</a>
+    </nav>
 
-    <div class="hero-banner scroll-reveal">
-        <img src="{hero_img}" alt="Artisan Carpentry">
-    </div>
+    <section class="hero scroll-reveal">
+        <div class="hero-info">
+            <h1>Artisanal Solid <span>Teak Woodwork</span> & Handcrafted Joinery</h1>
+            <p>Bespoke interior fit-outs, luxury teakwood dining collections, and heritage architectural partitions crafted directly to order by Principal Craftsman {owner_name} in {city}.</p>
+            <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Master Craftsman</a>
+        </div>
+        <div class="hero-img">
+            <img src="{hero_img}" alt="Artisan Woodwork">
+        </div>
+    </section>
 
     <section class="section scroll-reveal" id="showcase">
-        <h2 class="sec-title">Workshop Custom Craftworks</h2>
+        <h2 class="sec-title">Workshop Custom Curations</h2>
         <div class="craft-grid">
             <div class="craft-card">
                 <img src="{services_imgs[0]}" alt="Solid Teak Dining">
                 <div class="craft-info">
-                    <h3>Solid Teak Dining Sets</h3>
-                    <p>CP Teak wood dining tables with PU matte finish and velvet upholstery, built directly to order.</p>
+                    <h3>Solid Teak Dining Collections</h3>
+                    <p>Premium grade CP teakwood dining tables with hand-buffered matte finish and bespoke joinery details.</p>
                 </div>
             </div>
             <div class="craft-card">
                 <img src="{services_imgs[1]}" alt="Velvet Lounges">
                 <div class="craft-info">
-                    <h3>Bespoke Living Lounges</h3>
-                    <p>Internal framing with solid Sheesham wood, 40D high-density foam, and stain-resistant fabric.</p>
+                    <h3>Bespoke Living Suites</h3>
+                    <p>Hand-selected Sheesham structural framework combined with high-density foam and raw linen upholstery.</p>
                 </div>
             </div>
             <div class="craft-card">
                 <img src="{services_imgs[2]}" alt="Corporate Desks">
                 <div class="craft-info">
-                    <h3>Executive Managerial Desks</h3>
-                    <p>Solid Mahogany veneer desk sets with integrated wire channels and custom storage drawers.</p>
+                    <h3>Executive Managerial Suites</h3>
+                    <p>Mahogany veneer desk setups with integrated hidden wire channels, custom compartments, and satin finishes.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section scroll-reveal">
-        <h2 class="sec-title">Timber Finish Custom Selector</h2>
+    <section class="section scroll-reveal" id="selector">
+        <h2 class="sec-title">Premium Timber Finishes</h2>
         <div class="wood-selector">
-            <p style="color:#57534e; font-size:0.9rem; margin-bottom: 1.5rem;">Select a premium polish to preview wood texture & protective topcoat finish:</p>
+            <p style="color:#57534e; font-size:0.95rem; margin-bottom: 1.8rem; line-height:1.6;">Select a premium polish to preview wood texture & protective topcoat finish:</p>
             <div class="selector-row">
                 <button onclick="setWood('CP Teak Wood (Natural Gold Polish)', '#d97706')" class="select-btn active">CP Teak Natural</button>
                 <button onclick="setWood('Dark Walnut Matte Polish', '#451a03')" class="select-btn">Walnut Matte</button>
                 <button onclick="setWood('Imperial Mahogany Red Satin', '#7f1d1d')" class="select-btn">Imperial Mahogany</button>
             </div>
             <div class="selector-output">
-                <div style="font-weight: 800; font-size: 1.1rem; color:var(--primary);" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
-                <p style="color:#57534e; font-size:0.85rem; margin-top:0.3rem;">Seasoned against termites & moisture | Hand-buffed PU protective lacquer coating</p>
+                <div style="font-weight: 800; font-size: 1.15rem; color:var(--primary);" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
+                <p style="color:#78716c; font-size:0.88rem; margin-top:0.4rem; line-height:1.5;">Seasoned against termites & moisture | Hand-buffed PU protective lacquer coating</p>
             </div>
         </div>
     </section>
 
     <footer>
-        <p style="font-weight:700;">{business_name}</p>
-        <p style="font-size:0.8rem; color:#a8a29e; margin-top:0.3rem;">CP Teak Wood Registry &bull; Workshop direct pricing &bull; {city}</p>
+        <div class="footer-logo">{business_name}</div>
+        <p style="font-size:0.9rem; color:#a8a29e; margin-top:0.3rem;">Master Joinery &bull; Workshop Direct Registry &bull; {city}</p>
         <div class="footer-buttons">
-            <a href="tel:{phone}" class="btn btn-outline" style="border-color:rgba(255,255,255,0.3); color:#fff;">Call Workshop</a>
-            <a href="https://wa.me/{clean_phone}" class="btn btn-accent">WhatsApp Inquiry</a>
+            <a href="tel:{phone}" class="btn-call">Call Workshop</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
 
@@ -1048,6 +1066,9 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 </body>
 </html>"""
 
+    # ==========================================
+    # TEMPLATE 4: INDUSTRIAL MACHINERY & CNC
+    # ==========================================
     elif "machinery" in ind or "tool" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
@@ -1066,60 +1087,69 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
         :root {{ 
-            --bg: #f0f4f8; 
-            --primary: #0f172a; 
-            --accent: #0284c7; 
-            --border: #cbd5e1; 
-            --glow-primary: rgba(2, 132, 199, 0.12);
-            --glow-secondary: rgba(15, 23, 42, 0.08);
+            --bg: #030712; 
+            --primary: #f8fafc; 
+            --accent: #38bdf8; 
+            --accent-sec: #0284c7; 
+            --card-bg: #0f172a; 
+            --border: rgba(255, 255, 255, 0.08); 
+            --glow-primary: rgba(56, 189, 248, 0.15);
+            --glow-secondary: rgba(99, 102, 241, 0.08);
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
         {glow_bg_styles}
 
-        /* Box Grid layout navigation */
-        nav {{ display: grid; grid-template-columns: 1fr auto; border-bottom: 2px solid var(--primary); background: #fff; padding: 1rem 2rem; align-items: center; }}
-        .logo {{ font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; }}
-        .btn-quote {{ background: var(--primary); color: #fff; text-decoration: none; padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; }}
+        /* Modern Glassmorphic Navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
+        .logo {{ font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }}
+        .logo span {{ color: var(--accent); }}
+        .btn-quote {{ background: var(--accent); color: #fff; text-decoration: none; padding: 0.6rem 1.4rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; transition: all 0.3s; }}
+        .btn-quote:hover {{ background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }}
 
         /* Technical Hero Header Grid */
-        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-bottom: 2px solid var(--primary); background: #fff; }}
-        .hero-info {{ padding: 3rem; display: flex; flex-direction: column; justify-content: center; border-right: 2px solid var(--primary); }}
-        .hero-info h1 {{ font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; }}
-        .hero-info p {{ color: #475569; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }}
-        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; max-height: 380px; }}
+        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 3rem; padding: 5rem 2.5rem; align-items: center; max-width: 1200px; margin: 0 auto; }}
+        .hero-info {{ display: flex; flex-direction: column; justify-content: center; }}
+        .hero-info h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; color: #fff; }}
+        .hero-info p {{ color: #94a3b8; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }}
+        .hero-img {{ border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); }}
+        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 
         /* Rigid Specification Cards Grid */
-        .section {{ padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }}
-        .sec-title {{ font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; }}
+        .section {{ padding: 6rem 2.5rem; max-width: 1200px; margin: 0 auto; }}
+        .sec-title {{ font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 3.5rem; text-align: center; color: #fff; letter-spacing: 0.5px; }}
         .spec-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
-        .spec-card {{ background: #fff; border: 2px solid var(--primary); border-radius: 4px; padding: 2rem; }}
-        .spec-card h3 {{ font-size: 1.1rem; text-transform: uppercase; margin-bottom: 0.8rem; color: var(--accent); }}
-        .spec-card p {{ font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 1.2rem; }}
-        .spec-table {{ width: 100%; font-size: 0.75rem; border-collapse: collapse; }}
-        .spec-table td {{ padding: 0.4rem 0; border-bottom: 1px solid #e2e8f0; }}
-        .spec-table td:nth-child(even) {{ text-align: right; font-weight: 700; }}
+        .spec-card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 2.5rem; transition: all 0.3s ease; }}
+        .spec-card:hover {{ border-color: var(--accent); box-shadow: 0 10px 30px rgba(56, 189, 248, 0.12); transform: translateY(-5px); }}
+        .spec-card h3 {{ font-size: 1.25rem; text-transform: uppercase; margin-bottom: 1rem; color: #fff; font-weight: 800; }}
+        .spec-card p {{ font-size: 0.88rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }}
+        .spec-table {{ width: 100%; font-size: 0.8rem; border-collapse: collapse; }}
+        .spec-table td {{ padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #94a3b8; }}
+        .spec-table td:nth-child(even) {{ text-align: right; font-weight: 700; color: #fff; }}
 
         /* Footer */
-        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
-        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
-        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.8rem; }}
-        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.8rem; }}
+        footer {{ padding: 5rem 2rem; background: #070a12; color: #fff; text-align: center; border-top: 1px solid var(--border); }}
+        .footer-logo {{ font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; transition: all 0.3s; }}
+        .btn-call:hover {{ background: rgba(255,255,255,0.05); }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; transition: all 0.3s; }}
+        .btn-wa:hover {{ background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }}
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="logo">{business_name} &bull; CNC Industrial</div>
+        <div class="logo">{business_name.split()[0]} <span>CNC</span></div>
         <a href="https://wa.me/{clean_phone}" class="btn-quote">Consult Director</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-info">
-            <span style="font-size:0.72rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.5rem;">ISO 9001:2026 Certified Supplier</span>
+            <span style="font-size:0.75rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.8rem; letter-spacing: 1px;">ISO 9001:2026 Certified Supplier</span>
             <h1>High Precision CNC VMC Machinery</h1>
-            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in {city}.</p>
+            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in {city}. Managed by {owner_name}.</p>
             <a href="https://wa.me/{clean_phone}" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
         </div>
         <div class="hero-img">
@@ -1161,8 +1191,8 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     </section>
 
     <footer>
-        <p style="font-weight:800;">{business_name}</p>
-        <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: {owner_name} &bull; {city}</p>
+        <div class="footer-logo">{business_name}</div>
+        <p style="font-size:0.85rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: {owner_name} &bull; {city}</p>
         <div class="footer-buttons">
             <a href="tel:{phone}" class="btn-call">Direct Line</a>
             <a href="https://wa.me/{clean_phone}" class="btn-wa">Request Technical Specs &rarr;</a>
@@ -1171,6 +1201,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     {glow_bg_js}
 </body>
 </html>"""
+
     elif "chartered" in ind or "tax" in ind or "accountant" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
