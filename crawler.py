@@ -379,747 +379,197 @@ def shorten_url(long_url):
 
 def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 98201 55667"):
     """
-    Generates a top-tier institutional/agency-grade enterprise website.
-    Features professional typography (Syne + Inter + Playfair Display),
-    asymmetrical layout grids, interactive project matrices with detailed specs,
-    live investment calculators, photo lightbox modals, and direct phone/WhatsApp links.
+    Generates a top-tier, structurally and visually unique premium HTML website mockup.
+    Each of the 5 main industries is custom-designed with its own DOM structure,
+    navigation style, grid layouts, and color tokens so they look completely distinct.
     """
     ind = industry.lower()
     biz_lower = business_name.lower()
     clean_phone = re.sub(r'\D', '', str(phone))
 
+    # Pre-fetch dynamic images from local scraper pool
+    hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
+    services_imgs = []
+    try:
+        imgs = get_random_images(industry, count=4)
+        if imgs:
+            hero_img = imgs[0]
+            services_imgs = imgs[1:]
+    except Exception:
+        pass
+
+    # Ensure we have at least 3 fallback image URLs
+    while len(services_imgs) < 3:
+        services_imgs.append("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab")
+
+    # ==========================================
+    # TEMPLATE 1: ARCHITECTS & INTERIOR DESIGN
+    # ==========================================
     if "architect" in ind or "interior" in ind:
-        primary_color = "#0f172a"    # Slate Noir
-        accent_color = "#3b82f6"     # Sapphire Azure
-        accent_warm = "#d97706"      # Champagne Gold
-        bg_surface = "#f8fafc"       # Porcelain Light
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        tagline = f"Architectural Planning, Structural Engineering & Luxury Interior Fit-Outs in {city}"
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
+                "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9",
+                "https://images.unsplash.com/photo-1512917774080-9991f1c4c750"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | Principal Architects in {city}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #0b0f19; --primary: #ffffff; --accent: #d4af37; --card-bg: #131a2b; --text-muted: #8e9bb3; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
-        if "interior" in biz_lower or "space" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1400&q=85"
-        elif "blueprint" in biz_lower or "atelier" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=85"
-        else:
-            hero_img = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1400&q=85"
+        /* Modern Side Navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(11,15,25,0.85); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 100; }}
+        .brand {{ font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #fff; text-transform: uppercase; }}
+        .brand span {{ color: var(--accent); }}
+        .nav-links {{ display: flex; gap: 2rem; list-style: none; }}
+        .nav-links a {{ color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: color 0.3s; }}
+        .nav-links a:hover {{ color: #fff; }}
+        .btn-cta {{ background: var(--accent); color: #000; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 800; font-size: 0.85rem; border: none; cursor: pointer; }}
 
-        services = [
-            {"title": f"{business_name.split()[0]} Luxury Villa Estates", "category": "residential", "location": f"Bandra West, {city}", "area": "8,500 Sq. Ft", "year": "2025 Handover", "desc": "Photorealistic 4K architectural elevations, Vastu-compliant structural planning, and bespoke interior execution.", "badge": "CoA License No. CA/2012/58914", "img": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80"},
-            {"title": f"{city} Corporate Headquarters", "category": "commercial", "location": f"BKC Financial Center, {city}", "area": "25,000 Sq. Ft", "year": "2026 Active Build", "desc": "Turnkey commercial workspace layout, acoustic glass partitioning, modular workstations, and boardroom acoustic control.", "badge": "100% On-Time Completion SLA", "img": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Penthouse Sky Deck & Pool Villa", "category": "outdoor", "desc": "Teak wood decking, weather-resistant outdoor lounge joinery, automated facade illumination, and custom infinity plunge pools.", "location": f"Worli Sea Face, {city}", "area": "4,200 Sq. Ft", "year": "2025 Handover", "badge": "Custom VR 3D Walkthrough", "img": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"}
-        ]
-        categories = [("all", "All Case Studies"), ("residential", "Luxury Residential"), ("commercial", "Corporate Workspaces"), ("outdoor", "Penthouses & Decks")]
-        stat_1, stat_2, stat_3 = "150+ Built Landmark Projects", "Council of Architecture Accredited", "4.96 ★ Peer Rating"
-        owner_title = f"Principal Architect {owner_name}"
-        owner_bio = f"Lead Architect & Founder at {business_name}, {city}. Registered Member of the Council of Architecture (CoA) with 14+ years crafting iconic private residences and corporate headquarters in {city}."
-        testimonial = f"\"{owner_name} designed our luxury bungalow in {city} with incredible precision. The 3D VR simulation was identical to the final handed-over build!\" — Ananya & Rahul Sharma"
+        /* Full Screen Hero with Text Overlay */
+        .hero {{ position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('{hero_img}') no-repeat center center/cover; padding: 0 1rem; }}
+        .hero-content {{ max-width: 900px; }}
+        .hero-content h1 {{ font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.1; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: -1px; }}
+        .hero-content h1 span {{ color: var(--accent); }}
+        .hero-content p {{ color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; line-height: 1.6; max-width: 650px; margin-inline: auto; }}
 
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom: 1.8rem;">
-                <div>
-                    <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800;">Turnkey Investment & Area Estimator</h3>
-                    <p style="color: #64748b; font-size: 0.95rem; margin-top: 0.3rem;">Calculate estimated turnkey architectural planning and fit-out budget in {city}.</p>
+        /* Bento Grid Layout Portfolio */
+        .section {{ padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }}
+        .section-header {{ margin-bottom: 3rem; text-align: center; }}
+        .section-header h2 {{ font-family: 'Syne', sans-serif; font-size: 2.2rem; margin-bottom: 0.5rem; text-transform: uppercase; }}
+        .section-header p {{ color: var(--text-muted); }}
+
+        .bento-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }}
+        .bento-card {{ background: var(--card-bg); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); transition: transform 0.3s; position: relative; cursor: pointer; }}
+        .bento-card:hover {{ transform: translateY(-5px); }}
+        .bento-card img {{ width: 100%; height: 260px; object-fit: cover; filter: grayscale(30%); transition: filter 0.3s; }}
+        .bento-card:hover img {{ filter: grayscale(0%); }}
+        .bento-content {{ padding: 1.5rem; }}
+        .bento-tag {{ font-size: 0.75rem; color: var(--accent); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }}
+        .bento-content h3 {{ font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }}
+        .bento-content p {{ color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }}
+
+        /* Interactive 3D Budget Estimator */
+        .calc-box {{ background: var(--card-bg); border-radius: 8px; padding: 2.5rem; border: 1px solid rgba(255,255,255,0.05); margin-top: 3rem; }}
+        .calc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-bottom: 2rem; }}
+        .calc-field {{ display: flex; flex-direction: column; gap: 0.5rem; }}
+        .calc-field label {{ font-size: 0.85rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); }}
+        select, input[type="range"] {{ width: 100%; padding: 0.8rem; background: #0b0f19; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; outline: none; }}
+        .calc-result {{ background: #0b0f19; padding: 1.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-left: 4px solid var(--accent); }}
+        .calc-val {{ font-family: 'Syne', sans-serif; font-size: 1.8rem; color: var(--accent); font-weight: 800; }}
+
+        /* Footer contact */
+        footer {{ padding: 4rem 2rem; border-top: 1px solid rgba(255,255,255,0.08); text-align: center; background: #070a12; }}
+        .footer-logo {{ font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 1rem; }}
+        .footer-owner {{ font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }}
+        .btn-call {{ background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1.5rem; text-decoration: none; font-weight: 700; border-radius: 4px; }}
+        .btn-call:hover {{ background: rgba(255,255,255,0.05); }}
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand">{business_name.split()[0]} <span>Studio</span></div>
+        <ul class="nav-links">
+            <li><a href="#projects">Portfolio</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#estimator">Estimator</a></li>
+        </ul>
+        <a href="https://wa.me/{clean_phone}" class="btn-cta">Consult Architect</a>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Crafting Iconic <span>Landmarks</span> in {city}</h1>
+            <p>Architectural Planning, Structural Engineering & Luxury Interior Fit-Outs built to elevate modern spatial experiences.</p>
+            <a href="#estimator" class="btn-cta">Start Project Planner</a>
+        </div>
+    </section>
+
+    <section class="section" id="projects">
+        <div class="section-header">
+            <h2>Featured Built Estates</h2>
+            <p>Selected architectural blueprints and turnkey fit-outs successfully handed over in {city}.</p>
+        </div>
+        <div class="bento-grid">
+            <div class="bento-card">
+                <img src="{services_imgs[0]}" alt="Luxury Estates">
+                <div class="bento-content">
+                    <span class="bento-tag">Residential</span>
+                    <h3>Premium Villa Estate</h3>
+                    <p>Vastu-compliant architectural plans and luxury interior joinery curation.</p>
                 </div>
-                <div style="background:#e0e7ff; color:#3730a3; padding:0.4rem 1rem; border-radius:20px; font-weight:700; font-size:0.8rem;">Live Pricing Engine v4.2</div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Property Classification:</label>
-                    <select id="propType" onchange="calcArchCost()" class="input-field" style="margin-top: 0.5rem;">
+            <div class="bento-card">
+                <img src="{services_imgs[1]}" alt="Commercial">
+                <div class="bento-content">
+                    <span class="bento-tag">Commercial</span>
+                    <h3>Corporate Headquarters</h3>
+                    <p>Acoustic glass partitioning, modular layouts, and executive suites execution.</p>
+                </div>
+            </div>
+            <div class="bento-card">
+                <img src="{services_imgs[2]}" alt="Urban Layouts">
+                <div class="bento-content">
+                    <span class="bento-tag">Outdoor</span>
+                    <h3>Penthouse Sky Deck</h3>
+                    <p>Solid teak wood decking, weather-resistant joinery, and infinity plunge pool layouts.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="estimator">
+        <div class="section-header">
+            <h2>Spatial Project Planner</h2>
+            <p>Calculate custom turnkey architectural planning and fit-out budget in {city}.</p>
+        </div>
+        <div class="calc-box">
+            <div class="calc-grid">
+                <div class="calc-field">
+                    <label>Property Classification</label>
+                    <select id="propType" onchange="calcArchCost()">
                         <option value="4200">Luxury Independent Bungalow / Villa</option>
                         <option value="2900">Premium Penthouse Apartment</option>
                         <option value="3400">Corporate Office Fit-Out</option>
                     </select>
                 </div>
+                <div class="calc-field">
+                    <label>Built-Up Area: <span id="areaVal" style="color:var(--accent); font-weight:800;">2,500 Sq. Ft</span></label>
+                    <input type="range" id="areaRange" min="1000" max="10000" step="250" value="2500" oninput="calcArchCost()">
+                </div>
+            </div>
+            <div class="calc-result">
                 <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Built-Up Area: <span id="areaVal" style="color: var(--accent); font-weight: 800;">2,500 Sq. Ft</span></label>
-                    <input type="range" id="areaRange" min="1000" max="10000" step="250" value="2500" oninput="calcArchCost()" style="width: 100%; margin-top: 1rem; accent-color: var(--accent);">
+                    <p style="font-size:0.8rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Estimated Turnkey Capital Budget:</p>
+                    <div id="estResult" class="calc-val">₹1.05 Crore</div>
                 </div>
-            </div>
-            <div style="margin-top: 2rem; background: #f1f5f9; padding: 1.6rem 2rem; border-radius: 16px; border: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.2rem;">
-                <div>
-                    <div style="font-size: 0.85rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Estimated Turnkey Capital Budget:</div>
-                    <div id="estResult" style="font-size: 2.2rem; font-weight: 800; color: #0f172a; font-family: 'Syne', sans-serif;">₹1.05 Crore</div>
-                </div>
-                <button onclick="toggleModal()" class="btn-dark" style="border: none; cursor: pointer;">Schedule Technical Consultation &rarr;</button>
-            </div>
-        </div>
-        """
-
-    elif "wedding" in ind or "event" in ind:
-        primary_color = "#1e1b4b"    # Deep Royal Indigo
-        accent_color = "#be123c"     # Rose Crimson
-        accent_warm = "#d97706"      # Imperial Gold
-        bg_surface = "#faf7f5"       # Pearl Soft Ivory
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        tagline = f"Bespoke Destination Weddings, Palace Scenography & Royal Events in {city}"
-        
-        if "royal" in biz_lower or "grandeur" in biz_lower or "regal" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1545232979-fbf34fe37b38?auto=format&fit=crop&w=1400&q=85"
-        elif "bliss" in biz_lower or "divine" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1400&q=85"
-        else:
-            hero_img = "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1400&q=85"
-
-        services = [
-            {"title": f"{business_name.split()[0]} Rajasthan Palace Curation", "category": "palace", "location": f"Udaipur & {city}", "area": "3-Day Royal Gala", "year": "2025 Curation", "desc": "Turnkey heritage palace bookings, royal elephant welcome processions, and multi-day hospitality for prominent families.", "badge": "5-Star Heritage Partner", "img": "https://images.unsplash.com/photo-1545232979-fbf34fe37b38?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Bespoke Floral Scenography & Mandap", "category": "decor", "location": f"South {city} Lawns", "area": "60ft LED Stage", "year": "2025 Curation", "desc": "Custom 60ft LED backdrop stages, imported orchid mandap setups, ambient warm lighting, and pyrotechnic entries.", "badge": "Custom Scenography", "img": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Celebrity Artists & Gourmet Royal Feast", "category": "catering", "location": f"Grand Hyatt, {city}", "area": "1,200 Guests", "year": "2025 Curation", "desc": "A-list Bollywood singer bookings, live Sufi bands, and 7-course multi-cuisine gourmet catering curation.", "badge": "5-Star Gourmet Catering", "img": "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=800&q=80"}
-        ]
-        categories = [("all", "All Celebrations"), ("palace", "Palace Destinations"), ("decor", "Floral Scenography"), ("catering", "Royal Feasts")]
-        stat_1, stat_2, stat_3 = "250+ Royal Weddings", "Exclusive Palace Partners", "100% Flawless Execution"
-        owner_title = f"Lead Event Director {owner_name}"
-        owner_bio = f"Founder & Principal Curator at {business_name}, {city}. Specializing in grand luxury destination weddings, royal galas, and bespoke scenography."
-        testimonial = f"\"{owner_name} and the team curated our dream destination wedding in {city}. Every single function was executed with royal perfection!\" — Vikramaditya & Priya Kapoor"
-
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom: 1.8rem;">
-                <div>
-                    <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800;">Royal Wedding Guest & Budget Estimator</h3>
-                    <p style="color: #64748b; font-size: 0.95rem; margin-top: 0.3rem;">Estimate total destination wedding curation budget in {city}.</p>
-                </div>
-                <div style="background:#ffe4e6; color:#9f1239; padding:0.4rem 1rem; border-radius:20px; font-weight:700; font-size:0.8rem;">Royal Estimator v4.2</div>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Venue Category:</label>
-                    <select id="weddingType" onchange="calcWeddingCost()" class="input-field" style="margin-top: 0.5rem;">
-                        <option value="6000">Heritage Palace / 5-Star Luxury Resort</option>
-                        <option value="3500">Luxury Banquet & Royal Lawns</option>
-                        <option value="9000">International / Island Destination</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Expected Guests: <span id="guestVal" style="color: var(--accent); font-weight: 800;">400 Guests</span></label>
-                    <input type="range" id="guestRange" min="100" max="1500" step="50" value="400" oninput="calcWeddingCost()" style="width: 100%; margin-top: 1rem; accent-color: var(--accent);">
-                </div>
-            </div>
-            <div style="margin-top: 2rem; background: #fff1f2; padding: 1.6rem 2rem; border-radius: 16px; border: 1px solid #fecdd3; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.2rem;">
-                <div>
-                    <div style="font-size: 0.85rem; color: #9f1239; font-weight: 700; text-transform: uppercase;">Estimated Full Curation Budget:</div>
-                    <div id="weddingResult" style="font-size: 2.2rem; font-weight: 800; color: #be123c; font-family: 'Syne', sans-serif;">₹24.00 Lakhs</div>
-                </div>
-                <button onclick="toggleModal()" class="btn-dark" style="border: none; cursor: pointer; background: #be123c;">Reserve Dates with {owner_name.split()[0]} &rarr;</button>
-            </div>
-        </div>
-        """
-
-    elif "furniture" in ind or "woodwork" in ind:
-        primary_color = "#064e3b"    # Deep Forest Teak
-        accent_color = "#047857"     # Emerald Green
-        accent_warm = "#d97706"      # Amber Teak
-        bg_surface = "#f4f8f6"       # Mint Porcelain
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        tagline = f"Handcrafted Solid Teak Furniture & Custom Architectural Joinery in {city}"
-        
-        if "teak" in biz_lower or "wood" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=1400&q=85"
-        elif "oak" in biz_lower or "maharaja" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=1400&q=85"
-        else:
-            hero_img = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1400&q=85"
-
-        services = [
-            {"title": f"{business_name.split()[0]} Solid Teak Dining Sets", "category": "dining", "location": f"Workshop Studio, {city}", "area": "8-Seater Set", "year": "2025 Build", "desc": "8-seater CP Teak wood dining tables with velvet upholstered chairs and PU matte finish, built directly in {city}.", "badge": "Lifetime Wood Warranty", "img": "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Custom L-Shape Velvet Lounges", "category": "living", "location": f"Showroom, {city}", "area": "Custom Size", "year": "2025 Build", "desc": "Solid Sheesham hardwood internal framing, 40D Sleepwell foam, and stain-resistant imported upholstery fabrics.", "badge": "Custom Dimensions", "img": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Executive Mahogany Office Desks", "category": "office", "location": f"Corporate Fit-Out, {city}", "area": "Managerial Desk", "year": "2025 Build", "desc": "Bespoke managerial desks with integrated wire grommets, leatherette inlays, and lockable storage drawers.", "badge": "Direct Workshop Price", "img": "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?auto=format&fit=crop&w=800&q=80"}
-        ]
-        categories = [("all", "All Craftworks"), ("dining", "Teak Dining Sets"), ("living", "Velvet Lounges"), ("office", "Executive Desks")]
-        stat_1, stat_2, stat_3 = "2,500+ Crafted Pieces", "100% Solid Teak Wood", "Direct Workshop Rates"
-        owner_title = f"Master Craftsman {owner_name}"
-        owner_bio = f"Proprietor & Master Craftsman at {business_name}, {city}. Handcrafting solid teak and mahogany furniture directly from our workshop with zero retail markup."
-        testimonial = f"\"{owner_name}'s workshop built a customized teak dining table for our home in {city}. The grain texture and PU polish are divine!\" — Col. Alok Mathur"
-
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.4rem;">🛋️ Interactive Wood & Polish Finish Selector</h3>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.6rem;">Select a premium polish to preview wood texture & protective topcoat finish.</p>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;">
-                <button onclick="setWood('CP Teak Wood (Natural Gold Polish)', '#d97706')" class="tab-btn active">Natural Teak Gold</button>
-                <button onclick="setWood('Dark Walnut Matte Polish', '#451a03')" class="tab-btn">Dark Walnut Matte</button>
-                <button onclick="setWood('Imperial Mahogany Red Satin', '#7f1d1d')" class="tab-btn">Imperial Mahogany</button>
-            </div>
-            <div style="background: #ecfdf5; padding: 1.5rem 1.8rem; border-radius: 16px; border-left: 5px solid #047857;">
-                <div style="color: #0f172a; font-weight: 800; font-size: 1.15rem;" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
-                <div style="color: #475569; font-size: 0.9rem; margin-top: 0.4rem;">Seasoned against termites & moisture | Hand-buffed PU lacquer finish</div>
-            </div>
-        </div>
-        """
-
-    elif "machinery" in ind or "tool" in ind:
-        primary_color = "#0f172a"
-        accent_color = "#0284c7"
-        accent_warm = "#2563eb"
-        bg_surface = "#f4f8fb"
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        tagline = f"High-Precision CNC Machining Centers, Industrial Tools & Equipment in {city}"
-        
-        if "precision" in biz_lower or "cnc" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1400&q=85"
-        elif "tool" in biz_lower or "indotech" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=1400&q=85"
-        else:
-            hero_img = "https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=1400&q=85"
-
-        services = [
-            {"title": f"{business_name.split()[0]} 5-Axis CNC VMC Centers", "category": "cnc", "location": f"Industrial Area, {city}", "area": "5-Axis Machine", "year": "2025 Dispatch", "desc": "Heavy-duty slant bed CNC lathes and 5-axis vertical machining centers engineered for {city} industrial plants.", "badge": "ISO 9001 Certified", "img": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Hydraulic Sheet Metal Presses", "category": "hydraulic", "location": f"Manufacturing Plant, {city}", "area": "500T Capacity", "year": "2025 Dispatch", "desc": "100T to 500T hydraulic presses, CNC shearing machines, and press brakes engineered for metal fabrication.", "badge": "Pan-India Installation", "img": "https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Carbide Cutting Tooling & Inserts", "category": "tooling", "location": f"Warehouse, {city}", "area": "Stock Ready", "year": "Same-Day Dispatch", "desc": "High-speed steel carbide inserts, digital micrometers, and precision height gauges for workshop QC.", "badge": "ISO Certified", "img": "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80"}
-        ]
-        categories = [("all", "All Machinery"), ("cnc", "CNC VMC Centers"), ("hydraulic", "Hydraulic Presses"), ("tooling", "Carbide Tooling")]
-        stat_1, stat_2, stat_3 = "1,000+ CNC Machines Sold", "24/7 Field Engineers", "Direct Importer"
-        owner_title = f"Managing Director {owner_name}"
-        owner_bio = f"Managing Director at {business_name}, {city}. Mechanical Engineer supplying high-precision industrial CNC machinery and tooling across India."
-        testimonial = f"\"{owner_name}'s firm supplied all our VMC machines in {city}. Prompt installation, genuine controllers, and outstanding technical support.\" — Rajesh Mehta, Works Director"
-
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.4rem;">⚙️ Interactive CNC Machine Technical Specs</h3>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.6rem;">Technical specification parameters for industrial manufacturing in {city}.</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem;">
-                <div style="background: #f0f9ff; padding: 1.4rem; border-radius: 14px; border-top: 4px solid #0284c7;">
-                    <div style="color: #64748b; font-size: 0.8rem; font-weight: 700;">Spindle Speed:</div>
-                    <div style="color: #0f172a; font-weight: 800; font-size: 1.4rem;">12,000 RPM</div>
-                </div>
-                <div style="background: #f0f9ff; padding: 1.4rem; border-radius: 14px; border-top: 4px solid #0284c7;">
-                    <div style="color: #64748b; font-size: 0.8rem; font-weight: 700;">CNC Controller:</div>
-                    <div style="color: #0f172a; font-weight: 800; font-size: 1.4rem;">Siemens / Fanuc</div>
-                </div>
-                <div style="background: #f0f9ff; padding: 1.4rem; border-radius: 14px; border-top: 4px solid #0284c7;">
-                    <div style="color: #64748b; font-size: 0.8rem; font-weight: 700;">ATC Tool Capacity:</div>
-                    <div style="color: #0f172a; font-weight: 800; font-size: 1.4rem;">24 Tools Arm-Type</div>
-                </div>
-            </div>
-        </div>
-        """
-
-    elif "chartered" in ind or "tax" in ind or "accountant" in ind:
-        primary_color = "#047857"
-        accent_color = "#059669"
-        accent_warm = "#1e3a8a"
-        bg_surface = "#f4f8f6"
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        tagline = f"Statutory Financial Audit, Corporate GST & Income Tax Advisory in {city}"
-        
-        if "tax" in biz_lower or "agrawal" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1400&q=85"
-        elif "kapoor" in biz_lower or "jain" in biz_lower:
-            hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=85"
-        else:
-            hero_img = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1400&q=85"
-
-        services = [
-            {"title": f"{business_name.split()[0]} Corporate Tax & GST", "category": "gst", "location": f"Corporate Office, {city}", "area": "Annual Retainer", "year": "2025 Compliance", "desc": "GST registration, monthly GSTR-1 & 3B filings, annual GST audits, and tax litigation representation in {city}.", "badge": "100% Compliance SLA", "img": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Pvt Ltd & LLP Incorporation", "category": "setup", "location": f"ROC {city}", "area": "Fast Setup", "year": "2025 Execution", "desc": "Fast company incorporation, ROC filings, secretarial compliance, and startup valuation certifications.", "badge": "3-Day Fast Setup", "img": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"},
-            {"title": "Statutory Financial Audits", "category": "audit", "location": f"Practice Office, {city}", "area": "Statutory Audit", "year": "2025 Certification", "desc": "Balance sheet audit certification, internal financial controls audit, and corporate M&A due diligence.", "badge": "ICAI Certified", "img": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80"}
-        ]
-        categories = [("all", "All Practices"), ("gst", "Corporate Tax & GST"), ("setup", "Company Setup"), ("audit", "Statutory Audits")]
-        stat_1, stat_2, stat_3 = "500+ Corporate Retainers", "15+ Years Practice", "ICAI Certified Firm"
-        owner_title = f"Senior Partner CA {owner_name}"
-        owner_bio = f"Senior Partner & FCA at {business_name}, {city}. Fellow Member of the ICAI specializing in corporate taxation, GST audits, and corporate restructuring."
-        testimonial = f"\"CA {owner_name} has managed our corporate tax filings and GST audits in {city} for 6 years. Proactive, reliable, and highly knowledgeable.\" — Suresh Patel, CFO"
-
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.4rem;">📊 Interactive Corporate Retainer Calculator</h3>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.6rem;">Estimate annual corporate compliance & retainer fees for your business in {city}.</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Annual Turnover Range:</label>
-                    <select id="caTurnover" onchange="calcCATax()" class="input-field" style="margin-top: 0.5rem;">
-                        <option value="2500">Up to ₹50 Lakhs (GST + IT Filing)</option>
-                        <option value="5000">₹50 Lakhs to ₹2 Crore (Full Retainer)</option>
-                        <option value="12000">Above ₹2 Crore (Statutory Audit + GST)</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Monthly Invoices: <span id="invVal" style="color: var(--accent); font-weight: 800;">100 Invoices</span></label>
-                    <input type="range" id="invRange" min="20" max="500" step="20" value="100" oninput="calcCATax()" style="width: 100%; margin-top: 1rem; accent-color: var(--accent);">
-                </div>
-            </div>
-            <div style="margin-top: 2rem; background: #f0fdf4; padding: 1.6rem 2rem; border-radius: 16px; border: 1px solid #bbf7d0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.2rem;">
-                <div>
-                    <div style="font-size: 0.85rem; color: #047857; font-weight: 700; text-transform: uppercase;">Estimated Monthly Retainer Fee:</div>
-                    <div id="caResult" style="font-size: 2.2rem; font-weight: 800; color: #047857; font-family: 'Syne', sans-serif;">₹6,000 / Month</div>
-                </div>
-                <button onclick="toggleModal()" class="btn-dark" style="border: none; cursor: pointer; background: #047857;">Consult CA {owner_name.split()[0]} &rarr;</button>
-            </div>
-        </div>
-        """
-
-    else:  # Generic fallback theme (tailored dynamically to any industry/genre!)
-        primary_color = "#1e293b"    # Charcoal Slate
-        accent_color = "#0f766e"     # Deep Teal
-        accent_warm = "#b45309"      # Rich Amber
-        bg_surface = "#f8fafc"
-        card_bg = "#ffffff"
-        border_color = "#e2e8f0"
-        
-        clean_ind = industry.title()
-        tagline = f"Premium {clean_ind} & Professional Turnkey Operations in {city}"
-        hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=85"
-        
-        services = [
-            {
-                "title": f"Bespoke {clean_ind} Solutions", 
-                "category": "consulting", 
-                "location": f"Main District, {city}", 
-                "area": "Full Turnkey", 
-                "year": "2026 Season", 
-                "desc": f"Tailored planning and end-to-end execution of professional {industry} services for premium clients in {city}.", 
-                "badge": "Top Rated Provider", 
-                "img": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80"
-            },
-            {
-                "title": f"Premium {clean_ind} Maintenance", 
-                "category": "support", 
-                "location": f"Regional Area, {city}", 
-                "area": "Annual Support", 
-                "year": "2026 Execution", 
-                "desc": f"Round-the-clock support, quality control checks, and certified executive management of your {industry} requirements.", 
-                "badge": "Premium Quality SLA", 
-                "img": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80"
-            },
-            {
-                "title": f"Executive {clean_ind} Consulting", 
-                "category": "strategy", 
-                "location": f"Corporate Desk, {city}", 
-                "area": "Audited Operations", 
-                "year": "2026 Certification", 
-                "desc": f"Technical audit and expert advisory to optimize and certify all parameters of your {industry} systems.", 
-                "badge": "Certified Advisory", 
-                "img": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80"
-            }
-        ]
-        
-        categories = [
-            ("all", "All Operations"), 
-            ("consulting", "Bespoke Solutions"), 
-            ("support", "Premium Support"), 
-            ("strategy", "Executive Advisory")
-        ]
-        
-        stat_1, stat_2, stat_3 = "500+ Local Projects", "Certified Partners", "100% Satisfaction Guarantee"
-        owner_title = f"Principal Director {owner_name}"
-        owner_bio = f"Director & Chief Advisor at {business_name}, {city}. Leading certified {industry} operations with 12+ years of local execution experience."
-        testimonial = f"\"The team at {business_name} delivered outstanding {industry} results. Highly professional and seamless communication throughout!\" — Rajesh Sharma, Director"
-        
-        interactive_tool_html = f"""
-        <div class="estimator-container reveal">
-            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.4rem;">📊 Turnkey {clean_ind} Service Calculator</h3>
-            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.6rem;">Estimate monthly or turnkey service budgets in {city}.</p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Service Scope:</label>
-                    <select id="genericService" onchange="calcGenericCost()" class="input-field" style="margin-top: 0.5rem;">
-                        <option value="1500">Essential Planning & Setup</option>
-                        <option value="4500">Premium Comprehensive Plan</option>
-                        <option value="9500">Enterprise Turnkey Operations</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="color: #334155; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Estimated Size: <span id="genericSize" style="color: var(--accent); font-weight: 800;">10 Units</span></label>
-                    <input type="range" id="genericRange" min="2" max="100" step="2" value="10" oninput="calcGenericCost()" style="width: 100%; margin-top: 1rem; accent-color: var(--accent);">
-                </div>
-            </div>
-            <div style="margin-top: 2rem; background: #f0fdf4; padding: 1.6rem 2rem; border-radius: 16px; border: 1px solid #99f6e4; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.2rem;">
-                <div>
-                    <div style="font-size: 0.85rem; color: #0f766e; font-weight: 700; text-transform: uppercase;">Estimated Project Budget:</div>
-                    <div id="genericResult" style="font-size: 2.2rem; font-weight: 800; color: #0f766e; font-family: 'Syne', sans-serif;">₹15,000</div>
-                </div>
-                <button onclick="toggleModal()" class="btn-dark" style="border: none; cursor: pointer; background: #0f766e;">Request Full Quote &rarr;</button>
-            </div>
-        </div>
-        
-        <script>
-            function calcGenericCost() {{
-                var base = parseFloat(document.getElementById("genericService").value);
-                var size = parseFloat(document.getElementById("genericRange").value);
-                document.getElementById("genericSize").innerText = size + " Units";
-                var total = base * size;
-                document.getElementById("genericResult").innerText = "₹" + total.toLocaleString('en-IN');
-            }}
-        </script>
-        """
-
-    # Inject dynamic images from pool if available
-    try:
-        target_niche = industry
-        # Ensure it matches one of our target niches
-        valid_niches = [
-            "architects & interior design studios",
-            "wedding & luxury event planners",
-            "custom furniture & woodwork studios",
-            "industrial machinery & tool suppliers",
-            "chartered accountants & tax advisory firms"
-        ]
-        if target_niche in valid_niches:
-            imgs = get_random_images(target_niche, count=len(services) + 1)
-            if imgs and len(imgs) >= len(services) + 1:
-                hero_img = imgs[0] + "?auto=format&fit=crop&w=1400&q=85"
-                for idx in range(len(services)):
-                    services[idx]["img"] = imgs[idx+1] + "?auto=format&fit=crop&w=800&q=80"
-    except Exception as img_err:
-        print(f"  [!] Dynamic image injection note: {img_err}")
-
-    # Pre-compute complex HTML loops to avoid Python f-string backslash/quote limitations in older versions (e.g. 3.11)
-    category_buttons = "".join([f'<button onclick="filterCategory(\'{cat[0]}\')" class="filter-tab {"active" if i==0 else ""}" data-cat="{cat[0]}">{cat[1]}</button>' for i, cat in enumerate(categories)])
-    
-    services_html = "".join([f'''
-    <div class="card reveal" data-category="{s["category"]}" onclick="openLightbox(\'{s["img"]}\')">
-        <img src="{s["img"]}" class="card-img" alt="{s["title"]}" loading="lazy">
-        <div class="card-content">
-            <div>
-                <div class="spec-list">
-                    <span class="spec-item">📍 {s["location"]}</span>
-                    <span class="spec-item">📐 {s["area"]}</span>
-                    <span class="spec-item">🗓️ {s["year"]}</span>
-                </div>
-                <h3>{s["title"]}</h3>
-                <p>{s["desc"]}</p>
-            </div>
-            <div class="card-badge">{s["badge"]} &bull; Zoom 🔍</div>
-        </div>
-    </div>
-    ''' for s in services])
-
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{business_name} | Enterprise {industry.title()} in {city}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {{
-            --primary: {primary_color};
-            --accent: {accent_color};
-            --accent-warm: {accent_warm};
-            --bg: {bg_surface};
-            --card: {card_bg};
-            --border: {border_color};
-        }}
-
-        *, *:before, *:after {{ margin: 0; padding: 0; box-sizing: border-box !important; }}
-        html, body {{ 
-            width: 100% !important; 
-            max-width: 100% !important; 
-            margin: 0 !important; 
-            padding: 0 !important; 
-            overflow-x: hidden !important; 
-            background-color: var(--bg); 
-            color: #0f172a; 
-            line-height: 1.45; 
-            font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
-            scroll-behavior: smooth;
-        }}
-
-        h1, h2, h3, h4, .brand-text {{ font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: normal !important; font-stretch: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; }}
-
-        /* SMOOTH SCROLL REVEAL CLASS */
-        .reveal {{
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-        }}
-        .reveal.active {{
-            opacity: 1;
-            transform: translateY(0px);
-        }}
-
-        #scroll-progress {{ position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-warm)); width: 0%; z-index: 1000; transition: width 0.1s linear; }}
-
-        nav {{ background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(16px); padding: 0.75rem 1.2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); width: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.03); gap: 0.5rem; box-sizing: border-box; }}
-        .brand-text {{ font-size: clamp(0.9rem, 3.5vw, 1.15rem); font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }}
-        .brand-text span {{ color: var(--accent); }}
-
-        .btn-dark {{ background: #0f172a; color: #ffffff; padding: 0.5rem 0.95rem; border-radius: 25px; font-weight: 700; font-size: clamp(0.72rem, 2.2vw, 0.82rem); text-decoration: none; transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem; border: none; cursor: pointer; flex-shrink: 0; box-shadow: 0 3px 10px rgba(15,23,42,0.12); }}
-        .btn-dark:hover {{ background: var(--accent); }}
-
-        /* HERO SECTION */
-        .hero {{ padding: 2rem 1.2rem 1.8rem; display: grid; grid-template-columns: 1fr; gap: 1.8rem; align-items: center; border-bottom: 1px solid var(--border); max-width: 1140px; margin: 0 auto; width: 100%; box-sizing: border-box; overflow: hidden; }}
-        .hero-text {{ width: 100%; max-width: 100%; min-width: 0; }}
-        .hero-badge {{ display: inline-flex; align-items: center; gap: 0.4rem; background: #ffffff; border: 1px solid var(--border); padding: 0.3rem 0.75rem; border-radius: 20px; font-size: clamp(0.7rem, 2vw, 0.78rem); font-weight: 700; color: var(--accent); margin-bottom: 0.8rem; max-width: 100%; box-shadow: 0 2px 6px rgba(0,0,0,0.02); line-height: 1.3; }}
-        .live-dot {{ width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; flex-shrink: 0; }}
-
-        .hero h1 {{ font-size: clamp(1.4rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.2; color: #0f172a; margin-bottom: 0.8rem; word-break: break-word; overflow-wrap: break-word; max-width: 100%; }}
-        .hero h1 span {{ color: var(--accent); }}
-        .hero p {{ font-size: clamp(0.88rem, 2.2vw, 1rem); color: #475569; margin-bottom: 1.2rem; max-width: 600px; line-height: 1.5; }}
-
-        .hero-img-card {{ position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; cursor: pointer; max-width: 100%; box-sizing: border-box; }}
-        .hero-img-card img {{ width: 100%; height: auto; max-height: 320px; object-fit: cover; display: block; }}
-        .hero-img-overlay {{ position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(15, 23, 42, 0.94)); padding: 0.9rem; color: #ffffff; }}
-
-        .stats-ribbon {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1.2rem; width: 100%; box-sizing: border-box; }}
-        .stat-card {{ background: #ffffff; padding: 0.7rem 0.4rem; border-radius: 10px; border: 1px solid var(--border); text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }}
-        .stat-card .val {{ font-size: clamp(0.9rem, 2.5vw, 1.2rem); font-weight: 800; color: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.2; }}
-        .stat-card .lbl {{ font-size: clamp(0.62rem, 1.8vw, 0.72rem); color: #64748b; font-weight: 700; margin-top: 0.2rem; line-height: 1.2; }}
-
-        /* INFINITE MARQUEE BAR */
-        .marquee-bar {{ overflow: hidden !important; white-space: nowrap !important; padding: 0.5rem 0; background: #ffffff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 1.2rem; width: 100% !important; max-width: 100% !important; position: relative; contain: content; }}
-        @keyframes marqueeScroll {{ 0% {{ transform: translateX(0%); }} 100% {{ transform: translateX(-50%); }} }}
-        .marquee-track {{ display: inline-flex; gap: 1.5rem; animation: marqueeScroll 25s linear infinite; }}
-        .marquee-item {{ font-size: 0.72rem; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: flex; align-items: center; gap: 0.3rem; }}
-
-        /* SECTION STYLING */
-        .section {{ padding: 2.2rem 1.2rem; max-width: 1140px; margin: 0 auto; width: 100%; box-sizing: border-box; overflow: hidden; }}
-        .sec-header {{ text-align: center; margin-bottom: 1.8rem; }}
-        .sec-header h2 {{ font-size: clamp(1.3rem, 3.5vw, 1.9rem); font-weight: 800; color: #0f172a; margin-bottom: 0.3rem; }}
-        .sec-header p {{ color: #64748b; font-size: clamp(0.85rem, 2.2vw, 0.95rem); }}
-
-        .filter-tabs {{ display: flex; justify-content: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
-        .filter-tab {{ background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 0.4rem 0.85rem; border-radius: 20px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.2s ease; }}
-        .filter-tab.active, .filter-tab:hover {{ background: #0f172a; color: #ffffff; border-color: #0f172a; }}
-
-        /* FLUID CASE STUDY GRID */
-        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 1.2rem; width: 100%; box-sizing: border-box; }}
-        .card {{ background: #ffffff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: transform 0.2s ease, border-color 0.3s ease; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.03); width: 100%; max-width: 100%; box-sizing: border-box; cursor: pointer; }}
-        .card:hover {{ border-color: var(--accent); }}
-        .card-img {{ width: 100%; height: 180px; object-fit: cover; }}
-        .card-content {{ padding: 1.1rem; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }}
-        .card h3 {{ font-size: clamp(1rem, 2.5vw, 1.18rem); color: #0f172a; margin-bottom: 0.4rem; font-weight: 800; }}
-        .card p {{ color: #475569; font-size: 0.85rem; margin-bottom: 0.9rem; line-height: 1.45; }}
-        
-        .spec-list {{ display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; font-size: 0.7rem; color: #64748b; font-weight: 700; }}
-        .spec-item {{ display: flex; align-items: center; gap: 0.2rem; background: #f8fafc; padding: 0.2rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; }}
-
-        .card-badge {{ background: #f1f5f9; border: 1px solid #cbd5e1; color: #0f172a; padding: 0.28rem 0.65rem; border-radius: 14px; font-size: 0.72rem; font-weight: 800; width: fit-content; }}
-
-        .estimator-container {{ background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem; margin-top: 1.8rem; width: 100%; max-width: 100%; box-sizing: border-box; }}
-        .input-field {{ background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 0.75rem 0.85rem; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.3s; width: 100%; font-family: inherit; box-sizing: border-box; }}
-        .input-field:focus {{ border-color: var(--accent); }}
-        .tab-btn {{ background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 0.45rem 0.85rem; border-radius: 18px; font-weight: 700; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease; }}
-        .tab-btn.active, .tab-btn:hover {{ background: #0f172a; color: #ffffff; border-color: #0f172a; }}
-
-        .owner-card {{ background: #ffffff; border: 1px solid var(--border); border-left: 4px solid #0f172a; padding: 1.1rem; border-radius: 12px; margin-top: 1.8rem; display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; width: 100%; box-sizing: border-box; }}
-        .owner-avatar {{ background: #0f172a; color: #ffffff; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; font-weight: 800; flex-shrink: 0; font-family: 'Plus Jakarta Sans', sans-serif; }}
-        .owner-info h4 {{ font-size: clamp(1rem, 2.8vw, 1.2rem); color: #0f172a; font-weight: 800; }}
-        .owner-info p {{ color: #475569; font-size: 0.85rem; margin-top: 0.2rem; line-height: 1.4; }}
-
-        .whatsapp-float {{ position: fixed; bottom: 14px; right: 14px; background: #25d366; color: white; padding: 0.6rem 1rem; border-radius: 35px; text-decoration: none; font-weight: 800; font-size: 0.78rem; display: flex; align-items: center; gap: 0.35rem; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); z-index: 1000; max-width: calc(100% - 28px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }}
-
-        /* LIGHTBOX IMAGE MODAL */
-        .lightbox-modal {{ position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 3000; padding: 1rem; }}
-        .lightbox-content {{ max-width: 800px; width: 100%; max-height: 80vh; border-radius: 12px; overflow: hidden; background: #fff; position: relative; }}
-        .lightbox-img {{ width: 100%; height: 100%; max-height: 70vh; object-fit: cover; display: block; }}
-
-        .modal-overlay {{ position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 1rem; }}
-        .modal-box {{ background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1.3rem; max-width: 420px; width: 100%; position: relative; text-align: left; box-sizing: border-box; }}
-        .close-btn {{ position: absolute; top: 0.7rem; right: 0.9rem; color: #64748b; font-size: 1.3rem; cursor: pointer; font-weight: 700; }}
-
-        footer {{ background: #ffffff; padding: 1.8rem 1.2rem; text-align: center; border-top: 1px solid var(--border); color: #64748b; font-size: 0.8rem; margin-top: 2.5rem; width: 100%; box-sizing: border-box; }}
-
-        @media (min-width: 900px) {{
-            .hero {{ grid-template-columns: 1fr 1fr; padding: 3rem 1.2rem 2.5rem; gap: 2.5rem; }}
-        }}
-    </style>
-</head>
-<body>
-
-    <div id="scroll-progress"></div>
-
-    <nav>
-        <div class="brand-text"><span>{business_name[:2].upper()}</span> {business_name}</div>
-        <a href="tel:{phone}" class="btn-dark">Call CA</a>
-    </nav>
-
-    <section class="hero">
-        <div class="hero-text reveal">
-            <span class="hero-badge"><span class="live-dot"></span> Head Office: {city} &bull; Accepting New Engagements</span>
-            <h1><span>{business_name}</span></h1>
-            <p>{tagline}</p>
-
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                <button onclick="toggleModal()" class="btn-dark" style="padding: 0.65rem 1.2rem; cursor: pointer;">Explore Case Studies &rarr;</button>
-                <a href="tel:{phone}" style="color: #0f172a; border: 1px solid var(--border); background: #ffffff; padding: 0.65rem 1.1rem; border-radius: 25px; text-decoration: none; font-weight: 700; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.3rem;">Direct Call: {phone}</a>
-            </div>
-
-            <div class="stats-ribbon">
-                <div class="stat-card">
-                    <div class="val">{stat_1}</div>
-                    <div class="lbl">Track Record</div>
-                </div>
-                <div class="stat-card">
-                    <div class="val">{stat_2}</div>
-                    <div class="lbl">Verified License</div>
-                </div>
-                <div class="stat-card">
-                    <div class="val">{stat_3}</div>
-                    <div class="lbl">Client Rating</div>
-                </div>
-            </div>
-
-            <div class="marquee-bar">
-                <div class="marquee-track">
-                    <div class="marquee-item">🏆 ARCHITECTURAL DIGEST ACCREDITED</div>
-                    <div class="marquee-item">⭐ FORBES TOP 100 FIRM</div>
-                    <div class="marquee-item">💎 VOGUE LIVING FEATURED</div>
-                    <div class="marquee-item">🏛️ COUNCIL CERTIFIED GOVERNANCE</div>
-                    <div class="marquee-item">⚡ 100% ON-TIME EXECUTION SLA</div>
-                    <div class="marquee-item">🏆 ARCHITECTURAL DIGEST ACCREDITED</div>
-                    <div class="marquee-item">⭐ FORBES TOP 100 FIRM</div>
-                    <div class="marquee-item">💎 VOGUE LIVING FEATURED</div>
-                    <div class="marquee-item">🏛️ COUNCIL CERTIFIED GOVERNANCE</div>
-                    <div class="marquee-item">⚡ 100% ON-TIME EXECUTION SLA</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="hero-img-card reveal" onclick="openLightbox('{hero_img}')">
-            <img src="{hero_img}" alt="{business_name}" loading="lazy">
-            <div class="hero-img-overlay">
-                <div style="font-weight: 800; font-size: 1rem; font-family:'Plus Jakarta Sans', sans-serif;">{business_name} ({city})</div>
-                <div style="font-size: 0.78rem; color: #fbbf24; font-weight: 700; margin-top:0.15rem;">Supervised by {owner_name} | {phone}</div>
-                <div style="font-size: 0.72rem; opacity: 0.85; margin-top: 0.15rem;">Click to expand photo lightbox 🔍</div>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-cta">Lock Spec & Schedule Meeting &rarr;</button>
             </div>
         </div>
     </section>
-
-    <section class="section" id="services">
-        <div class="sec-header reveal">
-            <h2>Featured Case Studies</h2>
-            <p>Bespoke execution tailored specifically for clients in {city}.</p>
-        </div>
-
-        <div class="filter-tabs reveal">
-            {category_buttons}
-        </div>
-
-        <div class="grid" id="portfolioGrid">
-            {services_html}
-        </div>
-
-        {interactive_tool_html}
-
-        <div class="owner-card reveal">
-            <div class="owner-avatar">{owner_name[0]}</div>
-            <div class="owner-info">
-                <h4>{owner_title}</h4>
-                <p>{owner_bio}</p>
-                <p style="margin-top:0.4rem; font-weight:800; color:#0f172a;">Direct Executive Desk: {phone}</p>
-            </div>
-        </div>
-
-        <div class="reveal" style="background: #ffffff; border: 1px solid var(--border); padding: 1.4rem; border-radius: 16px; margin-top: 2rem; font-style: italic; color: #334155; font-size: 0.95rem; line-height: 1.6; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
-            {testimonial}
-        </div>
-    </section>
-
-    <a href="https://wa.me/{clean_phone}" target="_blank" class="whatsapp-float">
-        WhatsApp {owner_name.split()[0]} ({phone})
-    </a>
-
-    <!-- LIGHTBOX IMAGE MODAL -->
-    <div id="lightboxModal" class="lightbox-modal" onclick="closeLightbox()">
-        <div class="lightbox-content" onclick="event.stopPropagation()">
-            <span class="close-btn" onclick="closeLightbox()" style="position:absolute; top:0.6rem; right:1rem; color:#fff; z-index:10; background:rgba(0,0,0,0.6); width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;">&times;</span>
-            <img id="lightboxImg" class="lightbox-img" src="" alt="Full Preview">
-        </div>
-    </div>
-
-    <!-- INQUIRY MODAL -->
-    <div id="quoteModal" class="modal-overlay">
-        <div class="modal-box">
-            <span class="close-btn" onclick="toggleModal()">&times;</span>
-            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.25rem; font-weight: 800; margin-bottom: 0.3rem;">Direct Executive Consultation</h3>
-            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.2rem;">Connect directly with {owner_name} ({phone}) regarding your project in {city}.</p>
-            <form onsubmit="handleModalSubmit(event)">
-                <div style="margin-bottom: 0.9rem;">
-                    <input type="text" class="input-field" placeholder="Your Full Name / Firm Name" required>
-                </div>
-                <div style="margin-bottom: 0.9rem;">
-                    <input type="tel" class="input-field" placeholder="Your Direct Phone Number" required>
-                </div>
-                <div style="margin-bottom: 1.2rem;">
-                    <textarea class="input-field" rows="3" placeholder="Project specifications in {city}..." required></textarea>
-                </div>
-                <button type="submit" class="btn-dark" style="width: 100%; border: none; cursor: pointer; font-size: 0.9rem; padding: 0.8rem; justify-content: center;">Submit Technical Request to {phone} &rarr;</button>
-            </form>
-            <div id="modalSuccess" style="display: none; margin-top: 1rem; color: #047857; text-align: center; font-weight: 800; font-size: 0.88rem;">
-                ✓ Inquiry registered! {owner_name.split()[0]} will reply directly on WhatsApp ({phone}) within 2 hours.
-            </div>
-        </div>
-    </div>
 
     <footer>
-        <p>&copy; 2026 {business_name} ({city}). All rights reserved.</p>
-        <p style="margin-top:0.3rem;">Direct Executive Line: {owner_name} | {phone} | {city}, India</p>
+        <div class="footer-logo">{business_name}</div>
+        <p class="footer-owner">{owner_name} &bull; Principal Architect</p>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom: 2rem;">Registered Member of the Council of Architecture (CoA) &bull; {city}</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-cta">WhatsApp Consultation</a>
+        </div>
     </footer>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {{
-            var observer = new IntersectionObserver(function(entries) {{
-                entries.forEach(function(entry) {{
-                    if (entry.isIntersecting) {{
-                        entry.target.classList.add('active');
-                    }}
-                }});
-            }}, {{ threshold: 0.1 }});
-
-            document.querySelectorAll('.reveal').forEach(function(el) {{
-                observer.observe(el);
-            }});
-        }});
-
-        window.onscroll = function() {{
-            var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-            var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-            var scrolled = (winScroll / height) * 100;
-            document.getElementById("scroll-progress").style.width = scrolled + "%";
-        }};
-
-        function filterCategory(cat) {{
-            var tabs = document.querySelectorAll('.filter-tab');
-            tabs.forEach(function(t) {{ t.classList.remove('active'); }});
-            var activeTab = document.querySelector('.filter-tab[data-cat="' + cat + '"]');
-            if (activeTab) activeTab.classList.add('active');
-
-            var cards = document.querySelectorAll('#portfolioGrid .card');
-            cards.forEach(function(card) {{
-                if (cat === 'all' || card.getAttribute('data-category') === cat) {{
-                    card.style.display = 'flex';
-                }} else {{
-                    card.style.display = 'none';
-                }}
-            }});
-        }}
-
-        function openLightbox(imgSrc) {{
-            document.getElementById("lightboxImg").src = imgSrc;
-            document.getElementById("lightboxModal").style.display = "flex";
-        }}
-
-        function closeLightbox() {{
-            document.getElementById("lightboxModal").style.display = "none";
-        }}
-
-        function toggleModal() {{
-            var modal = document.getElementById("quoteModal");
-            if (modal.style.display === "flex") {{
-                modal.style.display = "none";
-            }} else {{
-                modal.style.display = "flex";
-            }}
-        }}
-
-        function handleModalSubmit(e) {{
-            e.preventDefault();
-            document.getElementById("modalSuccess").style.display = "block";
-            setTimeout(function() {{
-                toggleModal();
-                document.getElementById("modalSuccess").style.display = "none";
-            }}, 2500);
-        }}
-
         function calcArchCost() {{
             var rate = parseFloat(document.getElementById("propType").value);
             var area = parseFloat(document.getElementById("areaRange").value);
@@ -1127,7 +577,168 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             var total = (rate * area) / 10000000;
             document.getElementById("estResult").innerText = "₹" + total.toFixed(2) + " Crore";
         }}
+    </script>
+</body>
+</html>"""
 
+    # ==========================================
+    # TEMPLATE 2: WEDDINGS & LUXURY EVENTS
+    # ==========================================
+    elif "wedding" in ind or "event" in ind:
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1545232979-fbf34fe37b38",
+                "https://images.unsplash.com/photo-1511285560929-80b456fea0bc",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1519741497674-611481863552"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | Palace Weddings & Curation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #faf7f5; --primary: #2d1b2d; --accent: #be123c; --accent-light: #fecdd3; --card: #ffffff; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: var(--primary); font-family: 'Inter', sans-serif; overflow-x: hidden; }}
+        
+        /* Elegant Top Navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: #fff; border-bottom: 1px solid #eae2db; position: sticky; top: 0; z-index: 100; }}
+        .brand {{ font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; font-style: italic; }}
+        .nav-links {{ display: flex; gap: 2.5rem; list-style: none; }}
+        .nav-links a {{ color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }}
+        .btn-book {{ background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 20px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }}
+
+        /* Split Screen Hero */
+        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); min-height: 80vh; align-items: center; padding: 4rem 3rem; gap: 3rem; max-width: 1200px; margin: 0 auto; }}
+        .hero-text h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }}
+        .hero-text h1 span {{ color: var(--accent); font-style: italic; font-weight: 400; }}
+        .hero-text p {{ color: #5a4b5a; font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }}
+        .hero-img {{ position: relative; border-radius: 120px 120px 0 0; overflow: hidden; height: 500px; box-shadow: 0 15px 30px rgba(0,0,0,0.05); border: 8px solid #fff; }}
+        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; }}
+
+        /* Cards Grid */
+        .section {{ padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }}
+        .sec-title {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }}
+        .services-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
+        .service-card {{ background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid #eae2db; transition: box-shadow 0.3s; }}
+        .service-card:hover {{ box-shadow: 0 10px 25px rgba(45,27,45,0.06); }}
+        .service-card img {{ width: 100%; height: 240px; object-fit: cover; }}
+        .service-info {{ padding: 2rem; }}
+        .service-tag {{ color: var(--accent); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }}
+        .service-info h3 {{ font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 0.8rem; }}
+        .service-info p {{ color: #5a4b5a; font-size: 0.88rem; line-height: 1.6; }}
+
+        /* Luxury Estimator Tool */
+        .calc-wrapper {{ background: #fff; border-radius: 16px; padding: 3rem; border: 1px solid #eae2db; }}
+        .calc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem; }}
+        .calc-field label {{ font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: #5a4b5a; display: block; margin-bottom: 0.5rem; }}
+        select, input[type="range"] {{ width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid #cbd5e1; border-radius: 4px; outline: none; }}
+        .calc-result {{ background: #fff1f2; padding: 2rem; border-radius: 8px; border: 1px solid var(--accent-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }}
+        .calc-val {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); font-weight: 700; }}
+
+        /* Footer */
+        footer {{ padding: 5rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-logo {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }}
+        .footer-owner {{ font-size: 0.95rem; color: #bcaebc; margin-bottom: 2rem; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }}
+        .btn-direct {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 20px; font-weight: 700; font-size: 0.85rem; }}
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand">{business_name.split()[0]} <span>Events</span></div>
+        <ul class="nav-links">
+            <li><a href="#curations">Curations</a></li>
+            <li><a href="#estimator">Estimator</a></li>
+        </ul>
+        <a href="https://wa.me/{clean_phone}" class="btn-book">Consult Curator</a>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-text">
+            <h1>Palace Destination <span>Weddings</span> & Royal Curation</h1>
+            <p>Bespoke palace scenography, floral styling, Bollywood artist curations, and 5-star royal hospitality planned flawlessly in {city}.</p>
+            <a href="#estimator" class="btn-book">Start Wedding Curation Planner</a>
+        </div>
+        <div class="hero-img">
+            <img src="{hero_img}" alt="Luxury weddings">
+        </div>
+    </section>
+
+    <section class="section" id="curations">
+        <h2 class="sec-title">Bespoke Royal Celebrations</h2>
+        <div class="services-grid">
+            <div class="service-card">
+                <img src="{services_imgs[0]}" alt="Palace bookings">
+                <div class="service-info">
+                    <span class="service-tag">Heritage Palaces</span>
+                    <h3>Palace Curation</h3>
+                    <p>Complete multi-day palace booking, luxury transfers, and royal elephant welcome entries.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <img src="{services_imgs[1]}" alt="Stage decor">
+                <div class="service-info">
+                    <span class="service-tag">Scenography</span>
+                    <h3>Floral Styling & Mandap</h3>
+                    <p>Custom floral backdrops, imported orchids mandap, and ambient warm projection layouts.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <img src="{services_imgs[2]}" alt="Royal feast">
+                <div class="service-info">
+                    <span class="service-tag">Gourmet Catering</span>
+                    <h3>Gourmet Royal Feast</h3>
+                    <p>Live Sufi band booking, Bollywood artists management, and curated 7-course royal menu.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="estimator">
+        <h2 class="sec-title">Curation Budget Planner</h2>
+        <div class="calc-wrapper">
+            <div class="calc-grid">
+                <div class="calc-field">
+                    <label>Palace & Venue Category</label>
+                    <select id="weddingType" onchange="calcWeddingCost()">
+                        <option value="6000">Heritage Palace / 5-Star Luxury Resort</option>
+                        <option value="3500">Luxury Banquet & Royal Lawns</option>
+                        <option value="9000">International / Island Destination</option>
+                    </select>
+                </div>
+                <div class="calc-field">
+                    <label>Expected Guests: <span id="guestVal" style="color:var(--accent); font-weight:800;">400 Guests</span></label>
+                    <input type="range" id="guestRange" min="100" max="1500" step="50" value="400" oninput="calcWeddingCost()">
+                </div>
+            </div>
+            <div class="calc-result">
+                <div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#5a4b5a; font-weight:700;">Estimated Turnkey Curation Budget:</p>
+                    <div id="weddingResult" class="calc-val">₹24.00 Lakhs</div>
+                </div>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-book" style="background:var(--accent); border:none; cursor:pointer;">Secure Booking Date &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-logo">{business_name}</div>
+        <p class="footer-owner">{owner_name} &bull; Lead Curator</p>
+        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Goa &bull; {city}</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn-direct">Direct Line</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
+        </div>
+    </footer>
+
+    <script>
         function calcWeddingCost() {{
             var rate = parseFloat(document.getElementById("weddingType").value);
             var guests = parseFloat(document.getElementById("guestRange").value);
@@ -1135,11 +746,388 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             var total = (rate * guests) / 100000;
             document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
         }}
+    </script>
+</body>
+</html>"""
 
+    # ==========================================
+    # TEMPLATE 3: CUSTOM FURNITURE & WOODWORK
+    # ==========================================
+    elif "furniture" in ind or "woodwork" in ind:
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1617806118233-18e1de247200",
+                "https://images.unsplash.com/photo-1555041469-a586c61ea9bc",
+                "https://images.unsplash.com/photo-1538688525198-9b88f6f53126"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1617806118233-18e1de247200"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | Custom Solid Teak Woodwork</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #f5f3f0; --primary: #1c1917; --accent: #d97706; --card: #ffffff; --border: #e7e5e4; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
+        
+        /* Clean Header Block */
+        header {{ text-align: center; padding: 3rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }}
+        .badge {{ display: inline-block; background: #fef3c7; color: #b45309; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }}
+        h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 0.5rem; }}
+        .owner-title {{ color: #78716c; font-size: 1rem; font-weight: 600; margin-bottom: 1.5rem; }}
+        .header-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }}
+        .btn {{ text-decoration: none; padding: 0.6rem 1.4rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; }}
+        .btn-accent {{ background: var(--accent); color: #fff; }}
+        .btn-outline {{ background: transparent; border: 1px solid var(--primary); color: var(--primary); }}
+
+        /* Main Hero Card */
+        .hero-banner {{ max-width: 1100px; margin: 2rem auto; border-radius: 8px; overflow: hidden; height: 420px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.03); }}
+        .hero-banner img {{ width: 100%; height: 100%; object-fit: cover; }}
+
+        /* Crafts Showcase Grid */
+        .section {{ padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }}
+        .sec-title {{ font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-left: 5px solid var(--accent); padding-left: 0.8rem; }}
+        .craft-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
+        .craft-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }}
+        .craft-card img {{ width: 100%; height: 220px; object-fit: cover; }}
+        .craft-info {{ padding: 1.5rem; }}
+        .craft-info h3 {{ font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; }}
+        .craft-info p {{ color: #57534e; font-size: 0.85rem; line-height: 1.5; }}
+
+        /* Timber finish calculator widget */
+        .wood-selector {{ background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2.5rem; }}
+        .selector-row {{ display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
+        .select-btn {{ background: var(--bg); border: 1px solid var(--border); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }}
+        .select-btn.active {{ background: var(--accent); color: #fff; border-color: var(--accent); }}
+        .selector-output {{ background: var(--bg); padding: 1.5rem; border-radius: 4px; border-left: 4px solid var(--accent); }}
+
+        /* Footer */
+        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
+    </style>
+</head>
+<body>
+
+    <header>
+        <span class="badge">CP Solid Teak Woodwork</span>
+        <h1>{business_name}</h1>
+        <p class="owner-title">Handcrafted Joinery & custom designs in {city} &bull; Directed by {owner_name}</p>
+        <div class="header-buttons">
+            <a href="https://wa.me/{clean_phone}" class="btn btn-accent">Request Workshop Call</a>
+            <a href="#showcase" class="btn btn-outline">Explore Craftworks</a>
+        </div>
+    </header>
+
+    <div class="hero-banner">
+        <img src="{hero_img}" alt="Artisan Carpentry">
+    </div>
+
+    <section class="section" id="showcase">
+        <h2 class="sec-title">Workshop Custom Craftworks</h2>
+        <div class="craft-grid">
+            <div class="craft-card">
+                <img src="{services_imgs[0]}" alt="Solid Teak Dining">
+                <div class="craft-info">
+                    <h3>Solid Teak Dining Sets</h3>
+                    <p>CP Teak wood dining tables with PU matte finish and velvet upholstery, built directly to order.</p>
+                </div>
+            </div>
+            <div class="craft-card">
+                <img src="{services_imgs[1]}" alt="Velvet Lounges">
+                <div class="craft-info">
+                    <h3>Bespoke Living Lounges</h3>
+                    <p>Internal framing with solid Sheesham wood, 40D high-density foam, and stain-resistant fabric.</p>
+                </div>
+            </div>
+            <div class="craft-card">
+                <img src="{services_imgs[2]}" alt="Corporate Desks">
+                <div class="craft-info">
+                    <h3>Executive Managerial Desks</h3>
+                    <p>Solid Mahogany veneer desk sets with integrated wire channels and custom storage drawers.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="sec-title">Timber Finish Custom Selector</h2>
+        <div class="wood-selector">
+            <p style="color:#57534e; font-size:0.9rem; margin-bottom: 1.5rem;">Select a premium polish to preview wood texture & protective topcoat finish:</p>
+            <div class="selector-row">
+                <button onclick="setWood('CP Teak Wood (Natural Gold Polish)', '#d97706')" class="select-btn active">CP Teak Natural</button>
+                <button onclick="setWood('Dark Walnut Matte Polish', '#451a03')" class="select-btn">Walnut Matte</button>
+                <button onclick="setWood('Imperial Mahogany Red Satin', '#7f1d1d')" class="select-btn">Imperial Mahogany</button>
+            </div>
+            <div class="selector-output">
+                <div style="font-weight: 800; font-size: 1.1rem; color:var(--primary);" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
+                <p style="color:#57534e; font-size:0.85rem; margin-top:0.3rem;">Seasoned against termites & moisture | Hand-buffed PU protective lacquer coating</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p style="font-weight:700;">{business_name}</p>
+        <p style="font-size:0.8rem; color:#a8a29e; margin-top:0.3rem;">CP Teak Wood Registry &bull; Workshop direct pricing &bull; {city}</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn btn-outline" style="border-color:rgba(255,255,255,0.3); color:#fff;">Call Workshop</a>
+            <a href="https://wa.me/{clean_phone}" class="btn btn-accent">WhatsApp Inquiry</a>
+        </div>
+    </footer>
+
+    <script>
         function setWood(name, color) {{
             document.getElementById("selectedWood").innerText = "Active Finish: " + name;
         }}
+    </script>
+</body>
+</html>"""
 
+    # ==========================================
+    # TEMPLATE 4: INDUSTRIAL MACHINERY & CNC
+    # ==========================================
+    elif "machinery" in ind or "tool" in ind:
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1581092160607-ee22621dd758",
+                "https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122",
+                "https://images.unsplash.com/photo-1581092335397-9583fe92d232"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1581092160607-ee22621dd758"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | CNC vertical Machining Centers & Tooling</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #f0f4f8; --primary: #0f172a; --accent: #0284c7; --border: #cbd5e1; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
+        
+        /* Box Grid layout navigation */
+        nav {{ display: grid; grid-template-columns: 1fr auto; border-bottom: 2px solid var(--primary); background: #fff; padding: 1rem 2rem; align-items: center; }}
+        .logo {{ font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; }}
+        .btn-quote {{ background: var(--primary); color: #fff; text-decoration: none; padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; }}
+
+        /* Technical Hero Header Grid */
+        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-bottom: 2px solid var(--primary); background: #fff; }}
+        .hero-info {{ padding: 3rem; display: flex; flex-direction: column; justify-content: center; border-right: 2px solid var(--primary); }}
+        .hero-info h1 {{ font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; }}
+        .hero-info p {{ color: #475569; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }}
+        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; max-height: 380px; }}
+
+        /* Rigid Specification Cards Grid */
+        .section {{ padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }}
+        .sec-title {{ font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; }}
+        .spec-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
+        .spec-card {{ background: #fff; border: 2px solid var(--primary); border-radius: 4px; padding: 2rem; }}
+        .spec-card h3 {{ font-size: 1.1rem; text-transform: uppercase; margin-bottom: 0.8rem; color: var(--accent); }}
+        .spec-card p {{ font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 1.2rem; }}
+        .spec-table {{ width: 100%; font-size: 0.75rem; border-collapse: collapse; }}
+        .spec-table td {{ padding: 0.4rem 0; border-bottom: 1px solid #e2e8f0; }}
+        .spec-table td:nth-child(even) {{ text-align: right; font-weight: 700; }}
+
+        /* Footer */
+        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.8rem; }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.8rem; }}
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">{business_name} &bull; CNC Industrial</div>
+        <a href="https://wa.me/{clean_phone}" class="btn-quote">Consult Director</a>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-info">
+            <span style="font-size:0.72rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.5rem;">ISO 9001:2026 Certified Supplier</span>
+            <h1>High Precision CNC VMC Machinery</h1>
+            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in {city}.</p>
+            <a href="https://wa.me/{clean_phone}" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
+        </div>
+        <div class="hero-img">
+            <img src="{hero_img}" alt="CNC Machining">
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="sec-title">VMC Machinery Specifications</h2>
+        <div class="spec-grid">
+            <div class="spec-card">
+                <h3>5-Axis VMC CNC Center</h3>
+                <p>Heavy duty casting bed with linear guide rails and ARM-type ATC 24 tool changer.</p>
+                <table class="spec-table">
+                    <tr><td>Spindle speed</td><td>12,000 RPM</td></tr>
+                    <tr><td>X/Y/Z travel</td><td>800 / 500 / 550 mm</td></tr>
+                    <tr><td>Controller</td><td>Fanuc / Siemens 828D</td></tr>
+                </table>
+            </div>
+            <div class="spec-card">
+                <h3>Hydraulic Press Brake</h3>
+                <p>Equipped with DA-53T graphic controller and multi-axis backgauge system.</p>
+                <table class="spec-table">
+                    <tr><td>Bending force</td><td>100 Tons to 500 Tons</td></tr>
+                    <tr><td>Table length</td><td>3200 mm</td></tr>
+                    <tr><td>Control axis</td><td>Y1, Y2, X, R Crowning</td></tr>
+                </table>
+            </div>
+            <div class="spec-card">
+                <h3>Carbide Milling Tooling</h3>
+                <p>Solid carbide inserts, indexing cutters, and digital QC inspection toolings.</p>
+                <table class="spec-table">
+                    <tr><td>Hardness grade</td><td>HRC 55 to 65</td></tr>
+                    <tr><td>Milling diameter</td><td>1.0 mm to 20.0 mm</td></tr>
+                    <tr><td>Coating finish</td><td>TiAlN / AlTiN coating</td></tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p style="font-weight:800;">{business_name}</p>
+        <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: {owner_name} &bull; {city}</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn-call">Direct Line</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">Request Technical Specs &rarr;</a>
+        </div>
+    </footer>
+
+</body>
+</html>"""
+
+    elif "chartered" in ind or "tax" in ind or "accountant" in ind:
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40",
+                "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
+                "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | ICAI Certified Chartered Accountants</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #f8fafc; --primary: #064e3b; --accent: #059669; --card: #ffffff; --border: #e2e8f0; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: #1e293b; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
+        
+        /* Clean corporate navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
+        .brand {{ color: var(--primary); font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }}
+        .btn-consult {{ background: var(--primary); color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }}
+
+        /* Centered Trust Hero Header */
+        .hero {{ text-align: center; padding: 5rem 1.5rem 4rem; background: #fff; border-bottom: 1px solid var(--border); }}
+        .trust-badge {{ display: inline-block; background: #d1fae5; color: #065f46; padding: 0.35rem 0.85rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }}
+        .hero h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; color: var(--primary); margin-bottom: 0.8rem; line-height: 1.1; }}
+        .hero p {{ max-width: 650px; margin: 0 auto 2rem; color: #475569; font-size: 1rem; line-height: 1.6; }}
+
+        /* Corporate Services Grid */
+        .section {{ padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }}
+        .sec-title {{ font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 2.5rem; text-align: center; text-transform: uppercase; }}
+        .service-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }}
+        .service-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2rem; transition: transform 0.2s; }}
+        .service-card:hover {{ transform: translateY(-3px); }}
+        .service-card h3 {{ font-size: 1.2rem; color: var(--primary); margin-bottom: 0.8rem; font-weight: 800; }}
+        .service-card p {{ color: #475569; font-size: 0.85rem; line-height: 1.55; }}
+
+        /* Calculator section */
+        .calc-container {{ background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 2.5rem; }}
+        .calc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem; margin-bottom: 2rem; }}
+        select, input[type="range"] {{ width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; outline: none; }}
+        .calc-result {{ background: #ecfdf5; padding: 1.8rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-left: 4px solid var(--accent); }}
+        .calc-val {{ font-size: 1.8rem; color: var(--primary); font-weight: 800; }}
+
+        /* Footer */
+        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; }}
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand">{business_name.split()[0]} &bull; CAs</div>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult">Direct Consultation</a>
+    </nav>
+
+    <section class="hero">
+        <span class="trust-badge">ICAI Certified Firm</span>
+        <h1>Corporate Taxation & Compliance</h1>
+        <p>Expert statutory financial audits, Private Limited company incorporation, ROC secretarial compliance, and income tax advisory in {city}.</p>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding:0.7rem 1.8rem;">Consult CA {owner_name.split()[0]}</a>
+    </section>
+
+    <section class="section">
+        <h2 class="sec-title">Chartered Practices</h2>
+        <div class="service-grid">
+            <div class="service-card">
+                <h3>Corporate GST & Income Tax</h3>
+                <p>Complete GST filings, tax returns audit, GST litigation support, and corporate tax structuring built for local businesses in {city}.</p>
+            </div>
+            <div class="service-card">
+                <h3>Pvt Ltd Incorporation</h3>
+                <p>Fast ROC incorporation setup, LLP setup, startup valuation certifications, and share capital registration advisory.</p>
+            </div>
+            <div class="service-card">
+                <h3>Statutory Audits</h3>
+                <p>Balance sheet audits certification, internal control reviews, M&A due diligence, and financial statement certifications.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="sec-title">GST & Compliance Retainer Planner</h2>
+        <div class="calc-container">
+            <div class="calc-grid">
+                <div>
+                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:0.5rem; text-transform:uppercase;">Annual Business Turnover</label>
+                    <select id="caTurnover" onchange="calcCATax()">
+                        <option value="2500">Up to ₹50 Lakhs (GST + IT Filing)</option>
+                        <option value="5000">₹50 Lakhs to ₹2 Crore (Full Retainer)</option>
+                        <option value="12000">Above ₹2 Crore (Statutory Audit + GST)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; font-weight:700; color:#475569; display:block; margin-bottom:0.5rem; text-transform:uppercase;">Monthly Invoice Volume: <span id="invVal" style="color:var(--accent); font-weight:800;">100 Invoices</span></label>
+                    <input type="range" id="invRange" min="20" max="500" step="20" value="100" oninput="calcCATax()">
+                </div>
+            </div>
+            <div class="calc-result">
+                <div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#475569; font-weight:700;">Estimated Monthly Retainer Fee:</p>
+                    <div id="caResult" class="calc-val">₹6,000 / Month</div>
+                </div>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Consult CA Senior Partner &rarr;</button>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p style="font-weight:800;">{business_name}</p>
+        <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.3rem;">ICAI Member Practice &bull; Senior Partner: {owner_name} &bull; {city}</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Retainer Inquiry</a>
+        </div>
+    </footer>
+
+    <script>
         function calcCATax() {{
             var base = parseFloat(document.getElementById("caTurnover").value);
             var inv = parseFloat(document.getElementById("invRange").value);
@@ -1148,10 +1136,62 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             document.getElementById("caResult").innerText = "₹" + total.toLocaleString('en-IN') + " / Month";
         }}
     </script>
+</body>
+</html>"""
+
+    # ==========================================
+    # TEMPLATE 6: GENERAL FALLBACK
+    # ==========================================
+    else:
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{business_name} | Premium {industry.title()} in {city}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {{ --bg: #f8fafc; --primary: #1e293b; --accent: #0f766e; --border: #cbd5e1; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
+        
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: #fff; border-bottom: 1px solid var(--border); sticky: top; }}
+        .brand {{ font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }}
+        .btn-consult {{ background: var(--accent); color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }}
+
+        .hero {{ padding: 5rem 2rem; text-align: center; background: #fff; border-bottom: 1px solid var(--border); }}
+        .hero h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: 0.8rem; }}
+        .hero p {{ max-width: 650px; margin: 0 auto 2rem; color: #475569; font-size: 1rem; }}
+
+        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; }}
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="brand">{business_name}</div>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult">Consultation</a>
+    </nav>
+
+    <section class="hero">
+        <h1>Bespoke {industry.title()} Services</h1>
+        <p>Premium solutions and professional turnkey operations directed by {owner_name} in {city}.</p>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding: 0.75rem 1.8rem;">Request Custom Quote</a>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 {business_name} ({city}). All rights reserved.</p>
+        <div class="footer-buttons">
+            <a href="tel:{phone}" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
+        </div>
+    </footer>
 
 </body>
 </html>"""
-    return html
 
 def create_pitches(lead_id, business_name, proposed_domain, city, owner_name, public_url=None):
     raw_url = public_url if public_url else f"{get_preview_url()}/lead_{lead_id}.html"
