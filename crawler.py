@@ -387,6 +387,145 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     biz_lower = business_name.lower()
     clean_phone = re.sub(r'\D', '', str(phone))
 
+    glow_bg_styles = """
+        html {
+            scroll-behavior: smooth !important;
+        }
+        
+        /* Smooth Scroll Reveal */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Morphing mesh background glow */
+        body {
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 20% 20%, var(--glow-primary, rgba(59, 130, 246, 0.08)) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, var(--glow-secondary, rgba(217, 119, 6, 0.06)) 0%, transparent 40%);
+            background-size: 200% 200%;
+            animation: bgMeshShift 25s ease infinite alternate;
+        }
+        
+        @keyframes bgMeshShift {
+            0% { background-position: 0% 0%, 100% 100%; }
+            50% { background-position: 50% 100%, 0% 50%; }
+            100% { background-position: 100% 100%, 0% 0%; }
+        }
+    """
+
+    glow_bg_js = """
+    <script>
+        // IntersectionObserver for Scroll Reveal
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".scroll-reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
+            reveals.forEach(el => observer.observe(el));
+        });
+
+        // Interactive Mouse Trail (Canvas Particles)
+        (function() {
+            const canvas = document.createElement("canvas");
+            canvas.style.position = "fixed";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.width = "100vw";
+            canvas.style.height = "100vh";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.7";
+            document.body.prepend(canvas);
+
+            const ctx = canvas.getContext("2d");
+            let particles = [];
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // Resolve accent color or fallback
+            const style = getComputedStyle(document.documentElement);
+            const trailColor = style.getPropertyValue('--accent').trim() || "#3b82f6";
+
+            class Particle {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = Math.random() * 5 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.color = trailColor;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha -= this.decay;
+                    if (this.size > 0.2) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (let i = 0; i < 2; i++) {
+                    particles.push(new Particle(e.clientX, e.clientY));
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+    </script>
+    """
+
     # Pre-fetch dynamic images from local scraper pool
     hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
     services_imgs = []
@@ -422,10 +561,20 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | Principal Architects in {city}</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #0b0f19; --primary: #ffffff; --accent: #d4af37; --card-bg: #131a2b; --text-muted: #8e9bb3; }}
+        :root {{ 
+            --bg: #0b0f19; 
+            --primary: #ffffff; 
+            --accent: #d4af37; 
+            --card-bg: #131a2b; 
+            --text-muted: #8e9bb3; 
+            --glow-primary: rgba(212, 175, 55, 0.12);
+            --glow-secondary: rgba(59, 130, 246, 0.08);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         /* Modern Side Navigation */
         nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(11,15,25,0.85); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 100; }}
         .brand {{ font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #fff; text-transform: uppercase; }}
@@ -489,14 +638,14 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     </nav>
 
     <section class="hero">
-        <div class="hero-content">
+        <div class="hero-content scroll-reveal">
             <h1>Crafting Iconic <span>Landmarks</span> in {city}</h1>
             <p>Architectural Planning, Structural Engineering & Luxury Interior Fit-Outs built to elevate modern spatial experiences.</p>
             <a href="#estimator" class="btn-cta">Start Project Planner</a>
         </div>
     </section>
 
-    <section class="section" id="projects">
+    <section class="section scroll-reveal" id="projects">
         <div class="section-header">
             <h2>Featured Built Estates</h2>
             <p>Selected architectural blueprints and turnkey fit-outs successfully handed over in {city}.</p>
@@ -529,7 +678,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section" id="estimator">
+    <section class="section scroll-reveal" id="estimator">
         <div class="section-header">
             <h2>Spatial Project Planner</h2>
             <p>Calculate custom turnkey architectural planning and fit-out budget in {city}.</p>
@@ -578,12 +727,10 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             document.getElementById("estResult").innerText = "₹" + total.toFixed(2) + " Crore";
         }}
     </script>
+    {glow_bg_js}
 </body>
 </html>"""
 
-    # ==========================================
-    # TEMPLATE 2: WEDDINGS & LUXURY EVENTS
-    # ==========================================
     elif "wedding" in ind or "event" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
@@ -601,10 +748,20 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | Palace Weddings & Curation</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #faf7f5; --primary: #2d1b2d; --accent: #be123c; --accent-light: #fecdd3; --card: #ffffff; }}
+        :root {{ 
+            --bg: #faf7f5; 
+            --primary: #2d1b2d; 
+            --accent: #be123c; 
+            --accent-light: #fecdd3; 
+            --card: #ffffff; 
+            --glow-primary: rgba(190, 18, 60, 0.08);
+            --glow-secondary: rgba(254, 205, 211, 0.12);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Inter', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         /* Elegant Top Navigation */
         nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: #fff; border-bottom: 1px solid #eae2db; position: sticky; top: 0; z-index: 100; }}
         .brand {{ font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; font-style: italic; }}
@@ -660,7 +817,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         <a href="https://wa.me/{clean_phone}" class="btn-book">Consult Curator</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <div class="hero-text">
             <h1>Palace Destination <span>Weddings</span> & Royal Curation</h1>
             <p>Bespoke palace scenography, floral styling, Bollywood artist curations, and 5-star royal hospitality planned flawlessly in {city}.</p>
@@ -671,7 +828,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section" id="curations">
+    <section class="section scroll-reveal" id="curations">
         <h2 class="sec-title">Bespoke Royal Celebrations</h2>
         <div class="services-grid">
             <div class="service-card">
@@ -701,7 +858,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section" id="estimator">
+    <section class="section scroll-reveal" id="estimator">
         <h2 class="sec-title">Curation Budget Planner</h2>
         <div class="calc-wrapper">
             <div class="calc-grid">
@@ -731,7 +888,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <footer>
         <div class="footer-logo">{business_name}</div>
         <p class="footer-owner">{owner_name} &bull; Lead Curator</p>
-        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Goa &bull; {city}</p>
+        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Udaipur &bull; {city}</p>
         <div class="footer-buttons">
             <a href="tel:{phone}" class="btn-direct">Direct Line</a>
             <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
@@ -747,13 +904,12 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
         }}
     </script>
+    {glow_bg_js}
 </body>
 </html>"""
-
-    # ==========================================
+        # ==================================================
     # TEMPLATE 3: CUSTOM FURNITURE & WOODWORK
-    # ==========================================
-    elif "furniture" in ind or "woodwork" in ind:
+    # ====================================    elif "furniture" in ind or "woodwork" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
                 "https://images.unsplash.com/photo-1617806118233-18e1de247200",
@@ -770,10 +926,20 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | Custom Solid Teak Woodwork</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #f5f3f0; --primary: #1c1917; --accent: #d97706; --card: #ffffff; --border: #e7e5e4; }}
+        :root {{ 
+            --bg: #f5f3f0; 
+            --primary: #1c1917; 
+            --accent: #d97706; 
+            --card: #ffffff; 
+            --border: #e7e5e4; 
+            --glow-primary: rgba(217, 119, 6, 0.10);
+            --glow-secondary: rgba(6, 78, 59, 0.06);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         /* Clean Header Block */
         header {{ text-align: center; padding: 3rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }}
         .badge {{ display: inline-block; background: #fef3c7; color: #b45309; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }}
@@ -812,7 +978,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 </head>
 <body>
 
-    <header>
+    <header class="scroll-reveal">
         <span class="badge">CP Solid Teak Woodwork</span>
         <h1>{business_name}</h1>
         <p class="owner-title">Handcrafted Joinery & custom designs in {city} &bull; Directed by {owner_name}</p>
@@ -822,11 +988,11 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </header>
 
-    <div class="hero-banner">
+    <div class="hero-banner scroll-reveal">
         <img src="{hero_img}" alt="Artisan Carpentry">
     </div>
 
-    <section class="section" id="showcase">
+    <section class="section scroll-reveal" id="showcase">
         <h2 class="sec-title">Workshop Custom Craftworks</h2>
         <div class="craft-grid">
             <div class="craft-card">
@@ -853,7 +1019,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section">
+    <section class="section scroll-reveal">
         <h2 class="sec-title">Timber Finish Custom Selector</h2>
         <div class="wood-selector">
             <p style="color:#57534e; font-size:0.9rem; margin-bottom: 1.5rem;">Select a premium polish to preview wood texture & protective topcoat finish:</p>
@@ -883,12 +1049,10 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             document.getElementById("selectedWood").innerText = "Active Finish: " + name;
         }}
     </script>
+    {glow_bg_js}
 </body>
 </html>"""
 
-    # ==========================================
-    # TEMPLATE 4: INDUSTRIAL MACHINERY & CNC
-    # ==========================================
     elif "machinery" in ind or "tool" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
@@ -906,10 +1070,19 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | CNC vertical Machining Centers & Tooling</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #f0f4f8; --primary: #0f172a; --accent: #0284c7; --border: #cbd5e1; }}
+        :root {{ 
+            --bg: #f0f4f8; 
+            --primary: #0f172a; 
+            --accent: #0284c7; 
+            --border: #cbd5e1; 
+            --glow-primary: rgba(2, 132, 199, 0.12);
+            --glow-secondary: rgba(15, 23, 42, 0.08);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         /* Box Grid layout navigation */
         nav {{ display: grid; grid-template-columns: 1fr auto; border-bottom: 2px solid var(--primary); background: #fff; padding: 1rem 2rem; align-items: center; }}
         .logo {{ font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; }}
@@ -947,7 +1120,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         <a href="https://wa.me/{clean_phone}" class="btn-quote">Consult Director</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <div class="hero-info">
             <span style="font-size:0.72rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.5rem;">ISO 9001:2026 Certified Supplier</span>
             <h1>High Precision CNC VMC Machinery</h1>
@@ -959,7 +1132,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section">
+    <section class="section scroll-reveal">
         <h2 class="sec-title">VMC Machinery Specifications</h2>
         <div class="spec-grid">
             <div class="spec-card">
@@ -1000,10 +1173,9 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             <a href="https://wa.me/{clean_phone}" class="btn-wa">Request Technical Specs &rarr;</a>
         </div>
     </footer>
-
+    {glow_bg_js}
 </body>
 </html>"""
-
     elif "chartered" in ind or "tax" in ind or "accountant" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
@@ -1021,10 +1193,20 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | ICAI Certified Chartered Accountants</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #f8fafc; --primary: #064e3b; --accent: #059669; --card: #ffffff; --border: #e2e8f0; }}
+        :root {{ 
+            --bg: #f8fafc; 
+            --primary: #064e3b; 
+            --accent: #059669; 
+            --card: #ffffff; 
+            --border: #e2e8f0; 
+            --glow-primary: rgba(5, 150, 105, 0.12);
+            --glow-secondary: rgba(6, 78, 59, 0.08);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: #1e293b; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         /* Clean corporate navigation */
         nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
         .brand {{ color: var(--primary); font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }}
@@ -1066,14 +1248,14 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         <a href="https://wa.me/{clean_phone}" class="btn-consult">Direct Consultation</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <span class="trust-badge">ICAI Certified Firm</span>
         <h1>Corporate Taxation & Compliance</h1>
         <p>Expert statutory financial audits, Private Limited company incorporation, ROC secretarial compliance, and income tax advisory in {city}.</p>
         <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding:0.7rem 1.8rem;">Consult CA {owner_name.split()[0]}</a>
     </section>
 
-    <section class="section">
+    <section class="section scroll-reveal">
         <h2 class="sec-title">Chartered Practices</h2>
         <div class="service-grid">
             <div class="service-card">
@@ -1091,7 +1273,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         </div>
     </section>
 
-    <section class="section">
+    <section class="section scroll-reveal">
         <h2 class="sec-title">GST & Compliance Retainer Planner</h2>
         <div class="calc-container">
             <div class="calc-grid">
@@ -1136,6 +1318,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             document.getElementById("caResult").innerText = "₹" + total.toLocaleString('en-IN') + " / Month";
         }}
     </script>
+    {glow_bg_js}
 </body>
 </html>"""
 
@@ -1151,10 +1334,19 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     <title>{business_name} | Premium {industry.title()} in {city}</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg: #f8fafc; --primary: #1e293b; --accent: #0f766e; --border: #cbd5e1; }}
+        :root {{ 
+            --bg: #f8fafc; 
+            --primary: #1e293b; 
+            --accent: #0f766e; 
+            --border: #cbd5e1; 
+            --glow-primary: rgba(15, 118, 110, 0.12);
+            --glow-secondary: rgba(180, 83, 9, 0.08);
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }}
         
+        {glow_bg_styles}
+
         nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: #fff; border-bottom: 1px solid var(--border); sticky: top; }}
         .brand {{ font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }}
         .btn-consult {{ background: var(--accent); color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }}
@@ -1176,7 +1368,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         <a href="https://wa.me/{clean_phone}" class="btn-consult">Consultation</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <h1>Bespoke {industry.title()} Services</h1>
         <p>Premium solutions and professional turnkey operations directed by {owner_name} in {city}.</p>
         <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding: 0.75rem 1.8rem;">Request Custom Quote</a>
@@ -1189,7 +1381,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
-
+    {glow_bg_js}
 </body>
 </html>"""
 
