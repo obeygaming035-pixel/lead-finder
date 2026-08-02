@@ -20,16 +20,69 @@
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         
         
-        /* Snappier organic Scroll Reveal */
-        .scroll-reveal {
+        /* Multi-directional Smooth Scroll Reveals */
+        .scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .scroll-reveal.visible {
+        .scroll-reveal { transform: translateY(30px); }
+        .scroll-reveal-left { transform: translateX(-40px); }
+        .scroll-reveal-right { transform: translateX(40px); }
+        .scroll-reveal-scale { transform: scale(0.92) translateY(20px); }
+        
+        .scroll-reveal.visible, .scroll-reveal-left.visible, .scroll-reveal-right.visible, .scroll-reveal-scale.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        /* Interactive Hover Card Lift & Shimmer */
+        .hover-card {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+        }
+        .hover-card:hover {
+            transform: translateY(-8px);
+        }
+
+        /* Image Zoom Container */
+        .img-zoom {
+            overflow: hidden;
+            position: relative;
+        }
+        .img-zoom img {
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .img-zoom:hover img {
+            transform: scale(1.06);
+        }
+
+        /* Glowing CTA Shimmer Effect */
+        .btn-shimmer {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-shimmer::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.8s ease;
+        }
+        .btn-shimmer:hover::after {
+            transform: rotate(30deg) translateX(100%);
+        }
+        .btn-shimmer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
         
         /* Morphing mesh background glow */
@@ -117,7 +170,7 @@
             <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Senior Partner</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750" alt="Cafes">
+            <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Cafes">
         </div>
     </section>
 
@@ -125,21 +178,21 @@
         <h2 class="sec-title">Core Operations</h2>
         <div class="services-grid">
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6" alt="Bespoke consultation">
+                <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750" alt="Bespoke consultation">
                 <div class="service-info">
                     <h3>Strategic Consulting</h3>
                     <p>Statutory audits, project roadmap designs, and professional strategic setup tailored for Delhi.</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Turnkey management">
+                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6" alt="Turnkey management">
                 <div class="service-info">
                     <h3>Turnkey Curation</h3>
                     <p>Complete project supervision, resource deployments, and operational quality control guarantees.</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6" alt="Custom execution">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Custom execution">
                 <div class="service-info">
                     <h3>Statutory Compliance</h3>
                     <p>Guaranteed adherence to regulatory standards, verification controls, and final handover certifications.</p>
@@ -196,9 +249,9 @@
     
     <script>
 
-        // IntersectionObserver for Scroll Reveal
+        // IntersectionObserver for Multi-Directional Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
-            const reveals = document.querySelectorAll(".scroll-reveal");
+            const reveals = document.querySelectorAll(".scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale");
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
