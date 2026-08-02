@@ -203,7 +203,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-@st.fragment(run_every=5)
+@st.fragment(run_every=30)
 def render_live_dashboard():
     df = load_leads()
     
