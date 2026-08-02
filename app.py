@@ -263,7 +263,7 @@ def render_live_dashboard():
         """, unsafe_allow_html=True)
 
     else:
-        tab1, tab2 = st.tabs(["📱 Leads Register", "⚙️ Quick Controls"])
+        tab1, tab2, tab3 = st.tabs(["📱 Leads Register", "⚙️ Quick Controls", "📦 Leads Batches"])
 
         with tab1:
             # Search & Filters
@@ -453,5 +453,43 @@ def render_live_dashboard():
                 clear_all_leads()
                 st.success("All leads cleared! Dashboard reset to 0 leads.")
                 st.rerun()
+
+        with tab3:
+            st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
+            st.markdown("Easily copy leads in bulk formatted strictly with **Phone Number**, **Business Name**, and **Location (City)**.")
+            
+            if not df.empty:
+                # Divide leads into batches of 50
+                batch_size = 50
+                total_leads = len(df)
+                num_batches = (total_leads + batch_size - 1) // batch_size
+                
+                batch_options = [f"Batch {i+1} (Leads {i*batch_size + 1} - {min((i+1)*batch_size, total_leads)})" for i in range(num_batches)]
+                selected_batch_idx = st.selectbox("Select Batch to Copy:", range(num_batches), format_func=lambda x: batch_options[x])
+                
+                # Get leads in the selected batch
+                start_idx = selected_batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, total_leads)
+                batch_df = df.iloc[start_idx:end_idx]
+                
+                # Format leads
+                formatted_leads = []
+                for _, row in batch_df.iterrows():
+                    phone_clean = str(row['phone']).strip()
+                    biz_name_clean = str(row['business_name']).split(' (')[0].strip() # strip city from name
+                    city_clean = str(row['city']).strip()
+                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean}")
+                
+                batch_text = "\n".join(formatted_leads)
+                
+                # Display text area
+                st.text_area(
+                    label=f"Copyable Leads - {batch_options[selected_batch_idx]}",
+                    value=batch_text,
+                    height=350,
+                    help="Click the copy button in the top-right corner of the text box to copy the entire batch to your clipboard."
+                )
+            else:
+                st.info("No leads available in database yet.")
 
 render_live_dashboard()
