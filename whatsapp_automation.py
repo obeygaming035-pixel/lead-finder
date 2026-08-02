@@ -93,11 +93,13 @@ def record_texted_number(phone, status="Contacted"):
     except Exception as e:
         print(f"[!] Error saving texted history: {e}")
 
-def is_number_already_texted(phone):
-    """Check if number was ever messaged or processed in the past."""
+def generate_wa_link(phone, pitch_text=""):
+    """Generates a direct pre-filled whatsapp web link (wa.me)."""
     clean = clean_phone_number(phone)
-    data = get_texted_numbers()
-    return clean in data
+    if pitch_text:
+        encoded_text = urllib.parse.quote(pitch_text)
+        return f"https://wa.me/{clean}?text={encoded_text}"
+    return f"https://wa.me/{clean}"
 
 def generate_spintax_pitch(owner_name, business_name, city, live_url, proposed_domain):
     """

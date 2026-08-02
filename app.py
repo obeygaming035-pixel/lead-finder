@@ -191,12 +191,7 @@ def clear_all_leads():
 dash_url_file = BASE_DIR / "dashboard_url.txt"
 short_dash_url = dash_url_file.read_text().strip() if dash_url_file.exists() else None
 
-dash_badge_html = f'''
-    <div style="background: rgba(48, 209, 88, 0.15); border: 1px solid rgba(48, 209, 88, 0.4); padding: 0.6rem 1.2rem; border-radius: 30px; text-align: right;">
-        <span style="color: #30d158; font-weight: 700; font-size: 0.85rem;">🌐 Live Public Dashboard:</span><br>
-        <a href="{short_dash_url}" target="_blank" style="color: #ffffff; font-weight: 800; font-size: 1rem; text-decoration: underline;">{short_dash_url}</a>
-    </div>
-''' if short_dash_url else ''
+dash_badge_html = f'<div style="background: rgba(48, 209, 88, 0.15); border: 1px solid rgba(48, 209, 88, 0.4); padding: 0.6rem 1.2rem; border-radius: 30px; text-align: right;"><span style="color: #30d158; font-weight: 700; font-size: 0.85rem;">🌐 Live Public Dashboard:</span><br><a href="{short_dash_url}" target="_blank" style="color: #ffffff; font-weight: 800; font-size: 1rem; text-decoration: underline;">{short_dash_url}</a></div>' if short_dash_url else ''
 
 st.markdown(f"""
 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
