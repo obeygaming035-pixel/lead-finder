@@ -130,8 +130,9 @@ def generate_spintax_pitch(owner_name, business_name, city, live_url, proposed_d
 def type_human_like(page, chat_box, text):
     """
     Types text into selector character-by-character with randomized human delay,
-    micro-pauses for punctuation, and mouse movement to simulate real human typing.
-    Bypasses automated speed/keystroke pattern detection!
+    occasional realistic typos corrected by backspaces, micro-pauses for punctuation,
+    thinking pauses every 20-30 characters, and mouse movement to simulate real human typing.
+    Completely bypasses automated keystroke/speed pattern detection!
     """
     try:
         box = chat_box.bounding_box()
@@ -143,15 +144,32 @@ def type_human_like(page, chat_box, text):
     except Exception:
         chat_box.focus()
 
-    print("  -> [Stealth] Typing message character-by-character (Human Simulation)...")
+    print("  -> [Stealth] Typing message character-by-character (Stealth Typo & Correction Simulation)...")
+    char_count = 0
     for char in text:
+        # 1. Cognitive thinking pause simulation (every 25 chars)
+        char_count += 1
+        if char_count % random.randint(20, 30) == 0:
+            time.sleep(random.uniform(0.6, 1.3)) # Human pauses to think/breathe
+            
+        # 2. Simulated typo correction (1.5% chance on alphabetical letters)
+        if char.isalpha() and random.random() < 0.015:
+            # Type a neighboring keyboard letter
+            typo = chr(ord(char) + random.choice([-1, 1]))
+            page.keyboard.type(typo, delay=random.randint(50, 130))
+            time.sleep(random.uniform(0.25, 0.45))
+            # Realize error and backspace
+            page.keyboard.press('Backspace')
+            time.sleep(random.uniform(0.15, 0.35))
+
+        # 3. Type the actual character
         if char == '\n':
             page.keyboard.press('Shift+Enter')
-            time.sleep(random.uniform(0.25, 0.6))
+            time.sleep(random.uniform(0.4, 0.9))
         else:
-            page.keyboard.type(char, delay=random.randint(40, 110))
-            if char in ['.', ',', '!', '?', '\n']:
-                time.sleep(random.uniform(0.2, 0.5))
+            page.keyboard.type(char, delay=random.randint(45, 145))
+            if char in ['.', ',', '!', '?']:
+                time.sleep(random.uniform(0.3, 0.8))
 
 def send_whatsapp_message(phone, pitch_text, cleanup_action="archive", wait_seconds=5):
     """

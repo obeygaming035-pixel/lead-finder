@@ -374,8 +374,15 @@ def render_live_dashboard():
             auto_wa = st.toggle(
                 "Enable Automatic WhatsApp Outreach Dispatcher", 
                 value=curr_settings["whatsapp_enabled"],
+                key="auto_wa_toggle",
                 help="If enabled, newly harvested leads will automatically be messaged immediately by the crawler process."
             )
+            
+            if auto_wa != curr_settings["whatsapp_enabled"]:
+                curr_settings["whatsapp_enabled"] = auto_wa
+                save_settings(curr_settings)
+                st.toast("WhatsApp Automation Status Updated!", icon="🤖")
+                st.rerun()
             
             col_set1, col_set2, col_set3 = st.columns(3)
             with col_set1:
@@ -400,14 +407,14 @@ def render_live_dashboard():
                     help="Max randomized sleep duration between auto-outreach messages."
                 )
                 
-            if st.button("Apply and Save Settings", type="secondary"):
+            if st.button("Apply and Save Parameters", type="secondary"):
                 save_settings({
                     "whatsapp_enabled": auto_wa,
                     "max_results": int(max_res),
                     "min_delay": int(min_del),
                     "max_delay": int(max_del)
                 })
-                st.success("Crawler settings saved! Changes are picked up dynamically by the crawler loop.")
+                st.success("Crawler parameters saved! Changes are picked up dynamically by the crawler loop.")
                 st.rerun()
 
             st.markdown("---")
@@ -427,11 +434,24 @@ def render_live_dashboard():
                 help="Meta-compliant warming limit. Max 50 dispatches per day to avoid spam triggers."
             )
             
-            if st.button("Run Safe WhatsApp Outreach Campaign (All Pending Leads)", type="primary"):
-                with st.spinner("Dispatching automated WhatsApp messages with human-like delays..."):
-                    sent = whatsapp_automation.run_whatsapp_bulk_campaign()
-                    st.success(f"Campaign Complete! Successfully dispatched WhatsApp outreach to {sent} leads.")
-                    st.rerun()
+            col_wa1, col_wa2 = st.columns(2)
+            with col_wa1:
+                if st.button("🔑 Log In / Authenticate WhatsApp Web", type="secondary", help="Opens a browser window on your computer to scan the WhatsApp QR code. It will save the login session so future dispatches can reuse it automatically!"):
+                    import subprocess
+                    import sys
+                    # Start login in new command prompt console
+                    subprocess.Popen(
+                        ['cmd', '/c', f'python login_whatsapp.py'],
+                        creationflags=subprocess.CREATE_NEW_CONSOLE
+                    )
+                    st.success("WhatsApp Authenticator console opened! Scan the QR code in the browser window.")
+            
+            with col_wa2:
+                if st.button("Run Safe WhatsApp Outreach Campaign (All Pending Leads)", type="primary"):
+                    with st.spinner("Dispatching automated WhatsApp messages with human-like delays..."):
+                        sent = whatsapp_automation.run_whatsapp_bulk_campaign()
+                        st.success(f"Campaign Complete! Successfully dispatched WhatsApp outreach to {sent} leads.")
+                        st.rerun()
 
             st.markdown("---")
             st.markdown("### Lead Management")
