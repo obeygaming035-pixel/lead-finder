@@ -340,16 +340,69 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     clean_phone = re.sub(r'\D', '', str(phone))
 
     glow_bg_styles = """
-        /* Snappier organic Scroll Reveal */
-        .scroll-reveal {
+        /* Multi-directional Smooth Scroll Reveals */
+        .scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .scroll-reveal.visible {
+        .scroll-reveal { transform: translateY(30px); }
+        .scroll-reveal-left { transform: translateX(-40px); }
+        .scroll-reveal-right { transform: translateX(40px); }
+        .scroll-reveal-scale { transform: scale(0.92) translateY(20px); }
+        
+        .scroll-reveal.visible, .scroll-reveal-left.visible, .scroll-reveal-right.visible, .scroll-reveal-scale.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        /* Interactive Hover Card Lift & Shimmer */
+        .hover-card {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+        }
+        .hover-card:hover {
+            transform: translateY(-8px);
+        }
+
+        /* Image Zoom Container */
+        .img-zoom {
+            overflow: hidden;
+            position: relative;
+        }
+        .img-zoom img {
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .img-zoom:hover img {
+            transform: scale(1.06);
+        }
+
+        /* Glowing CTA Shimmer Effect */
+        .btn-shimmer {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-shimmer::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.8s ease;
+        }
+        .btn-shimmer:hover::after {
+            transform: rotate(30deg) translateX(100%);
+        }
+        .btn-shimmer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
         
         /* Morphing mesh background glow */
@@ -382,9 +435,9 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     glow_bg_js = """
     <script>
 
-        // IntersectionObserver for Scroll Reveal
+        // IntersectionObserver for Multi-Directional Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
-            const reveals = document.querySelectorAll(".scroll-reveal");
+            const reveals = document.querySelectorAll(".scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale");
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
