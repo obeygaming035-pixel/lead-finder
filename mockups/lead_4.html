@@ -22,11 +22,11 @@
             scroll-behavior: smooth !important;
         }
         
-        /* Smooth Scroll Reveal */
+        /* Snappier organic Scroll Reveal */
         .scroll-reveal {
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(20px);
+            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
         }
         .scroll-reveal.visible {
@@ -106,7 +106,7 @@
             <a href="https://wa.me/919712233445" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1713371398484-cc4e4f6a262a" alt="CNC Machining">
+            <img src="https://images.unsplash.com/photo-1602664876866-d3b33b77756b" alt="CNC Machining">
         </div>
     </section>
 
@@ -152,27 +152,7 @@
         </div>
     </footer>
     
-    <!-- Include Lenis Smooth Scroll Library -->
-    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
     <script>
-        // Initialize Lenis Smooth Scroll
-        const lenis = new Lenis({
-            duration: 1.2,
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            orientation: 'vertical',
-            gestureOrientation: 'vertical',
-            smoothWheel: true,
-            smoothTouch: false,
-            wheelMultiplier: 1,
-            touchMultiplier: 1.5,
-            normalizeWheel: true
-        });
-
-        function raf(time) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-        requestAnimationFrame(raf);
 
         // IntersectionObserver for Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {

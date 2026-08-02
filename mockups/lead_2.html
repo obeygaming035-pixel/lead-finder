@@ -23,11 +23,11 @@
             scroll-behavior: smooth !important;
         }
         
-        /* Smooth Scroll Reveal */
+        /* Snappier organic Scroll Reveal */
         .scroll-reveal {
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(20px);
+            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
         }
         .scroll-reveal.visible {
@@ -124,7 +124,7 @@
             <a href="#estimator" class="btn-book">Start Wedding Curation Planner</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1745573672923-6cf4c5979dd2" alt="Luxury weddings">
+            <img src="https://images.unsplash.com/photo-1724847764267-12775ec49657" alt="Luxury weddings">
         </div>
     </section>
 
@@ -132,7 +132,7 @@
         <h2 class="sec-title">Bespoke Royal Celebrations</h2>
         <div class="services-grid">
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1768777270882-9f74939fee50" alt="Palace bookings">
+                <img src="https://images.unsplash.com/photo-1780303864944-737d88c789f4" alt="Palace bookings">
                 <div class="service-info">
                     <span class="service-tag">Heritage Palaces</span>
                     <h3>Palace Curation</h3>
@@ -140,7 +140,7 @@
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1719786624838-b5d9a9e3f378" alt="Stage decor">
+                <img src="https://images.unsplash.com/photo-1767986012154-db9a321c8832" alt="Stage decor">
                 <div class="service-info">
                     <span class="service-tag">Scenography</span>
                     <h3>Floral Styling & Mandap</h3>
@@ -148,7 +148,7 @@
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1605553426886-c0a99033fda0" alt="Royal feast">
+                <img src="https://images.unsplash.com/photo-1773745060497-4cc1df774c72" alt="Royal feast">
                 <div class="service-info">
                     <span class="service-tag">Gourmet Catering</span>
                     <h3>Gourmet Royal Feast</h3>
@@ -205,27 +205,7 @@
         }
     </script>
     
-    <!-- Include Lenis Smooth Scroll Library -->
-    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
     <script>
-        // Initialize Lenis Smooth Scroll
-        const lenis = new Lenis({
-            duration: 1.2,
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            orientation: 'vertical',
-            gestureOrientation: 'vertical',
-            smoothWheel: true,
-            smoothTouch: false,
-            wheelMultiplier: 1,
-            touchMultiplier: 1.5,
-            normalizeWheel: true
-        });
-
-        function raf(time) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-        requestAnimationFrame(raf);
 
         // IntersectionObserver for Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
