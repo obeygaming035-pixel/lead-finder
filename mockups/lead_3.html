@@ -3,121 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heritage Teak Woodworks Studio (Surat) | Custom Solid Teak Woodwork</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <title>Heritage Teak Woodworks Studio (Surat) | Premium Custom Furniture & Woodwork Studios in Surat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #f5f3f0; --primary: #1c1917; --accent: #d97706; --card: #ffffff; --border: #e7e5e4; }
+        :root { 
+            --bg: #f8fafc; 
+            --primary: #1e293b; 
+            --accent: #0f766e; 
+            --border: #cbd5e1; 
+            --glow-primary: rgba(15, 118, 110, 0.12);
+            --glow-secondary: rgba(180, 83, 9, 0.08);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         
-        /* Clean Header Block */
-        header { text-align: center; padding: 3rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }
-        .badge { display: inline-block; background: #fef3c7; color: #b45309; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }
-        h1 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 0.5rem; }
-        .owner-title { color: #78716c; font-size: 1rem; font-weight: 600; margin-bottom: 1.5rem; }
-        .header-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
-        .btn { text-decoration: none; padding: 0.6rem 1.4rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem; cursor: pointer; border: none; }
-        .btn-accent { background: var(--accent); color: #fff; }
-        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        
+        html {
+            scroll-behavior: smooth !important;
+        }
+        
+        /* Smooth Scroll Reveal */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Morphing mesh background glow */
+        body {
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 20% 20%, var(--glow-primary, rgba(59, 130, 246, 0.08)) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, var(--glow-secondary, rgba(217, 119, 6, 0.06)) 0%, transparent 40%);
+            background-size: 200% 200%;
+            animation: bgMeshShift 25s ease infinite alternate;
+        }
+        
+        @keyframes bgMeshShift {
+            0% { background-position: 0% 0%, 100% 100%; }
+            50% { background-position: 50% 100%, 0% 50%; }
+            100% { background-position: 100% 100%, 0% 0%; }
+        }
+    
 
-        /* Main Hero Card */
-        .hero-banner { max-width: 1100px; margin: 2rem auto; border-radius: 8px; overflow: hidden; height: 420px; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.03); }
-        .hero-banner img { width: 100%; height: 100%; object-fit: cover; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: #fff; border-bottom: 1px solid var(--border); sticky: top; }
+        .brand { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }
+        .btn-consult { background: var(--accent); color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }
 
-        /* Crafts Showcase Grid */
-        .section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
-        .sec-title { font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-left: 5px solid var(--accent); padding-left: 0.8rem; }
-        .craft-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-        .craft-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-        .craft-card img { width: 100%; height: 220px; object-fit: cover; }
-        .craft-info { padding: 1.5rem; }
-        .craft-info h3 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; }
-        .craft-info p { color: #57534e; font-size: 0.85rem; line-height: 1.5; }
+        .hero { padding: 5rem 2rem; text-align: center; background: #fff; border-bottom: 1px solid var(--border); }
+        .hero h1 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: 0.8rem; }
+        .hero p { max-width: 650px; margin: 0 auto 2rem; color: #475569; font-size: 1rem; }
 
-        /* Timber finish calculator widget */
-        .wood-selector { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 2.5rem; }
-        .selector-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .select-btn { background: var(--bg); border: 1px solid var(--border); color: var(--primary); padding: 0.5rem 1rem; border-radius: 4px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; }
-        .select-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-        .selector-output { background: var(--bg); padding: 1.5rem; border-radius: 4px; border-left: 4px solid var(--accent); }
-
-        /* Footer */
         footer { padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }
         .footer-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
+        .btn-call { border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; }
+        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
-    <header>
-        <span class="badge">CP Solid Teak Woodwork</span>
-        <h1>Heritage Teak Woodworks Studio (Surat)</h1>
-        <p class="owner-title">Handcrafted Joinery & custom designs in Surat &bull; Directed by Dharmesh Shah (Founder & Master Craftsman)</p>
-        <div class="header-buttons">
-            <a href="https://wa.me/919825477889" class="btn btn-accent">Request Workshop Call</a>
-            <a href="#showcase" class="btn btn-outline">Explore Craftworks</a>
-        </div>
-    </header>
+    <nav>
+        <div class="brand">Heritage Teak Woodworks Studio (Surat)</div>
+        <a href="https://wa.me/919825477889" class="btn-consult">Consultation</a>
+    </nav>
 
-    <div class="hero-banner">
-        <img src="https://images.unsplash.com/photo-1687180498602-5a1046defaa4" alt="Artisan Carpentry">
-    </div>
-
-    <section class="section" id="showcase">
-        <h2 class="sec-title">Workshop Custom Craftworks</h2>
-        <div class="craft-grid">
-            <div class="craft-card">
-                <img src="https://images.unsplash.com/photo-1617972582658-45dd3162f128" alt="Solid Teak Dining">
-                <div class="craft-info">
-                    <h3>Solid Teak Dining Sets</h3>
-                    <p>CP Teak wood dining tables with PU matte finish and velvet upholstery, built directly to order.</p>
-                </div>
-            </div>
-            <div class="craft-card">
-                <img src="https://images.unsplash.com/photo-1783331889236-cc39450ea573" alt="Velvet Lounges">
-                <div class="craft-info">
-                    <h3>Bespoke Living Lounges</h3>
-                    <p>Internal framing with solid Sheesham wood, 40D high-density foam, and stain-resistant fabric.</p>
-                </div>
-            </div>
-            <div class="craft-card">
-                <img src="https://images.unsplash.com/photo-1762803841422-5b8cf8767cd9" alt="Corporate Desks">
-                <div class="craft-info">
-                    <h3>Executive Managerial Desks</h3>
-                    <p>Solid Mahogany veneer desk sets with integrated wire channels and custom storage drawers.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section">
-        <h2 class="sec-title">Timber Finish Custom Selector</h2>
-        <div class="wood-selector">
-            <p style="color:#57534e; font-size:0.9rem; margin-bottom: 1.5rem;">Select a premium polish to preview wood texture & protective topcoat finish:</p>
-            <div class="selector-row">
-                <button onclick="setWood('CP Teak Wood (Natural Gold Polish)', '#d97706')" class="select-btn active">CP Teak Natural</button>
-                <button onclick="setWood('Dark Walnut Matte Polish', '#451a03')" class="select-btn">Walnut Matte</button>
-                <button onclick="setWood('Imperial Mahogany Red Satin', '#7f1d1d')" class="select-btn">Imperial Mahogany</button>
-            </div>
-            <div class="selector-output">
-                <div style="font-weight: 800; font-size: 1.1rem; color:var(--primary);" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
-                <p style="color:#57534e; font-size:0.85rem; margin-top:0.3rem;">Seasoned against termites & moisture | Hand-buffed PU protective lacquer coating</p>
-            </div>
-        </div>
+    <section class="hero scroll-reveal">
+        <h1>Bespoke Custom Furniture & Woodwork Studios Services</h1>
+        <p>Premium solutions and professional turnkey operations directed by Dharmesh Shah (Founder & Master Craftsman) in Surat.</p>
+        <a href="https://wa.me/919825477889" class="btn-consult" style="padding: 0.75rem 1.8rem;">Request Custom Quote</a>
     </section>
 
     <footer>
-        <p style="font-weight:700;">Heritage Teak Woodworks Studio (Surat)</p>
-        <p style="font-size:0.8rem; color:#a8a29e; margin-top:0.3rem;">CP Teak Wood Registry &bull; Workshop direct pricing &bull; Surat</p>
+        <p>&copy; 2026 Heritage Teak Woodworks Studio (Surat) (Surat). All rights reserved.</p>
         <div class="footer-buttons">
-            <a href="tel:+91 98254 77889" class="btn btn-outline" style="border-color:rgba(255,255,255,0.3); color:#fff;">Call Workshop</a>
-            <a href="https://wa.me/919825477889" class="btn btn-accent">WhatsApp Inquiry</a>
+            <a href="tel:+91 98254 77889" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/919825477889" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
-
+    
     <script>
-        function setWood(name, color) {
-            document.getElementById("selectedWood").innerText = "Active Finish: " + name;
-        }
+        // IntersectionObserver for Scroll Reveal
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".scroll-reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
+            reveals.forEach(el => observer.observe(el));
+        });
+
+        // Interactive Mouse Trail (Canvas Particles)
+        (function() {
+            const canvas = document.createElement("canvas");
+            canvas.style.position = "fixed";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.width = "100vw";
+            canvas.style.height = "100vh";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.7";
+            document.body.prepend(canvas);
+
+            const ctx = canvas.getContext("2d");
+            let particles = [];
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // Resolve accent color or fallback
+            const style = getComputedStyle(document.documentElement);
+            const trailColor = style.getPropertyValue('--accent').trim() || "#3b82f6";
+
+            class Particle {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = Math.random() * 5 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.color = trailColor;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha -= this.decay;
+                    if (this.size > 0.2) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (let i = 0; i < 2; i++) {
+                    particles.push(new Particle(e.clientX, e.clientY));
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
     </script>
+    
 </body>
 </html>

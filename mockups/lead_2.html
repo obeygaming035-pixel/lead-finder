@@ -6,10 +6,62 @@
     <title>Royal Crown Weddings & Events (Delhi) | Palace Weddings & Curation</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #faf7f5; --primary: #2d1b2d; --accent: #be123c; --accent-light: #fecdd3; --card: #ffffff; }
+        :root { 
+            --bg: #faf7f5; 
+            --primary: #2d1b2d; 
+            --accent: #be123c; 
+            --accent-light: #fecdd3; 
+            --card: #ffffff; 
+            --glow-primary: rgba(190, 18, 60, 0.08);
+            --glow-secondary: rgba(254, 205, 211, 0.12);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
+        
+        html {
+            scroll-behavior: smooth !important;
+        }
+        
+        /* Smooth Scroll Reveal */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Morphing mesh background glow */
+        body {
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 20% 20%, var(--glow-primary, rgba(59, 130, 246, 0.08)) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, var(--glow-secondary, rgba(217, 119, 6, 0.06)) 0%, transparent 40%);
+            background-size: 200% 200%;
+            animation: bgMeshShift 25s ease infinite alternate;
+        }
+        
+        @keyframes bgMeshShift {
+            0% { background-position: 0% 0%, 100% 100%; }
+            50% { background-position: 50% 100%, 0% 50%; }
+            100% { background-position: 100% 100%, 0% 0%; }
+        }
+    
+
         /* Elegant Top Navigation */
         nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: #fff; border-bottom: 1px solid #eae2db; position: sticky; top: 0; z-index: 100; }
         .brand { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; font-style: italic; }
@@ -65,22 +117,22 @@
         <a href="https://wa.me/919811244556" class="btn-book">Consult Curator</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <div class="hero-text">
             <h1>Palace Destination <span>Weddings</span> & Royal Curation</h1>
             <p>Bespoke palace scenography, floral styling, Bollywood artist curations, and 5-star royal hospitality planned flawlessly in Delhi.</p>
             <a href="#estimator" class="btn-book">Start Wedding Curation Planner</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1769812343774-3673ecca0c7b" alt="Luxury weddings">
+            <img src="https://images.unsplash.com/photo-1773745060497-4cc1df774c72" alt="Luxury weddings">
         </div>
     </section>
 
-    <section class="section" id="curations">
+    <section class="section scroll-reveal" id="curations">
         <h2 class="sec-title">Bespoke Royal Celebrations</h2>
         <div class="services-grid">
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1745573673583-a51f665ae48e" alt="Palace bookings">
+                <img src="https://images.unsplash.com/photo-1719786624981-8c3e6579ff40" alt="Palace bookings">
                 <div class="service-info">
                     <span class="service-tag">Heritage Palaces</span>
                     <h3>Palace Curation</h3>
@@ -88,7 +140,7 @@
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1745573674471-e057af420757" alt="Stage decor">
+                <img src="https://images.unsplash.com/photo-1769812343774-3673ecca0c7b" alt="Stage decor">
                 <div class="service-info">
                     <span class="service-tag">Scenography</span>
                     <h3>Floral Styling & Mandap</h3>
@@ -96,7 +148,7 @@
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1780303864944-737d88c789f4" alt="Royal feast">
+                <img src="https://images.unsplash.com/photo-1745573674206-1d4805fcc427" alt="Royal feast">
                 <div class="service-info">
                     <span class="service-tag">Gourmet Catering</span>
                     <h3>Gourmet Royal Feast</h3>
@@ -106,7 +158,7 @@
         </div>
     </section>
 
-    <section class="section" id="estimator">
+    <section class="section scroll-reveal" id="estimator">
         <h2 class="sec-title">Curation Budget Planner</h2>
         <div class="calc-wrapper">
             <div class="calc-grid">
@@ -136,7 +188,7 @@
     <footer>
         <div class="footer-logo">Royal Crown Weddings & Events (Delhi)</div>
         <p class="footer-owner">Karan Malhotra (Founder & Event Director) &bull; Lead Curator</p>
-        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Goa &bull; Delhi</p>
+        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Udaipur &bull; Delhi</p>
         <div class="footer-buttons">
             <a href="tel:+91 98112 44556" class="btn-direct">Direct Line</a>
             <a href="https://wa.me/919811244556" class="btn-wa">WhatsApp Inquiry</a>
@@ -152,5 +204,99 @@
             document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
         }
     </script>
+    
+    <script>
+        // IntersectionObserver for Scroll Reveal
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".scroll-reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
+            reveals.forEach(el => observer.observe(el));
+        });
+
+        // Interactive Mouse Trail (Canvas Particles)
+        (function() {
+            const canvas = document.createElement("canvas");
+            canvas.style.position = "fixed";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.width = "100vw";
+            canvas.style.height = "100vh";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.7";
+            document.body.prepend(canvas);
+
+            const ctx = canvas.getContext("2d");
+            let particles = [];
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // Resolve accent color or fallback
+            const style = getComputedStyle(document.documentElement);
+            const trailColor = style.getPropertyValue('--accent').trim() || "#3b82f6";
+
+            class Particle {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = Math.random() * 5 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.color = trailColor;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha -= this.decay;
+                    if (this.size > 0.2) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (let i = 0; i < 2; i++) {
+                    particles.push(new Particle(e.clientX, e.clientY));
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+    </script>
+    
 </body>
 </html>

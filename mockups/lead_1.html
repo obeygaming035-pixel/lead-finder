@@ -6,10 +6,62 @@
     <title>Studio Atelier Architects (Mumbai) | Principal Architects in Mumbai</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #0b0f19; --primary: #ffffff; --accent: #d4af37; --card-bg: #131a2b; --text-muted: #8e9bb3; }
+        :root { 
+            --bg: #0b0f19; 
+            --primary: #ffffff; 
+            --accent: #d4af37; 
+            --card-bg: #131a2b; 
+            --text-muted: #8e9bb3; 
+            --glow-primary: rgba(212, 175, 55, 0.12);
+            --glow-secondary: rgba(59, 130, 246, 0.08);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         
+        
+        html {
+            scroll-behavior: smooth !important;
+        }
+        
+        /* Smooth Scroll Reveal */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Morphing mesh background glow */
+        body {
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 20% 20%, var(--glow-primary, rgba(59, 130, 246, 0.08)) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, var(--glow-secondary, rgba(217, 119, 6, 0.06)) 0%, transparent 40%);
+            background-size: 200% 200%;
+            animation: bgMeshShift 25s ease infinite alternate;
+        }
+        
+        @keyframes bgMeshShift {
+            0% { background-position: 0% 0%, 100% 100%; }
+            50% { background-position: 50% 100%, 0% 50%; }
+            100% { background-position: 100% 100%, 0% 0%; }
+        }
+    
+
         /* Modern Side Navigation */
         nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(11,15,25,0.85); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 100; }
         .brand { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #fff; text-transform: uppercase; }
@@ -20,7 +72,7 @@
         .btn-cta { background: var(--accent); color: #000; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 800; font-size: 0.85rem; border: none; cursor: pointer; }
 
         /* Full Screen Hero with Text Overlay */
-        .hero { position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea') no-repeat center center/cover; padding: 0 1rem; }
+        .hero { position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('https://images.unsplash.com/photo-1577214582508-fdde28e64474') no-repeat center center/cover; padding: 0 1rem; }
         .hero-content { max-width: 900px; }
         .hero-content h1 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.1; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: -1px; }
         .hero-content h1 span { color: var(--accent); }
@@ -73,21 +125,21 @@
     </nav>
 
     <section class="hero">
-        <div class="hero-content">
+        <div class="hero-content scroll-reveal">
             <h1>Crafting Iconic <span>Landmarks</span> in Mumbai</h1>
             <p>Architectural Planning, Structural Engineering & Luxury Interior Fit-Outs built to elevate modern spatial experiences.</p>
             <a href="#estimator" class="btn-cta">Start Project Planner</a>
         </div>
     </section>
 
-    <section class="section" id="projects">
+    <section class="section scroll-reveal" id="projects">
         <div class="section-header">
             <h2>Featured Built Estates</h2>
             <p>Selected architectural blueprints and turnkey fit-outs successfully handed over in Mumbai.</p>
         </div>
         <div class="bento-grid">
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1760611656071-a8bef0578874" alt="Luxury Estates">
+                <img src="https://images.unsplash.com/photo-1782392454932-35a85377d02c" alt="Luxury Estates">
                 <div class="bento-content">
                     <span class="bento-tag">Residential</span>
                     <h3>Premium Villa Estate</h3>
@@ -95,7 +147,7 @@
                 </div>
             </div>
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1762732793012-8bdab3af00b4" alt="Commercial">
+                <img src="https://images.unsplash.com/photo-1677553512940-f79af72efd1b" alt="Commercial">
                 <div class="bento-content">
                     <span class="bento-tag">Commercial</span>
                     <h3>Corporate Headquarters</h3>
@@ -103,7 +155,7 @@
                 </div>
             </div>
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1564078516393-cf04bd966897" alt="Urban Layouts">
+                <img src="https://images.unsplash.com/photo-1562438668-bcf0ca6578f0" alt="Urban Layouts">
                 <div class="bento-content">
                     <span class="bento-tag">Outdoor</span>
                     <h3>Penthouse Sky Deck</h3>
@@ -113,7 +165,7 @@
         </div>
     </section>
 
-    <section class="section" id="estimator">
+    <section class="section scroll-reveal" id="estimator">
         <div class="section-header">
             <h2>Spatial Project Planner</h2>
             <p>Calculate custom turnkey architectural planning and fit-out budget in Mumbai.</p>
@@ -162,5 +214,99 @@
             document.getElementById("estResult").innerText = "₹" + total.toFixed(2) + " Crore";
         }
     </script>
+    
+    <script>
+        // IntersectionObserver for Scroll Reveal
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".scroll-reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
+            reveals.forEach(el => observer.observe(el));
+        });
+
+        // Interactive Mouse Trail (Canvas Particles)
+        (function() {
+            const canvas = document.createElement("canvas");
+            canvas.style.position = "fixed";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.width = "100vw";
+            canvas.style.height = "100vh";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.7";
+            document.body.prepend(canvas);
+
+            const ctx = canvas.getContext("2d");
+            let particles = [];
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // Resolve accent color or fallback
+            const style = getComputedStyle(document.documentElement);
+            const trailColor = style.getPropertyValue('--accent').trim() || "#3b82f6";
+
+            class Particle {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = Math.random() * 5 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.color = trailColor;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha -= this.decay;
+                    if (this.size > 0.2) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (let i = 0; i < 2; i++) {
+                    particles.push(new Particle(e.clientX, e.clientY));
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+    </script>
+    
 </body>
 </html>

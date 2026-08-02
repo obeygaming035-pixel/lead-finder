@@ -6,10 +6,61 @@
     <title>Precision CNC Machinery & Tools (Ahmedabad) | CNC vertical Machining Centers & Tooling</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #f0f4f8; --primary: #0f172a; --accent: #0284c7; --border: #cbd5e1; }
+        :root { 
+            --bg: #f0f4f8; 
+            --primary: #0f172a; 
+            --accent: #0284c7; 
+            --border: #cbd5e1; 
+            --glow-primary: rgba(2, 132, 199, 0.12);
+            --glow-secondary: rgba(15, 23, 42, 0.08);
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         
+        
+        html {
+            scroll-behavior: smooth !important;
+        }
+        
+        /* Smooth Scroll Reveal */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform, opacity;
+        }
+        .scroll-reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Morphing mesh background glow */
+        body {
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 20% 20%, var(--glow-primary, rgba(59, 130, 246, 0.08)) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, var(--glow-secondary, rgba(217, 119, 6, 0.06)) 0%, transparent 40%);
+            background-size: 200% 200%;
+            animation: bgMeshShift 25s ease infinite alternate;
+        }
+        
+        @keyframes bgMeshShift {
+            0% { background-position: 0% 0%, 100% 100%; }
+            50% { background-position: 50% 100%, 0% 50%; }
+            100% { background-position: 100% 100%, 0% 0%; }
+        }
+    
+
         /* Box Grid layout navigation */
         nav { display: grid; grid-template-columns: 1fr auto; border-bottom: 2px solid var(--primary); background: #fff; padding: 1rem 2rem; align-items: center; }
         .logo { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; }
@@ -47,7 +98,7 @@
         <a href="https://wa.me/919712233445" class="btn-quote">Consult Director</a>
     </nav>
 
-    <section class="hero">
+    <section class="hero scroll-reveal">
         <div class="hero-info">
             <span style="font-size:0.72rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.5rem;">ISO 9001:2026 Certified Supplier</span>
             <h1>High Precision CNC VMC Machinery</h1>
@@ -55,11 +106,11 @@
             <a href="https://wa.me/919712233445" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1670483111819-ed62eff77173" alt="CNC Machining">
+            <img src="https://images.unsplash.com/photo-1727292486976-6fd4bc056761" alt="CNC Machining">
         </div>
     </section>
 
-    <section class="section">
+    <section class="section scroll-reveal">
         <h2 class="sec-title">VMC Machinery Specifications</h2>
         <div class="spec-grid">
             <div class="spec-card">
@@ -100,6 +151,99 @@
             <a href="https://wa.me/919712233445" class="btn-wa">Request Technical Specs &rarr;</a>
         </div>
     </footer>
+    
+    <script>
+        // IntersectionObserver for Scroll Reveal
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".scroll-reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, { threshold: 0.05, rootMargin: "0px 0px -50px 0px" });
+            reveals.forEach(el => observer.observe(el));
+        });
 
+        // Interactive Mouse Trail (Canvas Particles)
+        (function() {
+            const canvas = document.createElement("canvas");
+            canvas.style.position = "fixed";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.width = "100vw";
+            canvas.style.height = "100vh";
+            canvas.style.pointerEvents = "none";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.7";
+            document.body.prepend(canvas);
+
+            const ctx = canvas.getContext("2d");
+            let particles = [];
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            // Resolve accent color or fallback
+            const style = getComputedStyle(document.documentElement);
+            const trailColor = style.getPropertyValue('--accent').trim() || "#3b82f6";
+
+            class Particle {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = Math.random() * 5 + 2;
+                    this.speedX = Math.random() * 2 - 1;
+                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.color = trailColor;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.01;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha -= this.decay;
+                    if (this.size > 0.2) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = this.color;
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            window.addEventListener("mousemove", (e) => {
+                for (let i = 0; i < 2; i++) {
+                    particles.push(new Particle(e.clientX, e.clientY));
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        })();
+    </script>
+    
 </body>
 </html>
