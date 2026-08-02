@@ -791,7 +791,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 </body>
 </html>"""
 
-    elif "wedding" in ind or "event" in ind:
+    elif "wedding" in ind or "event" in ind or "decor" in ind or "mandap" in ind:
         if not services_imgs[0].startswith("http"):
             services_imgs = [
                 "https://images.unsplash.com/photo-1545232979-fbf34fe37b38",
@@ -800,12 +800,38 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             ]
             hero_img = "https://images.unsplash.com/photo-1519741497674-611481863552"
 
+        # Differentiate Mandap / Stage Decorators from Destination Wedding Planners
+        if "mandap" in ind or "decorator" in ind or "decor" in ind or "decoration" in ind:
+            t2_title_tag = "Mandap & Event Decorators"
+            t2_headline = f"Exquisite <span>Mandap Decor</span> & Event Stage Scenography"
+            t2_subtitle = f"Bespoke wedding mandaps, theme reception backdrops, floral entrance gates, and lighting setups in {city}."
+            t2_sec_title = "Mandap & Stage Decor Specialities"
+            t2_c1_tag, t2_c1_h3, t2_c1_p = "Mandap Scenography", "🏛️ Royal Mandap Curation", f"Traditional & modern floral mandap setups, royal carved pillars, and crystal chandeliers in {city}."
+            t2_c2_tag, t2_c2_h3, t2_c2_p = "Reception Backdrops", "✨ Stage & Ambient Lighting", f"Theme reception stages, LED wall integration, floral backdrops, and ambient warm spotlights."
+            t2_c3_tag, t2_c3_h3, t2_c3_p = "Venue Entry", "🎪 Entrance Gates & Passage Drapes", f"Grand entrance archways, walkway floral drapes, and venue theme styling."
+            t2_calc_title = "Mandap & Stage Decor Estimator"
+            t2_calc_opt = '<option value="35000">Theme Reception Stage & Entry Archway</option><option value="75000">Royal Wedding Mandap & Stage Setup</option><option value="150000">Full Venue Mandap, Lighting & Drapes Setup</option>'
+            t2_calc_label = "Guest Capacity / Scale"
+            t2_btn_text = "Book Decor Consultation"
+        else:
+            t2_title_tag = "Palace Weddings & Event Curation"
+            t2_headline = f"Palace Destination <span>Weddings</span> & Royal Curation"
+            t2_subtitle = f"Bespoke palace scenography, floral styling, artist bookings, and 5-star royal hospitality planned flawlessly in {city}."
+            t2_sec_title = "Bespoke Royal Celebrations"
+            t2_c1_tag, t2_c1_h3, t2_c1_p = "Heritage Palaces", "🏰 Destination Venue Planning", f"Complete multi-day palace booking, luxury transfers, and royal elephant welcome entries in {city}."
+            t2_c2_tag, t2_c2_h3, t2_c2_p = "Scenography", "✨ Theme Decor & Scenography", f"Custom floral backdrops, imported orchids mandap, and ambient warm projection layouts."
+            t2_c3_tag, t2_c3_h3, t2_c3_p = "Gourmet Catering", "🍽️ Hospitality & Artist Curation", f"Live Sufi band booking, Bollywood artists management, and curated 7-course royal menu."
+            t2_calc_title = "Curation Budget Planner"
+            t2_calc_opt = '<option value="3500">Luxury Banquet & Royal Lawns</option><option value="6000">Heritage Palace / 5-Star Luxury Resort</option><option value="9000">International / Island Destination</option>'
+            t2_calc_label = "Guest Count"
+            t2_btn_text = "Consult Wedding Curator"
+
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{business_name} | Palace Weddings & Curation</title>
+    <title>{business_name} | {t2_title_tag} in {city}</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {{ 
@@ -869,86 +895,83 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 <body>
 
     <nav>
-        <div class="brand">{business_name.split()[0]} <span>Events</span></div>
+        <div class="brand">{business_name.split()[0]} <span>Decor</span></div>
         <ul class="nav-links">
-            <li><a href="#curations">Curations</a></li>
+            <li><a href="#curations">Portfolio</a></li>
             <li><a href="#estimator">Estimator</a></li>
         </ul>
-        <a href="https://wa.me/{clean_phone}" class="btn-book">Consult Curator</a>
+        <a href="https://wa.me/{clean_phone}" class="btn-book">{t2_btn_text}</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-text">
-            <h1>Palace Destination <span>Weddings</span> & Royal Curation</h1>
-            <p>Bespoke palace scenography, floral styling, Bollywood artist curations, and 5-star royal hospitality planned flawlessly in {city}.</p>
-            <a href="#estimator" class="btn-book">Start Wedding Curation Planner</a>
+            <h1>{t2_headline}</h1>
+            <p>{t2_subtitle}</p>
+            <a href="#estimator" class="btn-book">{t2_btn_text} &rarr;</a>
         </div>
         <div class="hero-img">
-            <img src="{hero_img}" alt="Luxury weddings">
+            <img src="{hero_img}" alt="{business_name}">
         </div>
     </section>
 
     <section class="section scroll-reveal" id="curations">
-        <h2 class="sec-title">Bespoke Royal Celebrations</h2>
+        <h2 class="sec-title">{t2_sec_title}</h2>
         <div class="services-grid">
             <div class="service-card">
-                <img src="{services_imgs[0]}" alt="Palace bookings">
+                <img src="{services_imgs[0]}" alt="{t2_c1_h3}">
                 <div class="service-info">
-                    <span class="service-tag">Heritage Palaces</span>
-                    <h3>Palace Curation</h3>
-                    <p>Complete multi-day palace booking, luxury transfers, and royal elephant welcome entries.</p>
+                    <span class="service-tag">{t2_c1_tag}</span>
+                    <h3>{t2_c1_h3}</h3>
+                    <p>{t2_c1_p}</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="{services_imgs[1]}" alt="Stage decor">
+                <img src="{services_imgs[1]}" alt="{t2_c2_h3}">
                 <div class="service-info">
-                    <span class="service-tag">Scenography</span>
-                    <h3>Floral Styling & Mandap</h3>
-                    <p>Custom floral backdrops, imported orchids mandap, and ambient warm projection layouts.</p>
+                    <span class="service-tag">{t2_c2_tag}</span>
+                    <h3>{t2_c2_h3}</h3>
+                    <p>{t2_c2_p}</p>
                 </div>
             </div>
             <div class="service-card">
-                <img src="{services_imgs[2]}" alt="Royal feast">
+                <img src="{services_imgs[2]}" alt="{t2_c3_h3}">
                 <div class="service-info">
-                    <span class="service-tag">Gourmet Catering</span>
-                    <h3>Gourmet Royal Feast</h3>
-                    <p>Live Sufi band booking, Bollywood artists management, and curated 7-course royal menu.</p>
+                    <span class="service-tag">{t2_c3_tag}</span>
+                    <h3>{t2_c3_h3}</h3>
+                    <p>{t2_c3_p}</p>
                 </div>
             </div>
         </div>
     </section>
 
     <section class="section scroll-reveal" id="estimator">
-        <h2 class="sec-title">Curation Budget Planner</h2>
+        <h2 class="sec-title">{t2_calc_title}</h2>
         <div class="calc-wrapper">
             <div class="calc-grid">
                 <div class="calc-field">
-                    <label>Palace & Venue Category</label>
+                    <label>Setup Scope</label>
                     <select id="weddingType" onchange="calcWeddingCost()">
-                        <option value="6000">Heritage Palace / 5-Star Luxury Resort</option>
-                        <option value="3500">Luxury Banquet & Royal Lawns</option>
-                        <option value="9000">International / Island Destination</option>
+                        {t2_calc_opt}
                     </select>
                 </div>
                 <div class="calc-field">
-                    <label>Expected Guests: <span id="guestVal" style="color:var(--accent); font-weight:800;">400 Guests</span></label>
-                    <input type="range" id="guestRange" min="100" max="1500" step="50" value="400" oninput="calcWeddingCost()">
+                    <label>{t2_calc_label}: <span id="guestVal" style="color:var(--accent); font-weight:800;">500 Guests</span></label>
+                    <input type="range" id="guestRange" min="100" max="3000" step="100" value="500" oninput="calcWeddingCost()">
                 </div>
             </div>
             <div class="calc-result">
                 <div>
-                    <p style="font-size:0.75rem; text-transform:uppercase; color:#5a4b5a; font-weight:700;">Estimated Turnkey Curation Budget:</p>
-                    <div id="weddingResult" class="calc-val">₹24.00 Lakhs</div>
+                    <p style="font-size:0.8rem; text-transform:uppercase; color:#5a4b5a; font-weight:700;">Estimated Setup Budget:</p>
+                    <div id="weddingResult" class="calc-val">₹1.25 Lakhs</div>
                 </div>
-                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-book" style="background:var(--accent); border:none; cursor:pointer;">Secure Booking Date &rarr;</button>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-book" style="border:none; cursor:pointer;">{t2_btn_text} &rarr;</button>
             </div>
         </div>
     </section>
 
     <footer>
         <div class="footer-logo">{business_name}</div>
-        <p class="footer-owner">{owner_name} &bull; Lead Curator</p>
-        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Udaipur &bull; {city}</p>
+        <p class="footer-owner">{t2_title_tag} &bull; {city}</p>
         <div class="footer-buttons">
             <a href="tel:{phone}" class="btn-direct">Direct Line</a>
             <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
@@ -957,11 +980,11 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
 
     <script>
         function calcWeddingCost() {{
-            var rate = parseFloat(document.getElementById("weddingType").value);
+            var base = parseFloat(document.getElementById("weddingType").value);
             var guests = parseFloat(document.getElementById("guestRange").value);
-            document.getElementById("guestVal").innerText = guests + " Guests";
-            var total = (rate * guests) / 100000;
-            document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
+            document.getElementById("guestVal").innerText = guests.toLocaleString('en-IN') + " Guests";
+            var total = base + (guests * 150);
+            document.getElementById("weddingResult").innerText = "₹" + (total / 100000).toFixed(2) + " Lakhs";
         }}
     </script>
     {glow_bg_js}
