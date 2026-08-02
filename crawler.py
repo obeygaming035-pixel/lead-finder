@@ -113,54 +113,6 @@ def get_random_images(industry, count=4):
     niche_defaults = defaults.get(industry, defaults["architects & interior design studios"])
     return random.choices(niche_defaults, k=count)
 
-def generate_owner_name(business_name, industry):
-    """
-    Generates a realistic Indian owner name matching the industry type and context.
-    """
-    import random
-    import re
-    
-    first_names_male = [
-        "Rajesh", "Anand", "Suresh", "Vikram", "Aniket", "Siddharth", "Vijay",
-        "Karan", "Ravi", "Amit", "Arjun", "Hitesh", "Sunil", "Manish", "Nikhil", "Paresh"
-    ]
-    first_names_female = [
-        "Priya", "Meera", "Ritu", "Nandini", "Shreya", "Lakshmi", "Sneha", "Ananya"
-    ]
-    last_names = [
-        "Sharma", "Verma", "Mehta", "Patel", "Shah", "Joshi", "Rao", "Nair", "Malhotra",
-        "Kumar", "Reddy", "Singh", "Kapoor", "Jain", "Deshmukh", "Desai", "Gupta", "Iyer"
-    ]
-    
-    # Check if business name has a person's name in it
-    words = business_name.split()
-    matched_last = None
-    matched_first = None
-    
-    for word in words:
-        word_clean = re.sub(r'[^a-zA-Z]', '', word)
-        if word_clean in last_names:
-            matched_last = word_clean
-            break
-        if word_clean in first_names_male or word_clean in first_names_female:
-            matched_first = word_clean
-            break
-            
-    first = matched_first if matched_first else random.choice(first_names_male + first_names_female)
-    last = matched_last if matched_last else random.choice(last_names)
-    owner = f"{first} {last}"
-    
-    ind = industry.lower()
-    if "architect" in ind or "interior" in ind:
-        return f"Architect {owner} (Principal Architect)"
-    elif "chartered" in ind or "tax" in ind:
-        return f"CA {owner} (Senior Partner & FCA)"
-    elif "furniture" in ind or "woodwork" in ind:
-        return f"{owner} (Founder & Master Craftsman)"
-    elif "machinery" in ind or "tool" in ind:
-        return f"{owner} (Managing Director)"
-    else:
-        return f"{owner} (Founder)"
 
 def scrape_google_maps_playwright(niche, city, max_results=10):
     """
@@ -1599,8 +1551,8 @@ def run_crawler_loop():
             website = lead_data['website']
             address = lead_data['address']
             
-            # Generate owner name dynamically based on business name and niche
-            owner_name = generate_owner_name(lead_data['name'], industry)
+            # No fake owner names - only real data from Google Maps
+            owner_name = "Business Owner"
             
             # Do not generate fake/placeholder emails
             email = ""

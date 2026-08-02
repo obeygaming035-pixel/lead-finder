@@ -41,8 +41,6 @@ TARGET_CITIES = [
 ]
 
 TARGET_NICHES = [
-    "salons & hair studios",
-    "beauty / makeup studios",
     "wedding photographers",
     "wedding planners & decorators",
     "interior designers",
