@@ -2,207 +2,422 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>Vanguard Luxury Events (Surat) - Surat's Premier Wedding & Luxury Event Planners</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Heritage Teak Woodworks Studio (Surat) | Enterprise Custom Furniture & Woodwork Studios in Surat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --accent: #f43f5e;
-            --accent-sec: #e11d48;
-            --bg: #0b0f19;
-            --card: #131b2e;
-            --card-border: #23304d;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        h1, h2, h3, h4, .brand { font-family: 'Outfit', sans-serif; }
-        body { background-color: var(--bg); color: var(--text-main); line-height: 1.6; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
-
-        @keyframes floatAnim {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-7px); }
-            100% { transform: translateY(0px); }
-        }
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 15px rgba(255,255,255,0.1); }
-            50% { box-shadow: 0 0 30px #f43f5e; }
-            100% { box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+            --primary: #064e3b;
+            --accent: #047857;
+            --accent-warm: #d97706;
+            --bg: #f4f8f6;
+            --card: #ffffff;
+            --border: #e2e8f0;
         }
 
-        /* NAV */
-        nav { background: rgba(19, 27, 46, 0.85); backdrop-filter: blur(12px); padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 0.5rem; }
-        .brand { font-size: 1.4rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.4rem; }
-        .brand span { color: var(--accent); }
-        .nav-links { display: none; }
-        .btn-call { background: var(--accent); color: #000; padding: 0.5rem 1.2rem; border-radius: 30px; font-weight: 700; font-size: 0.85rem; text-decoration: none; transition: transform 0.2s; animation: pulseGlow 3s infinite; white-space: nowrap; }
-        .btn-call:hover { transform: scale(1.05); }
-
-        /* HERO */
-        .hero { padding: 3rem 5% 2.5rem; text-align: center; background: linear-gradient(135deg, #4c0519, #0f172a); position: relative; border-bottom: 1px solid var(--card-border); overflow: hidden; }
-        .city-pill { background: rgba(255,255,255,0.08); border: 1px solid var(--accent); color: var(--accent); padding: 0.4rem 1rem; border-radius: 30px; font-size: 0.8rem; font-weight: 700; display: inline-block; margin-bottom: 1.2rem; animation: floatAnim 4s ease-in-out infinite; }
-        .hero h1 { font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; color: #fff; word-break: break-word; }
-        .hero p { font-size: 1rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 2rem; }
-
-        /* STATS */
-        .stats-ribbon { display: grid; grid-template-columns: 1fr; gap: 0.8rem; max-width: 1000px; margin: 0 auto; z-index: 10; position: relative; }
-        .stat-card { background: rgba(19, 27, 46, 0.9); backdrop-filter: blur(10px); padding: 1rem; border-radius: 12px; border: 1px solid var(--card-border); text-align: center; }
-        .stat-card .val { font-size: 1.3rem; font-weight: 800; color: var(--accent); font-family: 'Outfit', sans-serif; }
-        .stat-card .lbl { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-top: 0.2rem; }
-
-        /* SECTIONS */
-        .section { padding: 3rem 5%; max-width: 1200px; margin: 0 auto; }
-        .sec-header { text-align: center; margin-bottom: 2rem; }
-        .sec-header h2 { font-size: 1.6rem; font-weight: 800; color: #fff; }
-        .sec-header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.4rem; }
-
-        /* SERVICE CARDS */
-        .grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
-        .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; padding: 1.5rem; transition: all 0.35s ease; display: flex; flex-direction: column; justify-content: space-between; }
-        .card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
-        .card h3 { font-size: 1.15rem; color: #fff; margin-bottom: 0.6rem; }
-        .card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.6; }
-        .card-badge { background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: var(--accent); padding: 0.4rem 0.8rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-block; width: fit-content; }
-
-        /* OWNER CARD */
-        .owner-card { background: linear-gradient(135deg, #131b2e, #0b1220); border: 1px solid var(--card-border); border-left: 4px solid var(--accent); padding: 1.5rem; border-radius: 14px; margin-top: 2rem; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1rem; }
-        .owner-avatar { background: var(--accent); color: #000; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; }
-        .owner-info h4 { font-size: 1.1rem; color: #fff; }
-        .owner-info p { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.3rem; }
-
-        /* TESTIMONIAL */
-        .testimonial-box { background: var(--card); border: 1px solid var(--card-border); padding: 1.5rem; border-radius: 12px; margin-top: 1.5rem; font-style: italic; color: #e2e8f0; font-size: 0.92rem; }
-
-        /* WHATSAPP FLOAT */
-        .whatsapp-float { position: fixed; bottom: 20px; right: 16px; background: #25d366; color: white; padding: 0.7rem 1.1rem; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 8px 20px rgba(37, 211, 102, 0.4); z-index: 1000; animation: floatAnim 3s ease-in-out infinite; }
-
-        /* FOOTER */
-        footer { background: #070a12; padding: 2rem 5%; text-align: center; border-top: 1px solid var(--card-border); color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; }
-
-        /* ====== TABLET (600px+) ====== */
-        @media (min-width: 600px) {
-            .stats-ribbon { grid-template-columns: repeat(3, 1fr); }
-            .grid { grid-template-columns: repeat(2, 1fr); }
-            .hero h1 { font-size: 2.4rem; }
-            .owner-card { flex-direction: row; text-align: left; align-items: center; }
+        *, *:before, *:after { margin: 0; padding: 0; box-sizing: border-box !important; }
+        html, body { 
+            width: 100% !important; 
+            max-width: 100% !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            overflow-x: hidden !important; 
+            background-color: var(--bg); 
+            color: #0f172a; 
+            line-height: 1.45; 
+            font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+            scroll-behavior: smooth;
         }
 
-        /* ====== DESKTOP (900px+) ====== */
+        h1, h2, h3, h4, .brand-text { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: normal !important; font-stretch: normal !important; word-break: break-word !important; overflow-wrap: break-word !important; }
+
+        /* SMOOTH SCROLL REVEAL CLASS */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0px);
+        }
+
+        #scroll-progress { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-warm)); width: 0%; z-index: 1000; transition: width 0.1s linear; }
+
+        nav { background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(16px); padding: 0.75rem 1.2rem; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); width: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.03); gap: 0.5rem; box-sizing: border-box; }
+        .brand-text { font-size: clamp(0.9rem, 3.5vw, 1.15rem); font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .brand-text span { color: var(--accent); }
+
+        .btn-dark { background: #0f172a; color: #ffffff; padding: 0.5rem 0.95rem; border-radius: 25px; font-weight: 700; font-size: clamp(0.72rem, 2.2vw, 0.82rem); text-decoration: none; transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem; border: none; cursor: pointer; flex-shrink: 0; box-shadow: 0 3px 10px rgba(15,23,42,0.12); }
+        .btn-dark:hover { background: var(--accent); }
+
+        /* HERO SECTION */
+        .hero { padding: 2rem 1.2rem 1.8rem; display: grid; grid-template-columns: 1fr; gap: 1.8rem; align-items: center; border-bottom: 1px solid var(--border); max-width: 1140px; margin: 0 auto; width: 100%; box-sizing: border-box; overflow: hidden; }
+        .hero-text { width: 100%; max-width: 100%; min-width: 0; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 0.4rem; background: #ffffff; border: 1px solid var(--border); padding: 0.3rem 0.75rem; border-radius: 20px; font-size: clamp(0.7rem, 2vw, 0.78rem); font-weight: 700; color: var(--accent); margin-bottom: 0.8rem; max-width: 100%; box-shadow: 0 2px 6px rgba(0,0,0,0.02); line-height: 1.3; }
+        .live-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #22c55e; flex-shrink: 0; }
+
+        .hero h1 { font-size: clamp(1.4rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.2; color: #0f172a; margin-bottom: 0.8rem; word-break: break-word; overflow-wrap: break-word; max-width: 100%; }
+        .hero h1 span { color: var(--accent); }
+        .hero p { font-size: clamp(0.88rem, 2.2vw, 1rem); color: #475569; margin-bottom: 1.2rem; max-width: 600px; line-height: 1.5; }
+
+        .hero-img-card { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; cursor: pointer; max-width: 100%; box-sizing: border-box; }
+        .hero-img-card img { width: 100%; height: auto; max-height: 320px; object-fit: cover; display: block; }
+        .hero-img-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(15, 23, 42, 0.94)); padding: 0.9rem; color: #ffffff; }
+
+        .stats-ribbon { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1.2rem; width: 100%; box-sizing: border-box; }
+        .stat-card { background: #ffffff; padding: 0.7rem 0.4rem; border-radius: 10px; border: 1px solid var(--border); text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .stat-card .val { font-size: clamp(0.9rem, 2.5vw, 1.2rem); font-weight: 800; color: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.2; }
+        .stat-card .lbl { font-size: clamp(0.62rem, 1.8vw, 0.72rem); color: #64748b; font-weight: 700; margin-top: 0.2rem; line-height: 1.2; }
+
+        /* INFINITE MARQUEE BAR */
+        .marquee-bar { overflow: hidden !important; white-space: nowrap !important; padding: 0.5rem 0; background: #ffffff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 1.2rem; width: 100% !important; max-width: 100% !important; position: relative; contain: content; }
+        @keyframes marqueeScroll { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+        .marquee-track { display: inline-flex; gap: 1.5rem; animation: marqueeScroll 25s linear infinite; }
+        .marquee-item { font-size: 0.72rem; font-weight: 800; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; display: flex; align-items: center; gap: 0.3rem; }
+
+        /* SECTION STYLING */
+        .section { padding: 2.2rem 1.2rem; max-width: 1140px; margin: 0 auto; width: 100%; box-sizing: border-box; overflow: hidden; }
+        .sec-header { text-align: center; margin-bottom: 1.8rem; }
+        .sec-header h2 { font-size: clamp(1.3rem, 3.5vw, 1.9rem); font-weight: 800; color: #0f172a; margin-bottom: 0.3rem; }
+        .sec-header p { color: #64748b; font-size: clamp(0.85rem, 2.2vw, 0.95rem); }
+
+        .filter-tabs { display: flex; justify-content: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .filter-tab { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 0.4rem 0.85rem; border-radius: 20px; font-weight: 700; font-size: 0.78rem; cursor: pointer; transition: all 0.2s ease; }
+        .filter-tab.active, .filter-tab:hover { background: #0f172a; color: #ffffff; border-color: #0f172a; }
+
+        /* FLUID CASE STUDY GRID */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 1.2rem; width: 100%; box-sizing: border-box; }
+        .card { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: transform 0.2s ease, border-color 0.3s ease; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.03); width: 100%; max-width: 100%; box-sizing: border-box; cursor: pointer; }
+        .card:hover { border-color: var(--accent); }
+        .card-img { width: 100%; height: 180px; object-fit: cover; }
+        .card-content { padding: 1.1rem; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .card h3 { font-size: clamp(1rem, 2.5vw, 1.18rem); color: #0f172a; margin-bottom: 0.4rem; font-weight: 800; }
+        .card p { color: #475569; font-size: 0.85rem; margin-bottom: 0.9rem; line-height: 1.45; }
+        
+        .spec-list { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 1px solid #f1f5f9; font-size: 0.7rem; color: #64748b; font-weight: 700; }
+        .spec-item { display: flex; align-items: center; gap: 0.2rem; background: #f8fafc; padding: 0.2rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; }
+
+        .card-badge { background: #f1f5f9; border: 1px solid #cbd5e1; color: #0f172a; padding: 0.28rem 0.65rem; border-radius: 14px; font-size: 0.72rem; font-weight: 800; width: fit-content; }
+
+        .estimator-container { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem; margin-top: 1.8rem; width: 100%; max-width: 100%; box-sizing: border-box; }
+        .input-field { background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 0.75rem 0.85rem; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.3s; width: 100%; font-family: inherit; box-sizing: border-box; }
+        .input-field:focus { border-color: var(--accent); }
+        .tab-btn { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 0.45rem 0.85rem; border-radius: 18px; font-weight: 700; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease; }
+        .tab-btn.active, .tab-btn:hover { background: #0f172a; color: #ffffff; border-color: #0f172a; }
+
+        .owner-card { background: #ffffff; border: 1px solid var(--border); border-left: 4px solid #0f172a; padding: 1.1rem; border-radius: 12px; margin-top: 1.8rem; display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; width: 100%; box-sizing: border-box; }
+        .owner-avatar { background: #0f172a; color: #ffffff; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; font-weight: 800; flex-shrink: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .owner-info h4 { font-size: clamp(1rem, 2.8vw, 1.2rem); color: #0f172a; font-weight: 800; }
+        .owner-info p { color: #475569; font-size: 0.85rem; margin-top: 0.2rem; line-height: 1.4; }
+
+        .whatsapp-float { position: fixed; bottom: 14px; right: 14px; background: #25d366; color: white; padding: 0.6rem 1rem; border-radius: 35px; text-decoration: none; font-weight: 800; font-size: 0.78rem; display: flex; align-items: center; gap: 0.35rem; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); z-index: 1000; max-width: calc(100% - 28px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+
+        /* LIGHTBOX IMAGE MODAL */
+        .lightbox-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 3000; padding: 1rem; }
+        .lightbox-content { max-width: 800px; width: 100%; max-height: 80vh; border-radius: 12px; overflow: hidden; background: #fff; position: relative; }
+        .lightbox-img { width: 100%; height: 100%; max-height: 70vh; object-fit: cover; display: block; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 1rem; }
+        .modal-box { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1.3rem; max-width: 420px; width: 100%; position: relative; text-align: left; box-sizing: border-box; }
+        .close-btn { position: absolute; top: 0.7rem; right: 0.9rem; color: #64748b; font-size: 1.3rem; cursor: pointer; font-weight: 700; }
+
+        footer { background: #ffffff; padding: 1.8rem 1.2rem; text-align: center; border-top: 1px solid var(--border); color: #64748b; font-size: 0.8rem; margin-top: 2.5rem; width: 100%; box-sizing: border-box; }
+
         @media (min-width: 900px) {
-            nav { padding: 1.2rem 6%; }
-            .brand { font-size: 1.6rem; }
-            .nav-links { display: flex; gap: 2rem; list-style: none; align-items: center; }
-            .nav-links a { color: var(--text-main); text-decoration: none; font-size: 0.95rem; font-weight: 600; transition: color 0.3s; }
-            .nav-links a:hover { color: var(--accent); }
-            .hero { padding: 5.5rem 6% 4rem; }
-            .hero h1 { font-size: 3.4rem; }
-            .hero p { font-size: 1.25rem; }
-            .city-pill { font-size: 0.9rem; padding: 0.5rem 1.4rem; }
-            .stat-card { padding: 1.5rem; }
-            .stat-card .val { font-size: 1.9rem; }
-            .section { padding: 5rem 6%; }
-            .sec-header h2 { font-size: 2.4rem; }
-            .grid { grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-            .card { padding: 2.2rem; border-radius: 16px; }
-            .card:hover { transform: translateY(-8px); box-shadow: 0 12px 35px rgba(0,0,0,0.5); }
-            .card h3 { font-size: 1.35rem; }
-            .owner-card { padding: 2.5rem; gap: 2rem; flex-direction: row; text-align: left; align-items: center; border-left-width: 5px; }
-            .owner-avatar { width: 70px; height: 70px; font-size: 1.8rem; }
-            .owner-info h4 { font-size: 1.3rem; }
-            .testimonial-box { padding: 2rem; }
-            .whatsapp-float { bottom: 30px; right: 30px; padding: 0.8rem 1.4rem; font-size: 0.9rem; }
-            footer { padding: 3rem 6%; font-size: 0.95rem; margin-top: 5rem; }
+            .hero { grid-template-columns: 1fr 1fr; padding: 3rem 1.2rem 2.5rem; gap: 2.5rem; }
         }
     </style>
 </head>
 <body>
 
+    <div id="scroll-progress"></div>
+
     <nav>
-        <div class="brand"><span>VA</span> Vanguard Luxury Events (Surat)</div>
-        <ul class="nav-links">
-            <li><a href="#services">Services</a></li>
-            <li><a href="#owner">About Founder</a></li>
-            <li><a href="#reviews">Client Reviews</a></li>
-        </ul>
-        <a href="tel:+919800000000" class="btn-call">Call Arun</a>
+        <div class="brand-text"><span>HE</span> Heritage Teak Woodworks Studio (Surat)</div>
+        <a href="tel:+91 98254 77889" class="btn-dark">Call CA</a>
     </nav>
 
     <section class="hero">
-        <span class="city-pill">Registered Office: Surat, India</span>
-        <h1>Vanguard Luxury Events (Surat)</h1>
-        <p>Bespoke Destination Weddings, Stage Scenography & Royal Events in Surat</p>
+        <div class="hero-text reveal">
+            <span class="hero-badge"><span class="live-dot"></span> Head Office: Surat &bull; Accepting New Engagements</span>
+            <h1><span>Heritage Teak Woodworks Studio (Surat)</span></h1>
+            <p>Handcrafted Solid Teak Furniture & Custom Architectural Joinery in Surat</p>
 
-        <div class="stats-ribbon">
-            <div class="stat-card">
-                <div class="val">250+ Royal Weddings</div>
-                <div class="lbl">Track Record</div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button onclick="toggleModal()" class="btn-dark" style="padding: 0.65rem 1.2rem; cursor: pointer;">Explore Case Studies &rarr;</button>
+                <a href="tel:+91 98254 77889" style="color: #0f172a; border: 1px solid var(--border); background: #ffffff; padding: 0.65rem 1.1rem; border-radius: 25px; text-decoration: none; font-weight: 700; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.3rem;">Direct Call: +91 98254 77889</a>
             </div>
-            <div class="stat-card">
-                <div class="val">Exclusive Venue Partners</div>
-                <div class="lbl">Professional Credential</div>
+
+            <div class="stats-ribbon">
+                <div class="stat-card">
+                    <div class="val">2,500+ Crafted Pieces</div>
+                    <div class="lbl">Track Record</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val">100% Solid Teak Wood</div>
+                    <div class="lbl">Verified License</div>
+                </div>
+                <div class="stat-card">
+                    <div class="val">Direct Workshop Rates</div>
+                    <div class="lbl">Client Rating</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="val">100% Stress-Free Execution</div>
-                <div class="lbl">Client Satisfaction</div>
+
+            <div class="marquee-bar">
+                <div class="marquee-track">
+                    <div class="marquee-item">🏆 ARCHITECTURAL DIGEST ACCREDITED</div>
+                    <div class="marquee-item">⭐ FORBES TOP 100 FIRM</div>
+                    <div class="marquee-item">💎 VOGUE LIVING FEATURED</div>
+                    <div class="marquee-item">🏛️ COUNCIL CERTIFIED GOVERNANCE</div>
+                    <div class="marquee-item">⚡ 100% ON-TIME EXECUTION SLA</div>
+                    <div class="marquee-item">🏆 ARCHITECTURAL DIGEST ACCREDITED</div>
+                    <div class="marquee-item">⭐ FORBES TOP 100 FIRM</div>
+                    <div class="marquee-item">💎 VOGUE LIVING FEATURED</div>
+                    <div class="marquee-item">🏛️ COUNCIL CERTIFIED GOVERNANCE</div>
+                    <div class="marquee-item">⚡ 100% ON-TIME EXECUTION SLA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-img-card reveal" onclick="openLightbox('https://images.unsplash.com/photo-1758977403341-0104135995af?auto=format&fit=crop&w=1400&q=85')">
+            <img src="https://images.unsplash.com/photo-1758977403341-0104135995af?auto=format&fit=crop&w=1400&q=85" alt="Heritage Teak Woodworks Studio (Surat)" loading="lazy">
+            <div class="hero-img-overlay">
+                <div style="font-weight: 800; font-size: 1rem; font-family:'Plus Jakarta Sans', sans-serif;">Heritage Teak Woodworks Studio (Surat) (Surat)</div>
+                <div style="font-size: 0.78rem; color: #fbbf24; font-weight: 700; margin-top:0.15rem;">Supervised by Dharmesh Shah (Founder & Master Craftsman) | +91 98254 77889</div>
+                <div style="font-size: 0.72rem; opacity: 0.85; margin-top: 0.15rem;">Click to expand photo lightbox 🔍</div>
             </div>
         </div>
     </section>
 
     <section class="section" id="services">
-        <div class="sec-header">
-            <h2>Our Core Professional Services</h2>
-            <p>Directly supervised by Arun Kumar (Event Director) in Surat.</p>
+        <div class="sec-header reveal">
+            <h2>Featured Case Studies</h2>
+            <p>Bespoke execution tailored specifically for clients in Surat.</p>
         </div>
 
-        <div class="grid">
-            
-            <div class="card">
-                <div>
-                    <h3>Full Destination Wedding Management</h3>
-                    <p>Turnkey wedding planning, heritage venue booking, hospitality management, and guest logistics.</p>
-                </div>
-                <div class="card-badge">Pan-India Destinations</div>
-            </div>
-            
-            <div class="card">
-                <div>
-                    <h3>Theme Stage Decor & Floral Design</h3>
-                    <p>Custom LED stage setups, luxury floral Mandap designs, and immersive lighting scenography.</p>
-                </div>
-                <div class="card-badge">Bespoke Scenography</div>
-            </div>
-            
-            <div class="card">
-                <div>
-                    <h3>Artist Booking & Royal Catering</h3>
-                    <p>Celebrity artist management, live musical bands, and multi-cuisine gourmet catering curation.</p>
-                </div>
-                <div class="card-badge">5-Star Catering Partners</div>
-            </div>
-            
+        <div class="filter-tabs reveal">
+            <button onclick="filterCategory('all')" class="filter-tab active" data-cat="all">All Craftworks</button><button onclick="filterCategory('dining')" class="filter-tab " data-cat="dining">Teak Dining Sets</button><button onclick="filterCategory('living')" class="filter-tab " data-cat="living">Velvet Lounges</button><button onclick="filterCategory('office')" class="filter-tab " data-cat="office">Executive Desks</button>
         </div>
 
-        <div class="owner-card" id="owner">
-            <div class="owner-avatar">A</div>
+        <div class="grid" id="portfolioGrid">
+            
+    <div class="card reveal" data-category="dining" onclick="openLightbox('https://images.unsplash.com/photo-1617972582658-45dd3162f128?auto=format&fit=crop&w=800&q=80')">
+        <img src="https://images.unsplash.com/photo-1617972582658-45dd3162f128?auto=format&fit=crop&w=800&q=80" class="card-img" alt="Heritage Solid Teak Dining Sets" loading="lazy">
+        <div class="card-content">
+            <div>
+                <div class="spec-list">
+                    <span class="spec-item">📍 Workshop Studio, Surat</span>
+                    <span class="spec-item">📐 8-Seater Set</span>
+                    <span class="spec-item">🗓️ 2025 Build</span>
+                </div>
+                <h3>Heritage Solid Teak Dining Sets</h3>
+                <p>8-seater CP Teak wood dining tables with velvet upholstered chairs and PU matte finish, built directly in {city}.</p>
+            </div>
+            <div class="card-badge">Lifetime Wood Warranty &bull; Zoom 🔍</div>
+        </div>
+    </div>
+    
+    <div class="card reveal" data-category="living" onclick="openLightbox('https://images.unsplash.com/photo-1762320893556-71850b0e0f57?auto=format&fit=crop&w=800&q=80')">
+        <img src="https://images.unsplash.com/photo-1762320893556-71850b0e0f57?auto=format&fit=crop&w=800&q=80" class="card-img" alt="Custom L-Shape Velvet Lounges" loading="lazy">
+        <div class="card-content">
+            <div>
+                <div class="spec-list">
+                    <span class="spec-item">📍 Showroom, Surat</span>
+                    <span class="spec-item">📐 Custom Size</span>
+                    <span class="spec-item">🗓️ 2025 Build</span>
+                </div>
+                <h3>Custom L-Shape Velvet Lounges</h3>
+                <p>Solid Sheesham hardwood internal framing, 40D Sleepwell foam, and stain-resistant imported upholstery fabrics.</p>
+            </div>
+            <div class="card-badge">Custom Dimensions &bull; Zoom 🔍</div>
+        </div>
+    </div>
+    
+    <div class="card reveal" data-category="office" onclick="openLightbox('https://images.unsplash.com/photo-1680503146454-0fe569cef4eb?auto=format&fit=crop&w=800&q=80')">
+        <img src="https://images.unsplash.com/photo-1680503146454-0fe569cef4eb?auto=format&fit=crop&w=800&q=80" class="card-img" alt="Executive Mahogany Office Desks" loading="lazy">
+        <div class="card-content">
+            <div>
+                <div class="spec-list">
+                    <span class="spec-item">📍 Corporate Fit-Out, Surat</span>
+                    <span class="spec-item">📐 Managerial Desk</span>
+                    <span class="spec-item">🗓️ 2025 Build</span>
+                </div>
+                <h3>Executive Mahogany Office Desks</h3>
+                <p>Bespoke managerial desks with integrated wire grommets, leatherette inlays, and lockable storage drawers.</p>
+            </div>
+            <div class="card-badge">Direct Workshop Price &bull; Zoom 🔍</div>
+        </div>
+    </div>
+    
+        </div>
+
+        
+        <div class="estimator-container reveal">
+            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.5rem; font-weight: 800; margin-bottom: 0.4rem;">🛋️ Interactive Wood & Polish Finish Selector</h3>
+            <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.6rem;">Select a premium polish to preview wood texture & protective topcoat finish.</p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem;">
+                <button onclick="setWood('CP Teak Wood (Natural Gold Polish)', '#d97706')" class="tab-btn active">Natural Teak Gold</button>
+                <button onclick="setWood('Dark Walnut Matte Polish', '#451a03')" class="tab-btn">Dark Walnut Matte</button>
+                <button onclick="setWood('Imperial Mahogany Red Satin', '#7f1d1d')" class="tab-btn">Imperial Mahogany</button>
+            </div>
+            <div style="background: #ecfdf5; padding: 1.5rem 1.8rem; border-radius: 16px; border-left: 5px solid #047857;">
+                <div style="color: #0f172a; font-weight: 800; font-size: 1.15rem;" id="selectedWood">Active Finish: CP Teak Wood (Natural Gold Polish)</div>
+                <div style="color: #475569; font-size: 0.9rem; margin-top: 0.4rem;">Seasoned against termites & moisture | Hand-buffed PU lacquer finish</div>
+            </div>
+        </div>
+        
+
+        <div class="owner-card reveal">
+            <div class="owner-avatar">D</div>
             <div class="owner-info">
-                <h4>Lead Curator Arun Kumar (Event Director)</h4>
-                <p>Founder & Principal Event Director at Vanguard Luxury Events (Surat), Surat. Specializing in grand luxury weddings, corporate galas, and bespoke event production.</p>
+                <h4>Master Craftsman Dharmesh Shah (Founder & Master Craftsman)</h4>
+                <p>Proprietor & Master Craftsman at Heritage Teak Woodworks Studio (Surat), Surat. Handcrafting solid teak and mahogany furniture directly from our workshop with zero retail markup.</p>
+                <p style="margin-top:0.4rem; font-weight:800; color:#0f172a;">Direct Executive Desk: +91 98254 77889</p>
             </div>
         </div>
 
-        <div class="testimonial-box" id="reviews">
-            <p>"Arun Kumar (Event Director) and the team curated our dream destination wedding in Surat. Every single function was executed flawlessly!" — Vikramaditya & Priya Kapoor</p>
+        <div class="reveal" style="background: #ffffff; border: 1px solid var(--border); padding: 1.4rem; border-radius: 16px; margin-top: 2rem; font-style: italic; color: #334155; font-size: 0.95rem; line-height: 1.6; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+            "Dharmesh Shah (Founder & Master Craftsman)'s workshop built a customized teak dining table for our home in Surat. The grain texture and PU polish are divine!" — Col. Alok Mathur
         </div>
     </section>
 
-    <a href="https://wa.me/919800000000" target="_blank" class="whatsapp-float">
-        WhatsApp Arun
+    <a href="https://wa.me/919825477889" target="_blank" class="whatsapp-float">
+        WhatsApp Dharmesh (+91 98254 77889)
     </a>
 
+    <!-- LIGHTBOX IMAGE MODAL -->
+    <div id="lightboxModal" class="lightbox-modal" onclick="closeLightbox()">
+        <div class="lightbox-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeLightbox()" style="position:absolute; top:0.6rem; right:1rem; color:#fff; z-index:10; background:rgba(0,0,0,0.6); width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;">&times;</span>
+            <img id="lightboxImg" class="lightbox-img" src="" alt="Full Preview">
+        </div>
+    </div>
+
+    <!-- INQUIRY MODAL -->
+    <div id="quoteModal" class="modal-overlay">
+        <div class="modal-box">
+            <span class="close-btn" onclick="toggleModal()">&times;</span>
+            <h3 style="font-family:'Syne', sans-serif; color: #0f172a; font-size: 1.25rem; font-weight: 800; margin-bottom: 0.3rem;">Direct Executive Consultation</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.2rem;">Connect directly with Dharmesh Shah (Founder & Master Craftsman) (+91 98254 77889) regarding your project in Surat.</p>
+            <form onsubmit="handleModalSubmit(event)">
+                <div style="margin-bottom: 0.9rem;">
+                    <input type="text" class="input-field" placeholder="Your Full Name / Firm Name" required>
+                </div>
+                <div style="margin-bottom: 0.9rem;">
+                    <input type="tel" class="input-field" placeholder="Your Direct Phone Number" required>
+                </div>
+                <div style="margin-bottom: 1.2rem;">
+                    <textarea class="input-field" rows="3" placeholder="Project specifications in Surat..." required></textarea>
+                </div>
+                <button type="submit" class="btn-dark" style="width: 100%; border: none; cursor: pointer; font-size: 0.9rem; padding: 0.8rem; justify-content: center;">Submit Technical Request to +91 98254 77889 &rarr;</button>
+            </form>
+            <div id="modalSuccess" style="display: none; margin-top: 1rem; color: #047857; text-align: center; font-weight: 800; font-size: 0.88rem;">
+                ✓ Inquiry registered! Dharmesh will reply directly on WhatsApp (+91 98254 77889) within 2 hours.
+            </div>
+        </div>
+    </div>
+
     <footer>
-        <p>&copy; 2026 Vanguard Luxury Events (Surat) (Surat). All rights reserved.</p>
-        <p>Direct Office Contact: Arun Kumar (Event Director) | Surat, India</p>
+        <p>&copy; 2026 Heritage Teak Woodworks Studio (Surat) (Surat). All rights reserved.</p>
+        <p style="margin-top:0.3rem;">Direct Executive Line: Dharmesh Shah (Founder & Master Craftsman) | +91 98254 77889 | Surat, India</p>
     </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.reveal').forEach(function(el) {
+                observer.observe(el);
+            });
+        });
+
+        window.onscroll = function() {
+            var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            var scrolled = (winScroll / height) * 100;
+            document.getElementById("scroll-progress").style.width = scrolled + "%";
+        };
+
+        function filterCategory(cat) {
+            var tabs = document.querySelectorAll('.filter-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            var activeTab = document.querySelector('.filter-tab[data-cat="' + cat + '"]');
+            if (activeTab) activeTab.classList.add('active');
+
+            var cards = document.querySelectorAll('#portfolioGrid .card');
+            cards.forEach(function(card) {
+                if (cat === 'all' || card.getAttribute('data-category') === cat) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function openLightbox(imgSrc) {
+            document.getElementById("lightboxImg").src = imgSrc;
+            document.getElementById("lightboxModal").style.display = "flex";
+        }
+
+        function closeLightbox() {
+            document.getElementById("lightboxModal").style.display = "none";
+        }
+
+        function toggleModal() {
+            var modal = document.getElementById("quoteModal");
+            if (modal.style.display === "flex") {
+                modal.style.display = "none";
+            } else {
+                modal.style.display = "flex";
+            }
+        }
+
+        function handleModalSubmit(e) {
+            e.preventDefault();
+            document.getElementById("modalSuccess").style.display = "block";
+            setTimeout(function() {
+                toggleModal();
+                document.getElementById("modalSuccess").style.display = "none";
+            }, 2500);
+        }
+
+        function calcArchCost() {
+            var rate = parseFloat(document.getElementById("propType").value);
+            var area = parseFloat(document.getElementById("areaRange").value);
+            document.getElementById("areaVal").innerText = area.toLocaleString('en-IN') + " Sq. Ft";
+            var total = (rate * area) / 10000000;
+            document.getElementById("estResult").innerText = "₹" + total.toFixed(2) + " Crore";
+        }
+
+        function calcWeddingCost() {
+            var rate = parseFloat(document.getElementById("weddingType").value);
+            var guests = parseFloat(document.getElementById("guestRange").value);
+            document.getElementById("guestVal").innerText = guests + " Guests";
+            var total = (rate * guests) / 100000;
+            document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
+        }
+
+        function setWood(name, color) {
+            document.getElementById("selectedWood").innerText = "Active Finish: " + name;
+        }
+
+        function calcCATax() {
+            var base = parseFloat(document.getElementById("caTurnover").value);
+            var inv = parseFloat(document.getElementById("invRange").value);
+            document.getElementById("invVal").innerText = inv + " Invoices";
+            var total = base + (inv * 35);
+            document.getElementById("caResult").innerText = "₹" + total.toLocaleString('en-IN') + " / Month";
+        }
+    </script>
 
 </body>
 </html>
