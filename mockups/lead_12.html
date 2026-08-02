@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ekta Makeup Artist (Mumbai) | Premium Beauty / Makeup Studios in Mumbai</title>
+    <title>Cococart & Cafe (Mumbai T2) (Mumbai) | Premium Cafes in Mumbai</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -20,16 +20,69 @@
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         
         
-        /* Snappier organic Scroll Reveal */
-        .scroll-reveal {
+        /* Multi-directional Smooth Scroll Reveals */
+        .scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s cubic-bezier(0.215, 0.610, 0.355, 1), transform 0.6s cubic-bezier(0.215, 0.610, 0.355, 1);
             will-change: transform, opacity;
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .scroll-reveal.visible {
+        .scroll-reveal { transform: translateY(30px); }
+        .scroll-reveal-left { transform: translateX(-40px); }
+        .scroll-reveal-right { transform: translateX(40px); }
+        .scroll-reveal-scale { transform: scale(0.92) translateY(20px); }
+        
+        .scroll-reveal.visible, .scroll-reveal-left.visible, .scroll-reveal-right.visible, .scroll-reveal-scale.visible {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        /* Interactive Hover Card Lift & Shimmer */
+        .hover-card {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+        }
+        .hover-card:hover {
+            transform: translateY(-8px);
+        }
+
+        /* Image Zoom Container */
+        .img-zoom {
+            overflow: hidden;
+            position: relative;
+        }
+        .img-zoom img {
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .img-zoom:hover img {
+            transform: scale(1.06);
+        }
+
+        /* Glowing CTA Shimmer Effect */
+        .btn-shimmer {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-shimmer::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.8s ease;
+        }
+        .btn-shimmer:hover::after {
+            transform: rotate(30deg) translateX(100%);
+        }
+        .btn-shimmer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
         
         /* Morphing mesh background glow */
@@ -106,18 +159,18 @@
 <body>
 
     <nav>
-        <div class="brand">Ekta <span>Solutions</span></div>
-        <a href="https://wa.me/09768149840" class="btn-consult">Direct Inquiry</a>
+        <div class="brand">Cococart <span>Solutions</span></div>
+        <a href="https://wa.me/07715931243" class="btn-consult">Direct Inquiry</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-info">
-            <h1>Premium <span>Beauty / Makeup Studios</span> Services & Turnkey Management</h1>
-            <p>Professional bespoke services and custom end-to-end execution directed by Ravi Patel (Founder) in Mumbai. Custom-crafted to meet the highest local operational standards.</p>
+            <h1>Premium <span>Cafes</span> Services & Turnkey Management</h1>
+            <p>Professional bespoke services and custom end-to-end execution directed by Business Owner in Mumbai. Custom-crafted to meet the highest local operational standards.</p>
             <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Senior Partner</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750" alt="Beauty / Makeup Studios">
+            <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9" alt="Cafes">
         </div>
     </section>
 
@@ -139,7 +192,7 @@
                 </div>
             </div>
             <div class="service-card">
-                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6" alt="Custom execution">
+                <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9" alt="Custom execution">
                 <div class="service-info">
                     <h3>Statutory Compliance</h3>
                     <p>Guaranteed adherence to regulatory standards, verification controls, and final handover certifications.</p>
@@ -170,17 +223,17 @@
                     <p style="font-size:0.75rem; text-transform:uppercase; color:#57534e; font-weight:700;">Estimated Setup Budget:</p>
                     <div id="projectResult" class="calc-val">₹5.00 Lakhs</div>
                 </div>
-                <button onclick="window.location.href='https://wa.me/09768149840'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Initiate Engagement &rarr;</button>
+                <button onclick="window.location.href='https://wa.me/07715931243'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Initiate Engagement &rarr;</button>
             </div>
         </div>
     </section>
 
     <footer>
-        <div class="footer-logo">Ekta Makeup Artist (Mumbai)</div>
+        <div class="footer-logo">Cococart & Cafe (Mumbai T2) (Mumbai)</div>
         <p style="font-size:0.9rem; color:#a8a29e; margin-top:0.3rem;">Turnkey Direct Solutions &bull; Mumbai</p>
         <div class="footer-buttons">
-            <a href="tel:09768149840" class="btn-call">Direct Call</a>
-            <a href="https://wa.me/09768149840" class="btn-wa">WhatsApp Inquiry</a>
+            <a href="tel:07715931243" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/07715931243" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
 
@@ -196,9 +249,9 @@
     
     <script>
 
-        // IntersectionObserver for Scroll Reveal
+        // IntersectionObserver for Multi-Directional Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
-            const reveals = document.querySelectorAll(".scroll-reveal");
+            const reveals = document.querySelectorAll(".scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .scroll-reveal-scale");
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
