@@ -388,10 +388,6 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     clean_phone = re.sub(r'\D', '', str(phone))
 
     glow_bg_styles = """
-        html {
-            scroll-behavior: smooth !important;
-        }
-        
         /* Snappier organic Scroll Reveal */
         .scroll-reveal {
             opacity: 0;
@@ -456,7 +452,7 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
             canvas.style.width = "100vw";
             canvas.style.height = "100vh";
             canvas.style.pointerEvents = "none";
-            canvas.style.zIndex = "-1";
+            canvas.style.zIndex = "999999";
             canvas.style.opacity = "0.7";
             document.body.prepend(canvas);
 
