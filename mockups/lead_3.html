@@ -96,7 +96,28 @@
         </div>
     </footer>
     
+    <!-- Include Lenis Smooth Scroll Library -->
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
     <script>
+        // Initialize Lenis Smooth Scroll
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
+            smoothWheel: true,
+            smoothTouch: false,
+            wheelMultiplier: 1,
+            touchMultiplier: 1.5,
+            normalizeWheel: true
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
         // IntersectionObserver for Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
             const reveals = document.querySelectorAll(".scroll-reveal");
@@ -110,7 +131,7 @@
             reveals.forEach(el => observer.observe(el));
         });
 
-        // Interactive Mouse Trail (Canvas Particles)
+        // Optimized Interactive Mouse Trail (Canvas Particles)
         (function() {
             const canvas = document.createElement("canvas");
             canvas.style.position = "fixed";
@@ -141,36 +162,34 @@
                 constructor(x, y) {
                     this.x = x;
                     this.y = y;
-                    this.size = Math.random() * 5 + 2;
-                    this.speedX = Math.random() * 2 - 1;
-                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.size = Math.random() * 4 + 1.5;
+                    this.speedX = Math.random() * 1.5 - 0.75;
+                    this.speedY = Math.random() * -1 - 0.3;
                     this.color = trailColor;
                     this.alpha = 1;
-                    this.decay = Math.random() * 0.015 + 0.01;
+                    this.decay = Math.random() * 0.02 + 0.015;
                 }
                 update() {
                     this.x += this.speedX;
                     this.y += this.speedY;
                     this.alpha -= this.decay;
-                    if (this.size > 0.2) this.size -= 0.1;
+                    if (this.size > 0.2) this.size -= 0.08;
                 }
                 draw() {
-                    ctx.save();
-                    ctx.globalAlpha = this.alpha;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fillStyle = this.color;
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = this.color;
+                    ctx.globalAlpha = this.alpha;
                     ctx.fill();
-                    ctx.restore();
                 }
             }
 
+            let lastTime = 0;
             window.addEventListener("mousemove", (e) => {
-                for (let i = 0; i < 2; i++) {
-                    particles.push(new Particle(e.clientX, e.clientY));
-                }
+                const now = performance.now();
+                if (now - lastTime < 16) return; // Throttle to ~60fps
+                lastTime = now;
+                particles.push(new Particle(e.clientX, e.clientY));
             });
 
             function animate() {

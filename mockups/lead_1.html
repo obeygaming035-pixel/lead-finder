@@ -72,7 +72,7 @@
         .btn-cta { background: var(--accent); color: #000; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 800; font-size: 0.85rem; border: none; cursor: pointer; }
 
         /* Full Screen Hero with Text Overlay */
-        .hero { position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('https://images.unsplash.com/photo-1577214582508-fdde28e64474') no-repeat center center/cover; padding: 0 1rem; }
+        .hero { position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('https://images.unsplash.com/photo-1622372738946-62e02505feb3') no-repeat center center/cover; padding: 0 1rem; }
         .hero-content { max-width: 900px; }
         .hero-content h1 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.1; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: -1px; }
         .hero-content h1 span { color: var(--accent); }
@@ -139,7 +139,7 @@
         </div>
         <div class="bento-grid">
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1782392454932-35a85377d02c" alt="Luxury Estates">
+                <img src="https://images.unsplash.com/photo-1577214582508-fdde28e64474" alt="Luxury Estates">
                 <div class="bento-content">
                     <span class="bento-tag">Residential</span>
                     <h3>Premium Villa Estate</h3>
@@ -147,7 +147,7 @@
                 </div>
             </div>
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1677553512940-f79af72efd1b" alt="Commercial">
+                <img src="https://images.unsplash.com/photo-1776363497229-616cc7a541fe" alt="Commercial">
                 <div class="bento-content">
                     <span class="bento-tag">Commercial</span>
                     <h3>Corporate Headquarters</h3>
@@ -155,7 +155,7 @@
                 </div>
             </div>
             <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1562438668-bcf0ca6578f0" alt="Urban Layouts">
+                <img src="https://images.unsplash.com/photo-1628012209120-d9db7abf7eab" alt="Urban Layouts">
                 <div class="bento-content">
                     <span class="bento-tag">Outdoor</span>
                     <h3>Penthouse Sky Deck</h3>
@@ -215,7 +215,28 @@
         }
     </script>
     
+    <!-- Include Lenis Smooth Scroll Library -->
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
     <script>
+        // Initialize Lenis Smooth Scroll
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
+            smoothWheel: true,
+            smoothTouch: false,
+            wheelMultiplier: 1,
+            touchMultiplier: 1.5,
+            normalizeWheel: true
+        });
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
         // IntersectionObserver for Scroll Reveal
         document.addEventListener("DOMContentLoaded", () => {
             const reveals = document.querySelectorAll(".scroll-reveal");
@@ -229,7 +250,7 @@
             reveals.forEach(el => observer.observe(el));
         });
 
-        // Interactive Mouse Trail (Canvas Particles)
+        // Optimized Interactive Mouse Trail (Canvas Particles)
         (function() {
             const canvas = document.createElement("canvas");
             canvas.style.position = "fixed";
@@ -260,36 +281,34 @@
                 constructor(x, y) {
                     this.x = x;
                     this.y = y;
-                    this.size = Math.random() * 5 + 2;
-                    this.speedX = Math.random() * 2 - 1;
-                    this.speedY = Math.random() * -1.2 - 0.4;
+                    this.size = Math.random() * 4 + 1.5;
+                    this.speedX = Math.random() * 1.5 - 0.75;
+                    this.speedY = Math.random() * -1 - 0.3;
                     this.color = trailColor;
                     this.alpha = 1;
-                    this.decay = Math.random() * 0.015 + 0.01;
+                    this.decay = Math.random() * 0.02 + 0.015;
                 }
                 update() {
                     this.x += this.speedX;
                     this.y += this.speedY;
                     this.alpha -= this.decay;
-                    if (this.size > 0.2) this.size -= 0.1;
+                    if (this.size > 0.2) this.size -= 0.08;
                 }
                 draw() {
-                    ctx.save();
-                    ctx.globalAlpha = this.alpha;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fillStyle = this.color;
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = this.color;
+                    ctx.globalAlpha = this.alpha;
                     ctx.fill();
-                    ctx.restore();
                 }
             }
 
+            let lastTime = 0;
             window.addEventListener("mousemove", (e) => {
-                for (let i = 0; i < 2; i++) {
-                    particles.push(new Particle(e.clientX, e.clientY));
-                }
+                const now = performance.now();
+                if (now - lastTime < 16) return; // Throttle to ~60fps
+                lastTime = now;
+                particles.push(new Particle(e.clientX, e.clientY));
             });
 
             function animate() {
