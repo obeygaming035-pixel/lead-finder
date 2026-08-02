@@ -1352,19 +1352,29 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
     # TEMPLATE 6: GENERAL FALLBACK
     # ==========================================
     else:
+        if not services_imgs[0].startswith("http"):
+            services_imgs = [
+                "https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8",
+                "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab",
+                "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40"
+            ]
+            hero_img = "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab"
+
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{business_name} | Premium {industry.title()} in {city}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root {{ 
-            --bg: #f8fafc; 
-            --primary: #1e293b; 
+            --bg: #fafaf9; 
+            --primary: #1c1917; 
             --accent: #0f766e; 
-            --border: #cbd5e1; 
+            --accent-hover: #115e59;
+            --card: #ffffff; 
+            --border: #e7e5e4; 
             --glow-primary: rgba(15, 118, 110, 0.12);
             --glow-secondary: rgba(180, 83, 9, 0.08);
         }}
@@ -1373,40 +1383,140 @@ def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 9
         
         {glow_bg_styles}
 
-        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: #fff; border-bottom: 1px solid var(--border); sticky: top; }}
-        .brand {{ font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }}
-        .btn-consult {{ background: var(--accent); color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }}
+        /* Premium Sticky Navigation */
+        nav {{ display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: rgba(250, 250, 249, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }}
+        .brand {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.5px; }}
+        .brand span {{ color: var(--accent); }}
+        .btn-consult {{ background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 0.8rem; transition: background 0.3s; }}
+        .btn-consult:hover {{ background: var(--accent); }}
 
-        .hero {{ padding: 5rem 2rem; text-align: center; background: #fff; border-bottom: 1px solid var(--border); }}
-        .hero h1 {{ font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; margin-bottom: 0.8rem; }}
-        .hero p {{ max-width: 650px; margin: 0 auto 2rem; color: #475569; font-size: 1rem; }}
+        /* Immersive Split Hero */
+        .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 4rem; align-items: center; padding: 5rem 3rem; max-width: 1200px; margin: 0 auto; }}
+        .hero-info h1 {{ font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }}
+        .hero-info h1 span {{ color: var(--accent); font-style: italic; font-weight: 400; }}
+        .hero-info p {{ color: #57534e; font-size: 1.05rem; line-height: 1.7; margin-bottom: 2rem; }}
+        .hero-img {{ border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.02); }}
+        .hero-img img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
 
-        footer {{ padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }}
-        .footer-buttons {{ display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }}
-        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; }}
-        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; }}
+        /* Capabilities Grid */
+        .section {{ padding: 6rem 3rem; max-width: 1200px; margin: 0 auto; }}
+        .sec-title {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }}
+        .services-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem; }}
+        .service-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: all 0.3s ease; }}
+        .service-card:hover {{ transform: translateY(-5px); box-shadow: 0 20px 40px rgba(15, 118, 110, 0.06); border-color: var(--accent); }}
+        .service-card img {{ width: 100%; height: 240px; object-fit: cover; }}
+        .service-info {{ padding: 2rem; }}
+        .service-info h3 {{ font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }}
+        .service-info p {{ color: #57534e; font-size: 0.9rem; line-height: 1.6; }}
+
+        /* Dynamic Budget Planner */
+        .calc-wrapper {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); }}
+        .calc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem; }}
+        .calc-field label {{ font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: #57534e; display: block; margin-bottom: 0.5rem; }}
+        select, input[type="range"] {{ width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; outline: none; }}
+        .calc-result {{ background: #f0fdfa; padding: 2rem; border-radius: 8px; border: 1px solid rgba(15, 118, 110, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }}
+        .calc-val {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); font-weight: 700; }}
+
+        /* Footer */
+        footer {{ padding: 5rem 3rem; background: var(--primary); color: #fff; text-align: center; }}
+        .footer-logo {{ font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }}
+        .footer-buttons {{ display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }}
+        .btn-call {{ border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 0.85rem; transition: background 0.3s; }}
+        .btn-call:hover {{ background: rgba(255,255,255,0.05); }}
+        .btn-wa {{ background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 800; font-size: 0.85rem; transition: background 0.3s; }}
+        .btn-wa:hover {{ background: var(--accent-hover); }}
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="brand">{business_name}</div>
-        <a href="https://wa.me/{clean_phone}" class="btn-consult">Consultation</a>
+        <div class="brand">{business_name.split()[0]} <span>Solutions</span></div>
+        <a href="https://wa.me/{clean_phone}" class="btn-consult">Direct Inquiry</a>
     </nav>
 
     <section class="hero scroll-reveal">
-        <h1>Bespoke {industry.title()} Services</h1>
-        <p>Premium solutions and professional turnkey operations directed by {owner_name} in {city}.</p>
-        <a href="https://wa.me/{clean_phone}" class="btn-consult" style="padding: 0.75rem 1.8rem;">Request Custom Quote</a>
+        <div class="hero-info">
+            <h1>Premium <span>{industry.title()}</span> Services & Turnkey Management</h1>
+            <p>Professional bespoke services and custom end-to-end execution directed by {owner_name} in {city}. Custom-crafted to meet the highest local operational standards.</p>
+            <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Senior Partner</a>
+        </div>
+        <div class="hero-img">
+            <img src="{hero_img}" alt="{industry.title()}">
+        </div>
+    </section>
+
+    <section class="section scroll-reveal">
+        <h2 class="sec-title">Core Operations</h2>
+        <div class="services-grid">
+            <div class="service-card">
+                <img src="{services_imgs[0]}" alt="Bespoke consultation">
+                <div class="service-info">
+                    <h3>Strategic Consulting</h3>
+                    <p>Statutory audits, project roadmap designs, and professional strategic setup tailored for {city}.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <img src="{services_imgs[1]}" alt="Turnkey management">
+                <div class="service-info">
+                    <h3>Turnkey Curation</h3>
+                    <p>Complete project supervision, resource deployments, and operational quality control guarantees.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <img src="{services_imgs[2]}" alt="Custom execution">
+                <div class="service-info">
+                    <h3>Statutory Compliance</h3>
+                    <p>Guaranteed adherence to regulatory standards, verification controls, and final handover certifications.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section scroll-reveal" id="estimator">
+        <h2 class="sec-title">Project Budget Planner</h2>
+        <div class="calc-wrapper">
+            <div class="calc-grid">
+                <div class="calc-field">
+                    <label>Operational Scale</label>
+                    <select id="projectScale" onchange="calcProjectCost()">
+                        <option value="5000">Standard Professional Scope</option>
+                        <option value="12000">Corporate Premium Scope</option>
+                        <option value="25000">Enterprise Bespoke Curation</option>
+                    </select>
+                </div>
+                <div class="calc-field">
+                    <label>Project Units / Size: <span id="unitVal" style="color:var(--accent); font-weight:800;">100 Units</span></label>
+                    <input type="range" id="unitRange" min="20" max="500" step="10" value="100" oninput="calcProjectCost()">
+                </div>
+            </div>
+            <div class="calc-result">
+                <div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#57534e; font-weight:700;">Estimated Setup Budget:</p>
+                    <div id="projectResult" class="calc-val">₹5.00 Lakhs</div>
+                </div>
+                <button onclick="window.location.href='https://wa.me/{clean_phone}'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Initiate Engagement &rarr;</button>
+            </div>
+        </div>
     </section>
 
     <footer>
-        <p>&copy; 2026 {business_name} ({city}). All rights reserved.</p>
+        <div class="footer-logo">{business_name}</div>
+        <p style="font-size:0.9rem; color:#a8a29e; margin-top:0.3rem;">Turnkey Direct Solutions &bull; {city}</p>
         <div class="footer-buttons">
             <a href="tel:{phone}" class="btn-call">Direct Call</a>
             <a href="https://wa.me/{clean_phone}" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
+
+    <script>
+        function calcProjectCost() {{
+            var rate = parseFloat(document.getElementById("projectScale").value);
+            var units = parseFloat(document.getElementById("unitRange").value);
+            document.getElementById("unitVal").innerText = units + " Units";
+            var total = (rate * units) / 100000;
+            document.getElementById("projectResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
+        }}
+    </script>
     {glow_bg_js}
 </body>
 </html>"""
