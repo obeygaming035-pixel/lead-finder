@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Studio Atelier Architects (Mumbai) | Principal Architects in Mumbai</title>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+    <title>Uours Events (Mumbai) | Palace Weddings & Curation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #0b0f19; 
-            --primary: #ffffff; 
-            --accent: #d4af37; 
-            --card-bg: #131a2b; 
-            --text-muted: #8e9bb3; 
-            --glow-primary: rgba(212, 175, 55, 0.12);
-            --glow-secondary: rgba(59, 130, 246, 0.08);
+            --bg: #faf7f5; 
+            --primary: #2d1b2d; 
+            --accent: #be123c; 
+            --accent-light: #fecdd3; 
+            --card: #ffffff; 
+            --glow-primary: rgba(190, 18, 60, 0.08);
+            --glow-secondary: rgba(254, 205, 211, 0.12);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        body { background: var(--bg); color: var(--primary); font-family: 'Inter', sans-serif; overflow-x: hidden; }
         
         
         /* Snappier organic Scroll Reveal */
@@ -58,156 +58,146 @@
         }
     
 
-        /* Modern Side Navigation */
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(11,15,25,0.85); backdrop-filter: blur(15px); position: sticky; top: 0; z-index: 100; }
-        .brand { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #fff; text-transform: uppercase; }
-        .brand span { color: var(--accent); }
-        .nav-links { display: flex; gap: 2rem; list-style: none; }
-        .nav-links a { color: var(--text-muted); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: color 0.3s; }
-        .nav-links a:hover { color: #fff; }
-        .btn-cta { background: var(--accent); color: #000; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 800; font-size: 0.85rem; border: none; cursor: pointer; }
+        /* Elegant Top Navigation */
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: #fff; border-bottom: 1px solid #eae2db; position: sticky; top: 0; z-index: 100; }
+        .brand { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; font-style: italic; }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-book { background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 20px; text-decoration: none; font-weight: 700; font-size: 0.8rem; }
 
-        /* Full Screen Hero with Text Overlay */
-        .hero { position: relative; height: 85vh; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(rgba(11,15,25,0.6), rgba(11,15,25,0.95)), url('https://images.unsplash.com/photo-1598737652403-6e0ee5bf5cf2') no-repeat center center/cover; padding: 0 1rem; }
-        .hero-content { max-width: 900px; }
-        .hero-content h1 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 4rem); line-height: 1.1; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: -1px; }
-        .hero-content h1 span { color: var(--accent); }
-        .hero-content p { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; line-height: 1.6; max-width: 650px; margin-inline: auto; }
+        /* Split Screen Hero */
+        .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); min-height: 80vh; align-items: center; padding: 4rem 3rem; gap: 3rem; max-width: 1200px; margin: 0 auto; }
+        .hero-text h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }
+        .hero-text h1 span { color: var(--accent); font-style: italic; font-weight: 400; }
+        .hero-text p { color: #5a4b5a; font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
+        .hero-img { position: relative; border-radius: 120px 120px 0 0; overflow: hidden; height: 500px; box-shadow: 0 15px 30px rgba(0,0,0,0.05); border: 8px solid #fff; }
+        .hero-img img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* Bento Grid Layout Portfolio */
-        .section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
-        .section-header { margin-bottom: 3rem; text-align: center; }
-        .section-header h2 { font-family: 'Syne', sans-serif; font-size: 2.2rem; margin-bottom: 0.5rem; text-transform: uppercase; }
-        .section-header p { color: var(--text-muted); }
+        /* Cards Grid */
+        .section { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+        .sec-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+        .service-card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid #eae2db; transition: box-shadow 0.3s; }
+        .service-card:hover { box-shadow: 0 10px 25px rgba(45,27,45,0.06); }
+        .service-card img { width: 100%; height: 240px; object-fit: cover; }
+        .service-info { padding: 2rem; }
+        .service-tag { color: var(--accent); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
+        .service-info h3 { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 0.8rem; }
+        .service-info p { color: #5a4b5a; font-size: 0.88rem; line-height: 1.6; }
 
-        .bento-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
-        .bento-card { background: var(--card-bg); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); transition: transform 0.3s; position: relative; cursor: pointer; }
-        .bento-card:hover { transform: translateY(-5px); }
-        .bento-card img { width: 100%; height: 260px; object-fit: cover; filter: grayscale(30%); transition: filter 0.3s; }
-        .bento-card:hover img { filter: grayscale(0%); }
-        .bento-content { padding: 1.5rem; }
-        .bento-tag { font-size: 0.75rem; color: var(--accent); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
-        .bento-content h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .bento-content p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }
+        /* Luxury Estimator Tool */
+        .calc-wrapper { background: #fff; border-radius: 16px; padding: 3rem; border: 1px solid #eae2db; }
+        .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+        .calc-field label { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: #5a4b5a; display: block; margin-bottom: 0.5rem; }
+        select, input[type="range"] { width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid #cbd5e1; border-radius: 4px; outline: none; }
+        .calc-result { background: #fff1f2; padding: 2rem; border-radius: 8px; border: 1px solid var(--accent-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }
+        .calc-val { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); font-weight: 700; }
 
-        /* Interactive 3D Budget Estimator */
-        .calc-box { background: var(--card-bg); border-radius: 8px; padding: 2.5rem; border: 1px solid rgba(255,255,255,0.05); margin-top: 3rem; }
-        .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
-        .calc-field { display: flex; flex-direction: column; gap: 0.5rem; }
-        .calc-field label { font-size: 0.85rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); }
-        select, input[type="range"] { width: 100%; padding: 0.8rem; background: #0b0f19; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px; outline: none; }
-        .calc-result { background: #0b0f19; padding: 1.5rem; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-left: 4px solid var(--accent); }
-        .calc-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; color: var(--accent); font-weight: 800; }
-
-        /* Footer contact */
-        footer { padding: 4rem 2rem; border-top: 1px solid rgba(255,255,255,0.08); text-align: center; background: #070a12; }
-        .footer-logo { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 1rem; }
-        .footer-owner { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem; }
-        .footer-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
-        .btn-call { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 0.6rem 1.5rem; text-decoration: none; font-weight: 700; border-radius: 4px; }
-        .btn-call:hover { background: rgba(255,255,255,0.05); }
+        /* Footer */
+        footer { padding: 5rem 2rem; background: var(--primary); color: #fff; text-align: center; }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }
+        .footer-owner { font-size: 0.95rem; color: #bcaebc; margin-bottom: 2rem; }
+        .footer-buttons { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .btn-direct { border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }
+        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 20px; font-weight: 700; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="brand">Studio <span>Studio</span></div>
+        <div class="brand">Uours <span>Events</span></div>
         <ul class="nav-links">
-            <li><a href="#projects">Portfolio</a></li>
-            <li><a href="#about">About</a></li>
+            <li><a href="#curations">Curations</a></li>
             <li><a href="#estimator">Estimator</a></li>
         </ul>
-        <a href="https://wa.me/919820155667" class="btn-cta">Consult Architect</a>
+        <a href="https://wa.me/917208700786" class="btn-book">Consult Curator</a>
     </nav>
 
-    <section class="hero">
-        <div class="hero-content scroll-reveal">
-            <h1>Crafting Iconic <span>Landmarks</span> in Mumbai</h1>
-            <p>Architectural Planning, Structural Engineering & Luxury Interior Fit-Outs built to elevate modern spatial experiences.</p>
-            <a href="#estimator" class="btn-cta">Start Project Planner</a>
+    <section class="hero scroll-reveal">
+        <div class="hero-text">
+            <h1>Palace Destination <span>Weddings</span> & Royal Curation</h1>
+            <p>Bespoke palace scenography, floral styling, Bollywood artist curations, and 5-star royal hospitality planned flawlessly in Mumbai.</p>
+            <a href="#estimator" class="btn-book">Start Wedding Curation Planner</a>
+        </div>
+        <div class="hero-img">
+            <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9" alt="Luxury weddings">
         </div>
     </section>
 
-    <section class="section scroll-reveal" id="projects">
-        <div class="section-header">
-            <h2>Featured Built Estates</h2>
-            <p>Selected architectural blueprints and turnkey fit-outs successfully handed over in Mumbai.</p>
-        </div>
-        <div class="bento-grid">
-            <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1706855203772-c249b75fe016" alt="Luxury Estates">
-                <div class="bento-content">
-                    <span class="bento-tag">Residential</span>
-                    <h3>Premium Villa Estate</h3>
-                    <p>Vastu-compliant architectural plans and luxury interior joinery curation.</p>
+    <section class="section scroll-reveal" id="curations">
+        <h2 class="sec-title">Bespoke Royal Celebrations</h2>
+        <div class="services-grid">
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Palace bookings">
+                <div class="service-info">
+                    <span class="service-tag">Heritage Palaces</span>
+                    <h3>Palace Curation</h3>
+                    <p>Complete multi-day palace booking, luxury transfers, and royal elephant welcome entries.</p>
                 </div>
             </div>
-            <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1686164748261-33e13eef70b6" alt="Commercial">
-                <div class="bento-content">
-                    <span class="bento-tag">Commercial</span>
-                    <h3>Corporate Headquarters</h3>
-                    <p>Acoustic glass partitioning, modular layouts, and executive suites execution.</p>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6" alt="Stage decor">
+                <div class="service-info">
+                    <span class="service-tag">Scenography</span>
+                    <h3>Floral Styling & Mandap</h3>
+                    <p>Custom floral backdrops, imported orchids mandap, and ambient warm projection layouts.</p>
                 </div>
             </div>
-            <div class="bento-card">
-                <img src="https://images.unsplash.com/photo-1782392454932-35a85377d02c" alt="Urban Layouts">
-                <div class="bento-content">
-                    <span class="bento-tag">Outdoor</span>
-                    <h3>Penthouse Sky Deck</h3>
-                    <p>Solid teak wood decking, weather-resistant joinery, and infinity plunge pool layouts.</p>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Royal feast">
+                <div class="service-info">
+                    <span class="service-tag">Gourmet Catering</span>
+                    <h3>Gourmet Royal Feast</h3>
+                    <p>Live Sufi band booking, Bollywood artists management, and curated 7-course royal menu.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <section class="section scroll-reveal" id="estimator">
-        <div class="section-header">
-            <h2>Spatial Project Planner</h2>
-            <p>Calculate custom turnkey architectural planning and fit-out budget in Mumbai.</p>
-        </div>
-        <div class="calc-box">
+        <h2 class="sec-title">Curation Budget Planner</h2>
+        <div class="calc-wrapper">
             <div class="calc-grid">
                 <div class="calc-field">
-                    <label>Property Classification</label>
-                    <select id="propType" onchange="calcArchCost()">
-                        <option value="4200">Luxury Independent Bungalow / Villa</option>
-                        <option value="2900">Premium Penthouse Apartment</option>
-                        <option value="3400">Corporate Office Fit-Out</option>
+                    <label>Palace & Venue Category</label>
+                    <select id="weddingType" onchange="calcWeddingCost()">
+                        <option value="6000">Heritage Palace / 5-Star Luxury Resort</option>
+                        <option value="3500">Luxury Banquet & Royal Lawns</option>
+                        <option value="9000">International / Island Destination</option>
                     </select>
                 </div>
                 <div class="calc-field">
-                    <label>Built-Up Area: <span id="areaVal" style="color:var(--accent); font-weight:800;">2,500 Sq. Ft</span></label>
-                    <input type="range" id="areaRange" min="1000" max="10000" step="250" value="2500" oninput="calcArchCost()">
+                    <label>Expected Guests: <span id="guestVal" style="color:var(--accent); font-weight:800;">400 Guests</span></label>
+                    <input type="range" id="guestRange" min="100" max="1500" step="50" value="400" oninput="calcWeddingCost()">
                 </div>
             </div>
             <div class="calc-result">
                 <div>
-                    <p style="font-size:0.8rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Estimated Turnkey Capital Budget:</p>
-                    <div id="estResult" class="calc-val">₹1.05 Crore</div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#5a4b5a; font-weight:700;">Estimated Turnkey Curation Budget:</p>
+                    <div id="weddingResult" class="calc-val">₹24.00 Lakhs</div>
                 </div>
-                <button onclick="window.location.href='https://wa.me/919820155667'" class="btn-cta">Lock Spec & Schedule Meeting &rarr;</button>
+                <button onclick="window.location.href='https://wa.me/917208700786'" class="btn-book" style="background:var(--accent); border:none; cursor:pointer;">Secure Booking Date &rarr;</button>
             </div>
         </div>
     </section>
 
     <footer>
-        <div class="footer-logo">Studio Atelier Architects (Mumbai)</div>
-        <p class="footer-owner">Architect Aniket Verma (Principal Architect) &bull; Principal Architect</p>
-        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom: 2rem;">Registered Member of the Council of Architecture (CoA) &bull; Mumbai</p>
+        <div class="footer-logo">Uours Events (Mumbai)</div>
+        <p class="footer-owner">Ravi Malhotra (Creative Director) &bull; Lead Curator</p>
+        <p style="color:#bcaebc; font-size:0.85rem; margin-bottom: 2rem;">Bespoke Luxury Events &bull; Udaipur &bull; Udaipur &bull; Mumbai</p>
         <div class="footer-buttons">
-            <a href="tel:+91 98201 55667" class="btn-call">Direct Call</a>
-            <a href="https://wa.me/919820155667" class="btn-cta">WhatsApp Consultation</a>
+            <a href="tel:+91 72087 00786" class="btn-direct">Direct Line</a>
+            <a href="https://wa.me/917208700786" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
 
     <script>
-        function calcArchCost() {
-            var rate = parseFloat(document.getElementById("propType").value);
-            var area = parseFloat(document.getElementById("areaRange").value);
-            document.getElementById("areaVal").innerText = area.toLocaleString('en-IN') + " Sq. Ft";
-            var total = (rate * area) / 10000000;
-            document.getElementById("estResult").innerText = "₹" + total.toFixed(2) + " Crore";
+        function calcWeddingCost() {
+            var rate = parseFloat(document.getElementById("weddingType").value);
+            var guests = parseFloat(document.getElementById("guestRange").value);
+            document.getElementById("guestVal").innerText = guests + " Guests";
+            var total = (rate * guests) / 100000;
+            document.getElementById("weddingResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
         }
     </script>
     

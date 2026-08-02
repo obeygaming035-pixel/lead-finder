@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Precision CNC Machinery & Tools (Ahmedabad) | CNC vertical Machining Centers & Tooling</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <title>Glen's Bakehouse (Bengaluru) | Premium Cake Shops / Custom Bakeries in Bengaluru</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #030712; 
-            --primary: #f8fafc; 
-            --accent: #38bdf8; 
-            --accent-sec: #0284c7; 
-            --card-bg: #0f172a; 
-            --border: rgba(255, 255, 255, 0.08); 
-            --glow-primary: rgba(56, 189, 248, 0.15);
-            --glow-secondary: rgba(99, 102, 241, 0.08);
+            --bg: #fafaf9; 
+            --primary: #1c1917; 
+            --accent: #0f766e; 
+            --accent-hover: #115e59;
+            --card: #ffffff; 
+            --border: #e7e5e4; 
+            --glow-primary: rgba(15, 118, 110, 0.12);
+            --glow-secondary: rgba(180, 83, 9, 0.08);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
@@ -59,103 +59,140 @@
         }
     
 
-        /* Modern Glassmorphic Navigation */
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
-        .logo { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
-        .logo span { color: var(--accent); }
-        .btn-quote { background: var(--accent); color: #fff; text-decoration: none; padding: 0.6rem 1.4rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; transition: all 0.3s; }
-        .btn-quote:hover { background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        /* Premium Sticky Navigation */
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 3rem; background: rgba(250, 250, 249, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .brand { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.5px; }
+        .brand span { color: var(--accent); }
+        .btn-consult { background: var(--primary); color: #fff; padding: 0.6rem 1.4rem; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 0.8rem; transition: background 0.3s; }
+        .btn-consult:hover { background: var(--accent); }
 
-        /* Technical Hero Header Grid */
-        .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 3rem; padding: 5rem 2.5rem; align-items: center; max-width: 1200px; margin: 0 auto; }
-        .hero-info { display: flex; flex-direction: column; justify-content: center; }
-        .hero-info h1 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; color: #fff; }
-        .hero-info p { color: #94a3b8; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
-        .hero-img { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); }
+        /* Immersive Split Hero */
+        .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 4rem; align-items: center; padding: 5rem 3rem; max-width: 1200px; margin: 0 auto; }
+        .hero-info h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.8rem); line-height: 1.1; margin-bottom: 1.5rem; }
+        .hero-info h1 span { color: var(--accent); font-style: italic; font-weight: 400; }
+        .hero-info p { color: #57534e; font-size: 1.05rem; line-height: 1.7; margin-bottom: 2rem; }
+        .hero-img { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.02); }
         .hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-        /* Rigid Specification Cards Grid */
-        .section { padding: 6rem 2.5rem; max-width: 1200px; margin: 0 auto; }
-        .sec-title { font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 3.5rem; text-align: center; color: #fff; letter-spacing: 0.5px; }
-        .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-        .spec-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 2.5rem; transition: all 0.3s ease; }
-        .spec-card:hover { border-color: var(--accent); box-shadow: 0 10px 30px rgba(56, 189, 248, 0.12); transform: translateY(-5px); }
-        .spec-card h3 { font-size: 1.25rem; text-transform: uppercase; margin-bottom: 1rem; color: #fff; font-weight: 800; }
-        .spec-card p { font-size: 0.88rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
-        .spec-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
-        .spec-table td { padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #94a3b8; }
-        .spec-table td:nth-child(even) { text-align: right; font-weight: 700; color: #fff; }
+        /* Capabilities Grid */
+        .section { padding: 6rem 3rem; max-width: 1200px; margin: 0 auto; }
+        .sec-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; text-align: center; margin-bottom: 4rem; }
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem; }
+        .service-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: all 0.3s ease; }
+        .service-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(15, 118, 110, 0.06); border-color: var(--accent); }
+        .service-card img { width: 100%; height: 240px; object-fit: cover; }
+        .service-info { padding: 2rem; }
+        .service-info h3 { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }
+        .service-info p { color: #57534e; font-size: 0.9rem; line-height: 1.6; }
+
+        /* Dynamic Budget Planner */
+        .calc-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 3rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); }
+        .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+        .calc-field label { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; color: #57534e; display: block; margin-bottom: 0.5rem; }
+        select, input[type="range"] { width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; outline: none; }
+        .calc-result { background: #f0fdfa; padding: 2rem; border-radius: 8px; border: 1px solid rgba(15, 118, 110, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }
+        .calc-val { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--accent); font-weight: 700; }
 
         /* Footer */
-        footer { padding: 5rem 2rem; background: #070a12; color: #fff; text-align: center; border-top: 1px solid var(--border); }
-        .footer-logo { font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }
+        footer { padding: 5rem 3rem; background: var(--primary); color: #fff; text-align: center; }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-style: italic; margin-bottom: 1rem; }
         .footer-buttons { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }
-        .btn-call { border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; transition: all 0.3s; }
+        .btn-call { border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 0.85rem; transition: background 0.3s; }
         .btn-call:hover { background: rgba(255,255,255,0.05); }
-        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; transition: all 0.3s; }
-        .btn-wa:hover { background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
+        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 30px; font-weight: 800; font-size: 0.85rem; transition: background 0.3s; }
+        .btn-wa:hover { background: var(--accent-hover); }
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="logo">Precision <span>CNC</span></div>
-        <a href="https://wa.me/919712233445" class="btn-quote">Consult Director</a>
+        <div class="brand">Glen's <span>Solutions</span></div>
+        <a href="https://wa.me/918041124894" class="btn-consult">Direct Inquiry</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-info">
-            <span style="font-size:0.75rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.8rem; letter-spacing: 1px;">ISO 9001:2026 Certified Supplier</span>
-            <h1>High Precision CNC VMC Machinery</h1>
-            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in Ahmedabad. Managed by Rajesh Mehta (Managing Director).</p>
-            <a href="https://wa.me/919712233445" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
+            <h1>Premium <span>Cake Shops / Custom Bakeries</span> Services & Turnkey Management</h1>
+            <p>Professional bespoke services and custom end-to-end execution directed by Nikhil Rao (Managing Partner) in Bengaluru. Custom-crafted to meet the highest local operational standards.</p>
+            <a href="#estimator" class="btn-consult" style="padding: 0.75rem 2rem;">Consult Senior Partner</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1720036236855-9a1a2e4d3f26" alt="CNC Machining">
+            <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9" alt="Cake Shops / Custom Bakeries">
         </div>
     </section>
 
     <section class="section scroll-reveal">
-        <h2 class="sec-title">VMC Machinery Specifications</h2>
-        <div class="spec-grid">
-            <div class="spec-card">
-                <h3>5-Axis VMC CNC Center</h3>
-                <p>Heavy duty casting bed with linear guide rails and ARM-type ATC 24 tool changer.</p>
-                <table class="spec-table">
-                    <tr><td>Spindle speed</td><td>12,000 RPM</td></tr>
-                    <tr><td>X/Y/Z travel</td><td>800 / 500 / 550 mm</td></tr>
-                    <tr><td>Controller</td><td>Fanuc / Siemens 828D</td></tr>
-                </table>
+        <h2 class="sec-title">Core Operations</h2>
+        <div class="services-grid">
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9" alt="Bespoke consultation">
+                <div class="service-info">
+                    <h3>Strategic Consulting</h3>
+                    <p>Statutory audits, project roadmap designs, and professional strategic setup tailored for Bengaluru.</p>
+                </div>
             </div>
-            <div class="spec-card">
-                <h3>Hydraulic Press Brake</h3>
-                <p>Equipped with DA-53T graphic controller and multi-axis backgauge system.</p>
-                <table class="spec-table">
-                    <tr><td>Bending force</td><td>100 Tons to 500 Tons</td></tr>
-                    <tr><td>Table length</td><td>3200 mm</td></tr>
-                    <tr><td>Control axis</td><td>Y1, Y2, X, R Crowning</td></tr>
-                </table>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Turnkey management">
+                <div class="service-info">
+                    <h3>Turnkey Curation</h3>
+                    <p>Complete project supervision, resource deployments, and operational quality control guarantees.</p>
+                </div>
             </div>
-            <div class="spec-card">
-                <h3>Carbide Milling Tooling</h3>
-                <p>Solid carbide inserts, indexing cutters, and digital QC inspection toolings.</p>
-                <table class="spec-table">
-                    <tr><td>Hardness grade</td><td>HRC 55 to 65</td></tr>
-                    <tr><td>Milling diameter</td><td>1.0 mm to 20.0 mm</td></tr>
-                    <tr><td>Coating finish</td><td>TiAlN / AlTiN coating</td></tr>
-                </table>
+            <div class="service-card">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c" alt="Custom execution">
+                <div class="service-info">
+                    <h3>Statutory Compliance</h3>
+                    <p>Guaranteed adherence to regulatory standards, verification controls, and final handover certifications.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section scroll-reveal" id="estimator">
+        <h2 class="sec-title">Project Budget Planner</h2>
+        <div class="calc-wrapper">
+            <div class="calc-grid">
+                <div class="calc-field">
+                    <label>Operational Scale</label>
+                    <select id="projectScale" onchange="calcProjectCost()">
+                        <option value="5000">Standard Professional Scope</option>
+                        <option value="12000">Corporate Premium Scope</option>
+                        <option value="25000">Enterprise Bespoke Curation</option>
+                    </select>
+                </div>
+                <div class="calc-field">
+                    <label>Project Units / Size: <span id="unitVal" style="color:var(--accent); font-weight:800;">100 Units</span></label>
+                    <input type="range" id="unitRange" min="20" max="500" step="10" value="100" oninput="calcProjectCost()">
+                </div>
+            </div>
+            <div class="calc-result">
+                <div>
+                    <p style="font-size:0.75rem; text-transform:uppercase; color:#57534e; font-weight:700;">Estimated Setup Budget:</p>
+                    <div id="projectResult" class="calc-val">₹5.00 Lakhs</div>
+                </div>
+                <button onclick="window.location.href='https://wa.me/918041124894'" class="btn-consult" style="background:var(--accent); border:none; cursor:pointer;">Initiate Engagement &rarr;</button>
             </div>
         </div>
     </section>
 
     <footer>
-        <div class="footer-logo">Precision CNC Machinery & Tools (Ahmedabad)</div>
-        <p style="font-size:0.85rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: Rajesh Mehta (Managing Director) &bull; Ahmedabad</p>
+        <div class="footer-logo">Glen's Bakehouse (Bengaluru)</div>
+        <p style="font-size:0.9rem; color:#a8a29e; margin-top:0.3rem;">Turnkey Direct Solutions &bull; Bengaluru</p>
         <div class="footer-buttons">
-            <a href="tel:+91 97122 33445" class="btn-call">Direct Line</a>
-            <a href="https://wa.me/919712233445" class="btn-wa">Request Technical Specs &rarr;</a>
+            <a href="tel:+91 80 4112 4894" class="btn-call">Direct Call</a>
+            <a href="https://wa.me/918041124894" class="btn-wa">WhatsApp Inquiry</a>
         </div>
     </footer>
+
+    <script>
+        function calcProjectCost() {
+            var rate = parseFloat(document.getElementById("projectScale").value);
+            var units = parseFloat(document.getElementById("unitRange").value);
+            document.getElementById("unitVal").innerText = units + " Units";
+            var total = (rate * units) / 100000;
+            document.getElementById("projectResult").innerText = "₹" + total.toFixed(2) + " Lakhs";
+        }
+    </script>
     
     <script>
 
