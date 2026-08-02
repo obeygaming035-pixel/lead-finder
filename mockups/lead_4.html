@@ -7,12 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #f0f4f8; 
-            --primary: #0f172a; 
-            --accent: #0284c7; 
-            --border: #cbd5e1; 
-            --glow-primary: rgba(2, 132, 199, 0.12);
-            --glow-secondary: rgba(15, 23, 42, 0.08);
+            --bg: #030712; 
+            --primary: #f8fafc; 
+            --accent: #38bdf8; 
+            --accent-sec: #0284c7; 
+            --card-bg: #0f172a; 
+            --border: rgba(255, 255, 255, 0.08); 
+            --glow-primary: rgba(56, 189, 248, 0.15);
+            --glow-secondary: rgba(99, 102, 241, 0.08);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--bg); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
@@ -57,52 +59,59 @@
         }
     
 
-        /* Box Grid layout navigation */
-        nav { display: grid; grid-template-columns: 1fr auto; border-bottom: 2px solid var(--primary); background: #fff; padding: 1rem 2rem; align-items: center; }
-        .logo { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; }
-        .btn-quote { background: var(--primary); color: #fff; text-decoration: none; padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; }
+        /* Modern Glassmorphic Navigation */
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
+        .logo span { color: var(--accent); }
+        .btn-quote { background: var(--accent); color: #fff; text-decoration: none; padding: 0.6rem 1.4rem; font-size: 0.8rem; font-weight: 800; border-radius: 4px; text-transform: uppercase; transition: all 0.3s; }
+        .btn-quote:hover { background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
 
         /* Technical Hero Header Grid */
-        .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); border-bottom: 2px solid var(--primary); background: #fff; }
-        .hero-info { padding: 3rem; display: flex; flex-direction: column; justify-content: center; border-right: 2px solid var(--primary); }
-        .hero-info h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; }
-        .hero-info p { color: #475569; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; }
-        .hero-img img { width: 100%; height: 100%; object-fit: cover; max-height: 380px; }
+        .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 3rem; padding: 5rem 2.5rem; align-items: center; max-width: 1200px; margin: 0 auto; }
+        .hero-info { display: flex; flex-direction: column; justify-content: center; }
+        .hero-info h1 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; line-height: 1.1; margin-bottom: 1rem; text-transform: uppercase; color: #fff; }
+        .hero-info p { color: #94a3b8; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
+        .hero-img { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5); }
+        .hero-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         /* Rigid Specification Cards Grid */
-        .section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
-        .sec-title { font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 2.5rem; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; }
+        .section { padding: 6rem 2.5rem; max-width: 1200px; margin: 0 auto; }
+        .sec-title { font-size: 1.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 3.5rem; text-align: center; color: #fff; letter-spacing: 0.5px; }
         .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-        .spec-card { background: #fff; border: 2px solid var(--primary); border-radius: 4px; padding: 2rem; }
-        .spec-card h3 { font-size: 1.1rem; text-transform: uppercase; margin-bottom: 0.8rem; color: var(--accent); }
-        .spec-card p { font-size: 0.85rem; color: #475569; line-height: 1.5; margin-bottom: 1.2rem; }
-        .spec-table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
-        .spec-table td { padding: 0.4rem 0; border-bottom: 1px solid #e2e8f0; }
-        .spec-table td:nth-child(even) { text-align: right; font-weight: 700; }
+        .spec-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 2.5rem; transition: all 0.3s ease; }
+        .spec-card:hover { border-color: var(--accent); box-shadow: 0 10px 30px rgba(56, 189, 248, 0.12); transform: translateY(-5px); }
+        .spec-card h3 { font-size: 1.25rem; text-transform: uppercase; margin-bottom: 1rem; color: #fff; font-weight: 800; }
+        .spec-card p { font-size: 0.88rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
+        .spec-table { width: 100%; font-size: 0.8rem; border-collapse: collapse; }
+        .spec-table td { padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #94a3b8; }
+        .spec-table td:nth-child(even) { text-align: right; font-weight: 700; color: #fff; }
 
         /* Footer */
-        footer { padding: 4rem 2rem; background: var(--primary); color: #fff; text-align: center; }
-        .footer-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
-        .btn-call { border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.8rem; }
-        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 1.5rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.8rem; }
+        footer { padding: 5rem 2rem; background: #070a12; color: #fff; text-align: center; border-top: 1px solid var(--border); }
+        .footer-logo { font-size: 1.5rem; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; }
+        .footer-buttons { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-top: 2rem; }
+        .btn-call { border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.85rem; transition: all 0.3s; }
+        .btn-call:hover { background: rgba(255,255,255,0.05); }
+        .btn-wa { background: var(--accent); color: #fff; padding: 0.6rem 2rem; text-decoration: none; border-radius: 4px; font-weight: 800; font-size: 0.85rem; transition: all 0.3s; }
+        .btn-wa:hover { background: var(--accent-sec); box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
     </style>
 </head>
 <body>
 
     <nav>
-        <div class="logo">Precision CNC Machinery & Tools (Ahmedabad) &bull; CNC Industrial</div>
+        <div class="logo">Precision <span>CNC</span></div>
         <a href="https://wa.me/919712233445" class="btn-quote">Consult Director</a>
     </nav>
 
     <section class="hero scroll-reveal">
         <div class="hero-info">
-            <span style="font-size:0.72rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.5rem;">ISO 9001:2026 Certified Supplier</span>
+            <span style="font-size:0.75rem; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:0.8rem; letter-spacing: 1px;">ISO 9001:2026 Certified Supplier</span>
             <h1>High Precision CNC VMC Machinery</h1>
-            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in Ahmedabad.</p>
+            <p>Direct importer of heavy-duty slant bed lathes, 5-axis vertical machining centers, and high-performance workshop cutting tooling in Ahmedabad. Managed by Rajesh Mehta (Managing Director).</p>
             <a href="https://wa.me/919712233445" class="btn-quote" style="width:fit-content;">Download Specs Catalogue</a>
         </div>
         <div class="hero-img">
-            <img src="https://images.unsplash.com/photo-1585201731775-0597e1be4bfb" alt="CNC Machining">
+            <img src="https://images.unsplash.com/photo-1727292486976-6fd4bc056761" alt="CNC Machining">
         </div>
     </section>
 
@@ -140,8 +149,8 @@
     </section>
 
     <footer>
-        <p style="font-weight:800;">Precision CNC Machinery & Tools (Ahmedabad)</p>
-        <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: Rajesh Mehta (Managing Director) &bull; Ahmedabad</p>
+        <div class="footer-logo">Precision CNC Machinery & Tools (Ahmedabad)</div>
+        <p style="font-size:0.85rem; color:#94a3b8; margin-top:0.3rem;">Mechanical Industrial Supplier &bull; Managing Director: Rajesh Mehta (Managing Director) &bull; Ahmedabad</p>
         <div class="footer-buttons">
             <a href="tel:+91 97122 33445" class="btn-call">Direct Line</a>
             <a href="https://wa.me/919712233445" class="btn-wa">Request Technical Specs &rarr;</a>
