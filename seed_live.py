@@ -15,11 +15,11 @@ def seed_live():
         pass
 
     leads = [
-        {"name": "Studio Atelier Architects", "industry": "architects & interior design studios", "city": "Mumbai", "phone": "+91 98201 55667", "email": "contact@studioatelier.in", "owner": "Architect Aniket Verma (Principal Architect)"},
-        {"name": "Royal Crown Weddings & Events", "industry": "wedding & luxury event planners", "city": "Delhi", "phone": "+91 98112 44556", "email": "events@royalcrown.co.in", "owner": "Karan Malhotra (Founder & Event Director)"},
-        {"name": "Heritage Teak Woodworks Studio", "industry": "custom furniture & woodwork studios", "city": "Surat", "phone": "+91 98254 77889", "email": "info@heritageteak.in", "owner": "Dharmesh Shah (Founder & Master Craftsman)"},
-        {"name": "Precision CNC Machinery & Tools", "industry": "industrial machinery & tool suppliers", "city": "Ahmedabad", "phone": "+91 97122 33445", "email": "sales@precisioncnc.in", "owner": "Rajesh Mehta (Managing Director)"},
-        {"name": "Verma & Associates Chartered Accountants", "industry": "chartered accountants & tax advisory firms", "city": "Pune", "phone": "+91 94225 88990", "email": "ca.verma@vermaassociates.in", "owner": "CA Suresh Verma (Senior Partner & FCA)"}
+        {"name": "Uours Events", "industry": "wedding planners & decorators", "city": "Mumbai", "phone": "+91 72087 00786", "email": "", "owner": "Ravi Malhotra (Creative Director)"},
+        {"name": "Shree Mandap Decoration", "industry": "party/event decorators", "city": "Pune", "phone": "+91 83298 95799", "email": "", "owner": "Aniket Joshi (Founder)"},
+        {"name": "Morya Wedding and Events Decoration", "industry": "wedding planners & decorators", "city": "Pune", "phone": "+91 70381 04013", "email": "", "owner": "Suresh Mehta (Managing Partner)"},
+        {"name": "Glen's Bakehouse", "industry": "cake shops / custom bakeries", "city": "Bengaluru", "phone": "+91 80 4112 4894", "email": "", "owner": "Nikhil Rao (Managing Partner)"},
+        {"name": "Cafe Tesu", "industry": "cafes", "city": "Delhi", "phone": "+91 98737 04704", "email": "", "owner": "Amit Sharma (Founder)"}
     ]
 
     conn = sqlite3.connect(DB_PATH)

@@ -28,32 +28,35 @@ BASE_PREVIEW_URL = get_preview_url()
 
 # Target Markets
 TARGET_CITIES = [
-    "Mumbai", "Delhi", "Bangalore", "Ahmedabad",
-    "Surat", "Pune", "Chennai", "Hyderabad"
+    "Mumbai", "Pune", "Nagpur", "Nashik",
+    "Bengaluru", "Mysuru", "Mangaluru",
+    "Delhi", "Gurugram", "Noida", "Ghaziabad",
+    "Ahmedabad", "Surat", "Vadodara",
+    "Jaipur", "Udaipur", "Jodhpur",
+    "Chandigarh", "Mohali", "Ludhiana", "Amritsar",
+    "Hyderabad",
+    "Lucknow", "Kanpur", "Agra", "Varanasi",
+    "Panaji", "Calangute", "Candolim", "Margao",
+    "Chennai", "Coimbatore", "Madurai"
 ]
 
 TARGET_NICHES = [
-    "architects & interior design studios",
-    "wedding & luxury event planners",
-    "custom furniture & woodwork studios",
-    "industrial machinery & tool suppliers",
-    "chartered accountants & tax advisory firms",
-    "dental clinics & orthodontists",
-    "fitness gyms & training centers",
-    "beauty salons & wellness spas",
-    "law firms & independent lawyers",
-    "auto repair garages & car services",
-    "boutique hotels & homestays",
-    "construction contractors & builders",
-    "coaching classes & private tutors",
-    "organic food shops & grocery stores",
-    "pest control services & fumigation",
-    "diagnostic labs & medical clinics",
-    "real estate brokers & property agents",
-    "commercial printing press & packaging",
-    "catering services & food suppliers",
-    "dry cleaners & laundry services",
-    "pet clinics & veterinary doctors"
+    "salons & hair studios",
+    "beauty / makeup studios",
+    "wedding photographers",
+    "wedding planners & decorators",
+    "interior designers",
+    "cafes",
+    "restaurants",
+    "boutique hotels / guesthouses",
+    "travel agencies",
+    "event management companies",
+    "party/event decorators",
+    "cake shops / custom bakeries",
+    "florists / wedding floral businesses",
+    "boutiques / designer clothing stores",
+    "jewellery boutiques",
+    "furniture & home-decor stores"
 ]
 
 
