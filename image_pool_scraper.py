@@ -34,6 +34,56 @@ NICHES_TERMS = {
         "corporate-office-boardroom",
         "financial-advisory-business",
         "modern-accounting-office"
+    ],
+    "cake shops / custom bakeries": [
+        "wedding-cake-artisan",
+        "bakery-pastry-croissant",
+        "gourmet-dessert-table"
+    ],
+    "cafes": [
+        "specialty-coffee-barista",
+        "cozy-cafe-interior",
+        "artisan-latte-art"
+    ],
+    "restaurants": [
+        "fine-dining-restaurant",
+        "gourmet-food-plating",
+        "wood-fired-bistro"
+    ],
+    "florists / wedding floral businesses": [
+        "wedding-floral-arch",
+        "luxury-flower-bouquet",
+        "botanical-florist-shop"
+    ],
+    "boutiques / designer clothing stores": [
+        "designer-lehenga-bridal",
+        "boutique-fashion-store",
+        "luxury-couture-gowns"
+    ],
+    "jewellery boutiques": [
+        "fine-diamond-jewellery",
+        "kundan-gold-necklace",
+        "luxury-jewelry-display"
+    ],
+    "boutique hotels / guesthouses": [
+        "boutique-hotel-suite",
+        "luxury-resort-pool",
+        "heritage-villa-stay"
+    ],
+    "travel agencies": [
+        "luxury-travel-resort",
+        "tropical-island-vacation",
+        "scenic-destination-flight"
+    ],
+    "wedding photographers": [
+        "indian-bridal-photography",
+        "wedding-couple-portrait",
+        "cinematic-wedding-camera"
+    ],
+    "party/event decorators": [
+        "event-stage-decoration",
+        "balloon-arch-party",
+        "reception-backdrop-lighting"
     ]
 }
 
