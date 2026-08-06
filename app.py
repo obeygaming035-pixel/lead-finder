@@ -471,9 +471,10 @@ def render_live_dashboard():
 
         with tab3:
             st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
-            st.markdown("Easily copy leads in bulk formatted strictly with **Phone Number**, **Business Name**, and **Location (City)**.")
+            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Live Website Short Link**.")
             
             if not df.empty:
+                import crawler
                 # Divide leads into batches of 50
                 batch_size = 50
                 total_leads = len(df)
@@ -490,10 +491,15 @@ def render_live_dashboard():
                 # Format leads
                 formatted_leads = []
                 for _, row in batch_df.iterrows():
+                    lead_id = row['id']
                     phone_clean = str(row['phone']).strip()
                     biz_name_clean = str(row['business_name']).split(' (')[0].strip() # strip city from name
                     city_clean = str(row['city']).strip()
-                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean}")
+                    
+                    raw_url = crawler.get_github_pages_url(lead_id)
+                    short_link = crawler.shorten_url(raw_url)
+                    
+                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {short_link}")
                 
                 batch_text = "\n".join(formatted_leads)
                 
