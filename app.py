@@ -471,16 +471,10 @@ def render_live_dashboard():
 
         with tab3:
             st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
-            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Live Website Link**.")
+            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Direct Live Website Link** (No intermediate redirect screens or shortener ads).")
             
             if not df.empty:
                 import crawler
-                
-                # Fast cached shortener to keep batch loading sub-millisecond instant
-                @st.cache_data(ttl=86400)
-                def get_fast_short_url(lead_id):
-                    raw = crawler.get_github_pages_url(lead_id)
-                    return crawler.shorten_url(raw)
 
                 # Divide leads into batches of 50
                 batch_size = 50
@@ -488,12 +482,7 @@ def render_live_dashboard():
                 num_batches = (total_leads + batch_size - 1) // batch_size
                 
                 batch_options = [f"Batch {i+1} (Leads {i*batch_size + 1} - {min((i+1)*batch_size, total_leads)})" for i in range(num_batches)]
-                
-                col_b1, col_b2 = st.columns([2, 2])
-                with col_b1:
-                    selected_batch_idx = st.selectbox("Select Batch to Copy:", range(num_batches), format_func=lambda x: batch_options[x])
-                with col_b2:
-                    link_type = st.radio("Link Format in Copy Box:", ["Shortened Links (TinyURL)", "Direct GitHub Pages Links (HTTPS)"], horizontal=True)
+                selected_batch_idx = st.selectbox("Select Batch to Copy:", range(num_batches), format_func=lambda x: batch_options[x])
 
                 # Get leads in the selected batch
                 start_idx = selected_batch_idx * batch_size
@@ -511,12 +500,8 @@ def render_live_dashboard():
                     city_clean = str(row['city']).strip()
                     
                     direct_url = crawler.get_github_pages_url(lead_id)
-                    if "Shortened" in link_type:
-                        web_link = get_fast_short_url(lead_id)
-                    else:
-                        web_link = direct_url
                     
-                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {web_link}")
+                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {direct_url}")
                     visual_rows.append({
                         "ID": f"#{lead_id}",
                         "Business Name": biz_name_clean,
