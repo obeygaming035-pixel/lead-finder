@@ -1868,13 +1868,14 @@ def run_crawler_loop():
                 
                 # 2. Upload to GitHub Pages 24/7 Permanent Cloud Host & Create Pitches
                 pub_url = get_github_pages_url(lead_id)
+                short_link = shorten_url(pub_url)
                 import whatsapp_automation
                 init_pitch = whatsapp_automation.generate_spintax_pitch(owner_name, biz_name, city, pub_url, proposed_domain)
                 _, follow_pitch = create_pitches(lead_id, biz_name, proposed_domain, city, owner_name, public_url=pub_url)
                 
                 cursor.execute('''
-                    UPDATE leads SET initial_pitch = ?, followup_pitch = ? WHERE id = ?
-                ''', (init_pitch, follow_pitch, lead_id))
+                    UPDATE leads SET initial_pitch = ?, followup_pitch = ?, short_url = ? WHERE id = ?
+                ''', (init_pitch, follow_pitch, short_link, lead_id))
                 conn.commit()
                 push_mockups_to_github()
                 

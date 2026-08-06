@@ -471,16 +471,10 @@ def render_live_dashboard():
 
         with tab3:
             st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
-            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Instant 301 Direct Short Link** (Zero intermediate redirect pages or ads).")
+            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Instant Direct 301 Short Link**.")
             
             if not df.empty:
                 import crawler
-                
-                # Fast cached shortener to keep batch loading sub-millisecond instant
-                @st.cache_data(ttl=86400)
-                def get_fast_short_url(lead_id):
-                    raw = crawler.get_github_pages_url(lead_id)
-                    return crawler.shorten_url(raw)
 
                 # Divide leads into batches of 50
                 batch_size = 50
@@ -495,7 +489,7 @@ def render_live_dashboard():
                 end_idx = min(start_idx + batch_size, total_leads)
                 batch_df = df.iloc[start_idx:end_idx]
                 
-                # Format leads
+                # Format leads instantly from stored database values (SUB-MILLISECOND LOAD)
                 formatted_leads = []
                 visual_rows = []
                 
@@ -505,7 +499,10 @@ def render_live_dashboard():
                     biz_name_clean = str(row['business_name']).split(' (')[0].strip()
                     city_clean = str(row['city']).strip()
                     
-                    short_link = get_fast_short_url(lead_id)
+                    # Read pre-stored short_url from DB if available, else compute direct link
+                    short_link = str(row.get('short_url', '')).strip()
+                    if not short_link or short_link in ('None', 'nan'):
+                        short_link = crawler.get_github_pages_url(lead_id)
                     
                     formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {short_link}")
                     visual_rows.append({
