@@ -386,7 +386,27 @@ def push_mockups_to_github():
         print(f"  [!] GitHub push note: {e}")
 
 def shorten_url(long_url):
-    """Returns direct clean HTTPS URL without any intermediate redirect or interstitial pages."""
+    """
+    Shortens a URL into a clean, direct 301 short URL (ulvis.net / clck.ru) with 0.0s instant forwarding
+    and ZERO intermediate/interstitial screens or ads.
+    """
+    if not long_url or not str(long_url).startswith("http"):
+        return long_url
+    
+    try:
+        r = requests.get(f"https://ulvis.net/api.php?url={long_url}", timeout=4)
+        if r.status_code == 200 and r.text.startswith("http"):
+            return r.text.strip()
+    except Exception:
+        pass
+
+    try:
+        r = requests.get(f"https://clck.ru/--?url={long_url}", timeout=4)
+        if r.status_code == 200 and r.text.startswith("http"):
+            return r.text.strip()
+    except Exception:
+        pass
+
     return long_url
 
 def generate_mockup_html(business_name, industry, city, owner_name, phone="+91 98201 55667"):

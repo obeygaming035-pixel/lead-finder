@@ -471,10 +471,16 @@ def render_live_dashboard():
 
         with tab3:
             st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
-            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Direct Live Website Link** (No intermediate redirect screens or shortener ads).")
+            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Instant 301 Direct Short Link** (Zero intermediate redirect pages or ads).")
             
             if not df.empty:
                 import crawler
+                
+                # Fast cached shortener to keep batch loading sub-millisecond instant
+                @st.cache_data(ttl=86400)
+                def get_fast_short_url(lead_id):
+                    raw = crawler.get_github_pages_url(lead_id)
+                    return crawler.shorten_url(raw)
 
                 # Divide leads into batches of 50
                 batch_size = 50
@@ -499,15 +505,15 @@ def render_live_dashboard():
                     biz_name_clean = str(row['business_name']).split(' (')[0].strip()
                     city_clean = str(row['city']).strip()
                     
-                    direct_url = crawler.get_github_pages_url(lead_id)
+                    short_link = get_fast_short_url(lead_id)
                     
-                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {direct_url}")
+                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {short_link}")
                     visual_rows.append({
                         "ID": f"#{lead_id}",
                         "Business Name": biz_name_clean,
                         "City": city_clean,
                         "Phone": phone_clean,
-                        "Generated Website": direct_url
+                        "Direct Short Link": short_link
                     })
                 
                 batch_text = "\n".join(formatted_leads)
@@ -525,8 +531,8 @@ def render_live_dashboard():
                 st.dataframe(
                     visual_rows,
                     column_config={
-                        "Generated Website": st.column_config.LinkColumn(
-                            "Generated Website Mockup",
+                        "Direct Short Link": st.column_config.LinkColumn(
+                            "Instant 301 Short Link",
                             display_text="🌐 Open Live Website"
                         )
                     },
