@@ -4,2113 +4,1336 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Cake Stop — Premium Bakery | Vile Parle East, Mumbai</title>
-    <meta name="description" content="The Cake Stop — Mumbai's beloved bakery in Vile Parle East. Rated 4.9★ by 500+ happy customers. Custom cakes, Dutch Truffle pastries, wedding cakes & more. Order now!">
-    <meta name="keywords" content="The Cake Stop, bakery Mumbai, Vile Parle bakery, custom cakes Mumbai, wedding cakes, birthday cakes, pastries, Dutch Truffle">
-    <meta name="author" content="The Cake Stop">
-    <meta property="og:title" content="The Cake Stop — Premium Bakery | Vile Parle East, Mumbai">
-    <meta property="og:description" content="Rated 4.9★ by 500+ customers. Fresh cakes, pastries & custom designs for every celebration.">
-    <meta property="og:type" content="website">
+    <meta name="description" content="The Cake Stop — Mumbai's beloved bakery in Vile Parle East. Rated 4.9/5 by 500+ happy customers. Custom cakes, artisan pastries, wedding cakes & more.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
 /* =============================================
-   THE CAKE STOP — Premium Bakery Website
-   Design System & Styles
+   THE CAKE STOP — Professional Light Theme
+   Premium Bakery Website
    ============================================= */
 
-/* --- CSS Variables / Design Tokens --- */
 :root {
-    /* Brand Colors — Warm bakery palette */
-    --color-primary: #C0392B;
-    --color-primary-light: #E74C3C;
-    --color-primary-dark: #96281B;
-    --color-accent: #F39C12;
-    --color-accent-light: #F1C40F;
-    --color-warm: #D35400;
+    --color-bg: #FDFBF7;
+    --color-bg-alt: #F5F0E8;
+    --color-bg-warm: #FFF8F0;
+    --color-surface: #FFFFFF;
+    --color-text: #1A1410;
+    --color-text-body: #4A4035;
+    --color-text-muted: #8A7E72;
+    --color-text-light: #B5AA9E;
+    --color-accent: #8B6914;
+    --color-accent-light: #C4981A;
+    --color-accent-bg: rgba(139, 105, 20, 0.06);
+    --color-warm: #A0522D;
+    --color-border: rgba(26, 20, 16, 0.08);
+    --color-border-strong: rgba(26, 20, 16, 0.15);
 
-    /* Neutrals */
-    --color-bg: #0D0B0A;
-    --color-bg-elevated: #1A1614;
-    --color-bg-card: #231E1A;
-    --color-bg-card-hover: #2D2621;
-    --color-surface: #352D27;
-    --color-text: #F5F0EB;
-    --color-text-muted: #A89B8F;
-    --color-text-dim: #6D6058;
-    --color-border: rgba(192, 57, 43, 0.15);
-    --color-border-hover: rgba(192, 57, 43, 0.35);
+    --font-display: 'Cormorant Garamond', 'Georgia', serif;
+    --font-body: 'Outfit', -apple-system, sans-serif;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, #C0392B 0%, #E74C3C 50%, #D35400 100%);
-    --gradient-warm: linear-gradient(135deg, #F39C12 0%, #E74C3C 100%);
-    --gradient-dark: linear-gradient(180deg, #0D0B0A 0%, #1A1614 100%);
-    --gradient-card: linear-gradient(145deg, rgba(192, 57, 43, 0.08) 0%, rgba(211, 84, 0, 0.04) 100%);
-    --gradient-glow: radial-gradient(circle, rgba(192, 57, 43, 0.25) 0%, transparent 70%);
-
-    /* Shadows */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 40px rgba(192, 57, 43, 0.2);
-    --shadow-glow-strong: 0 0 80px rgba(192, 57, 43, 0.3);
-
-    /* Typography */
-    --font-display: 'Playfair Display', 'Georgia', serif;
-    --font-body: 'Inter', -apple-system, sans-serif;
-    --font-accent: 'Dancing Script', cursive;
-
-    /* Spacing */
-    --section-pad: clamp(60px, 10vw, 120px);
-    --container-max: 1200px;
-
-    /* Borders */
     --radius-sm: 8px;
     --radius-md: 14px;
     --radius-lg: 20px;
     --radius-xl: 28px;
-    --radius-full: 999px;
 
-    /* Transitions */
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-fast: 0.2s var(--ease-out);
-    --transition-normal: 0.4s var(--ease-out);
-    --transition-slow: 0.6s var(--ease-out);
 }
 
-/* --- Reset & Base --- */
-*, *::before, *::after {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-html {
-    scroll-behavior: smooth;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
     font-family: var(--font-body);
     background: var(--color-bg);
-    color: var(--color-text);
+    color: var(--color-text-body);
     line-height: 1.7;
     overflow-x: hidden;
+    cursor: none;
 }
-
-a {
-    color: inherit;
-    text-decoration: none;
-}
-
+a { color: inherit; text-decoration: none; }
 ul { list-style: none; }
+img { max-width: 100%; display: block; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); }
+.section { padding: clamp(80px, 12vw, 140px) 0; }
 
-img {
-    max-width: 100%;
-    display: block;
+/* --- Preloader --- */
+.preloader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--color-bg);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
 }
-
-.container {
-    max-width: var(--container-max);
-    margin: 0 auto;
-    padding: 0 clamp(16px, 4vw, 40px);
+.preloader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.preloader-inner { text-align: center; }
+.preloader-ring {
+    width: 48px; height: 48px; margin: 0 auto 20px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
 }
-
-/* --- Section Headers --- */
-.section-header {
-    text-align: center;
-    margin-bottom: clamp(40px, 6vw, 72px);
-}
-
-.section-tag {
-    display: inline-block;
-    font-family: var(--font-accent);
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    color: var(--color-accent);
-    margin-bottom: 12px;
-    letter-spacing: 1px;
-}
-
-.section-title {
+@keyframes spin { to { transform: rotate(360deg); } }
+.preloader-text {
     font-family: var(--font-display);
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 16px;
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--color-text);
+    letter-spacing: 2px;
 }
 
-.section-title .highlight {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+/* --- Custom Cursor --- */
+.cursor-dot {
+    width: 6px; height: 6px;
+    background: var(--color-accent);
+    border-radius: 50%;
+    position: fixed; z-index: 9998;
+    pointer-events: none;
+    transition: transform 0.1s ease;
 }
+.cursor-ring {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--color-accent);
+    border-radius: 50%;
+    position: fixed; z-index: 9997;
+    pointer-events: none;
+    transition: width 0.3s var(--ease), height 0.3s var(--ease), border-color 0.3s ease;
+    transform: translate(-50%, -50%);
+}
+.cursor-ring.hover { width: 56px; height: 56px; border-color: var(--color-accent-light); }
+@media (hover: none) { .cursor-dot, .cursor-ring { display: none; } body { cursor: auto; } }
 
-.section-desc {
-    font-size: clamp(1rem, 2vw, 1.15rem);
+/* --- Navigation --- */
+.nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 20px 0;
+    transition: all 0.4s var(--ease);
+}
+.nav.scrolled {
+    background: rgba(253, 251, 247, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 12px 0;
+    box-shadow: 0 1px 0 var(--color-border);
+}
+.nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 clamp(20px, 4vw, 48px);
+    display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display);
+    font-size: 1.3rem; font-weight: 600;
+    color: var(--color-text);
+}
+.nav-brand-icon { color: var(--color-accent); }
+.nav-links {
+    display: flex; gap: 36px;
+}
+.nav-link {
+    font-size: 0.85rem; font-weight: 500;
     color: var(--color-text-muted);
-    max-width: 640px;
-    margin: 0 auto;
+    position: relative;
+    transition: color 0.3s ease;
 }
+.nav-link::after {
+    content: ''; position: absolute; bottom: -4px; left: 0;
+    width: 0; height: 1.5px;
+    background: var(--color-accent);
+    transition: width 0.4s var(--ease);
+}
+.nav-link:hover, .nav-link.active { color: var(--color-text); }
+.nav-link:hover::after, .nav-link.active::after { width: 100%; }
+.nav-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 24px;
+    background: var(--color-text);
+    color: var(--color-bg);
+    border-radius: 100px;
+    font-size: 0.82rem; font-weight: 600;
+    transition: all 0.3s var(--ease);
+}
+.nav-cta:hover { background: var(--color-accent); transform: translateY(-1px); }
+.nav-toggle {
+    display: none; flex-direction: column; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 4px;
+}
+.nav-toggle span {
+    display: block; width: 22px; height: 1.5px;
+    background: var(--color-text); border-radius: 2px;
+    transition: all 0.3s var(--ease);
+}
+.nav-toggle.open span:nth-child(1) { transform: rotate(45deg) translate(4px, 4px); }
+.nav-toggle.open span:nth-child(2) { opacity: 0; }
+.nav-toggle.open span:nth-child(3) { transform: rotate(-45deg) translate(4px, -4px); }
 
 /* --- Buttons --- */
 .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 28px;
-    border-radius: var(--radius-full);
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 32px;
+    border-radius: 100px;
     font-family: var(--font-body);
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    border: none;
-    position: relative;
-    overflow: hidden;
+    font-size: 0.88rem; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: all 0.4s var(--ease);
+    position: relative; overflow: hidden;
 }
-
-.btn-primary {
-    background: var(--gradient-primary);
-    color: white;
-    box-shadow: var(--shadow-glow), var(--shadow-sm);
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-glow-strong), var(--shadow-md);
-}
-
-.btn-secondary {
-    background: transparent;
-    color: var(--color-text);
-    border: 1.5px solid var(--color-border-hover);
-    backdrop-filter: blur(10px);
-}
-
-.btn-secondary:hover {
-    background: rgba(192, 57, 43, 0.1);
-    border-color: var(--color-primary);
-    transform: translateY(-2px);
-}
-
-.btn-outline {
-    background: transparent;
-    border: 1.5px solid var(--color-border-hover);
-    color: var(--color-text);
-    padding: 12px 24px;
-}
-
-.btn-outline:hover {
-    background: rgba(192, 57, 43, 0.1);
-    border-color: var(--color-primary);
-}
-
-.btn-whatsapp {
-    background: #25D366;
-    color: white;
-}
-
-.btn-whatsapp:hover {
-    background: #22c55e;
-    transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(37, 211, 102, 0.3);
-}
-
-.btn-lg {
-    padding: 18px 36px;
-    font-size: 1.05rem;
-}
-
-.btn-full { width: 100%; justify-content: center; }
-
-/* =============================================
-   NAVBAR
-   ============================================= */
-.navbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    padding: 16px 0;
-    transition: all var(--transition-normal);
-}
-
-.navbar.scrolled {
-    background: rgba(13, 11, 10, 0.9);
-    backdrop-filter: blur(20px) saturate(1.5);
-    -webkit-backdrop-filter: blur(20px) saturate(1.5);
-    padding: 10px 0;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.nav-container {
-    max-width: var(--container-max);
-    margin: 0 auto;
-    padding: 0 clamp(16px, 4vw, 40px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.nav-logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--font-display);
-    font-size: 1.4rem;
-    font-weight: 700;
-}
-
-.logo-icon {
-    font-size: 1.6rem;
-}
-
-.logo-text {
-    background: var(--gradient-warm);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.nav-links {
-    display: flex;
-    gap: 32px;
-}
-
-.nav-links a {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    transition: color var(--transition-fast);
-    position: relative;
-}
-
-.nav-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: var(--gradient-primary);
-    border-radius: 1px;
-    transition: width var(--transition-normal);
-}
-
-.nav-links a:hover {
-    color: var(--color-text);
-}
-
-.nav-links a:hover::after {
-    width: 100%;
-}
-
-.nav-cta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 22px;
-    background: var(--gradient-primary);
-    border-radius: var(--radius-full);
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: white;
-    transition: all var(--transition-normal);
-}
-
-.nav-cta:hover {
-    transform: scale(1.05);
-    box-shadow: var(--shadow-glow);
-}
-
-.mobile-toggle {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-}
-
-.mobile-toggle span {
-    display: block;
-    width: 24px;
-    height: 2px;
+.btn-filled {
     background: var(--color-text);
-    border-radius: 2px;
-    transition: all var(--transition-fast);
+    color: var(--color-bg);
 }
+.btn-filled:hover { background: var(--color-accent); transform: translateY(-2px); box-shadow: 0 12px 32px rgba(139, 105, 20, 0.2); }
+.btn-ghost {
+    background: transparent;
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border-strong);
+}
+.btn-ghost:hover { border-color: var(--color-accent); color: var(--color-accent); transform: translateY(-2px); }
+.btn-ghost-light { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.4); }
+.btn-ghost-light:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+.btn-outlined {
+    background: transparent; color: var(--color-accent);
+    border: 1.5px solid var(--color-accent);
+    padding: 10px 24px;
+}
+.btn-outlined:hover { background: var(--color-accent); color: #fff; }
+.btn-wa { background: #25D366; color: #fff; }
+.btn-wa:hover { background: #1da851; transform: translateY(-2px); }
+.btn-block { width: 100%; justify-content: center; }
+.btn-lg { padding: 18px 40px; font-size: 0.95rem; }
 
-/* =============================================
-   HERO SECTION
-   ============================================= */
+/* --- Hero --- */
 .hero {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-    padding: 120px 40px 60px;
-    gap: 40px;
-}
-
-.hero-bg-shapes {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+    position: relative; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
 }
-
-.shape {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.4;
+.hero-media {
+    position: absolute; inset: 0;
 }
-
-.shape-1 {
-    width: 500px; height: 500px;
-    background: rgba(192, 57, 43, 0.2);
-    top: -10%; right: -5%;
-    animation: floatShape 12s ease-in-out infinite;
+.hero-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    animation: heroZoom 20s ease-in-out infinite alternate;
 }
-
-.shape-2 {
-    width: 350px; height: 350px;
-    background: rgba(243, 156, 18, 0.15);
-    bottom: 10%; left: -5%;
-    animation: floatShape 15s ease-in-out infinite reverse;
+@keyframes heroZoom {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.08); }
 }
-
-.shape-3 {
-    width: 250px; height: 250px;
-    background: rgba(211, 84, 0, 0.12);
-    top: 40%; left: 30%;
-    animation: floatShape 18s ease-in-out infinite;
+.hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+        rgba(253,251,247,0.3) 0%,
+        rgba(253,251,247,0.5) 40%,
+        rgba(253,251,247,0.85) 75%,
+        rgba(253,251,247,1) 100%
+    );
 }
-
-.shape-4 {
-    width: 150px; height: 150px;
-    background: rgba(192, 57, 43, 0.15);
-    bottom: 30%; right: 20%;
-    animation: floatShape 10s ease-in-out infinite reverse;
-}
-
-.shape-5 {
-    width: 100px; height: 100px;
-    background: rgba(243, 156, 18, 0.2);
-    top: 20%; left: 10%;
-    animation: floatShape 8s ease-in-out infinite;
-}
-
-@keyframes floatShape {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -30px) scale(1.05); }
-    66% { transform: translate(-20px, 20px) scale(0.95); }
-}
-
 .hero-content {
-    flex: 1;
-    max-width: 600px;
-    z-index: 2;
-    animation: heroFadeIn 1s var(--ease-out) both;
+    position: relative; z-index: 2;
+    text-align: center;
+    padding: 140px 20px 100px;
+    max-width: 750px;
 }
-
-@keyframes heroFadeIn {
-    from { opacity: 0; transform: translateY(40px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    display: inline-flex; align-items: center; gap: 8px;
     padding: 8px 20px;
-    background: rgba(192, 57, 43, 0.12);
-    border: 1px solid rgba(192, 57, 43, 0.25);
-    border-radius: var(--radius-full);
-    font-size: 0.85rem;
-    font-weight: 500;
+    background: var(--color-accent-bg);
+    border: 1px solid rgba(139, 105, 20, 0.12);
+    border-radius: 100px;
+    font-size: 0.78rem; font-weight: 600;
     color: var(--color-accent);
-    margin-bottom: 24px;
-    animation: heroFadeIn 1s var(--ease-out) 0.2s both;
+    margin-bottom: 28px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
-
-.badge-star {
-    color: var(--color-accent);
-}
-
 .hero-title {
     font-family: var(--font-display);
-    line-height: 1.1;
-    margin-bottom: 16px;
-    animation: heroFadeIn 1s var(--ease-out) 0.3s both;
-}
-
-.title-accent {
-    display: block;
-    font-family: var(--font-accent);
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    color: var(--color-accent);
-    font-weight: 500;
-}
-
-.title-main {
-    display: block;
-    font-size: clamp(3.5rem, 7vw, 5.5rem);
-    font-weight: 700;
-    background: var(--gradient-warm);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.hero-tagline {
-    font-family: var(--font-accent);
-    font-size: clamp(1.2rem, 2.5vw, 1.6rem);
-    color: var(--color-text-muted);
-    margin-bottom: 8px;
-    animation: heroFadeIn 1s var(--ease-out) 0.4s both;
-}
-
-.hero-subtitle {
-    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
-    color: var(--color-text-dim);
-    margin-bottom: 32px;
-    animation: heroFadeIn 1s var(--ease-out) 0.5s both;
-}
-
-.hero-actions {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 48px;
-    animation: heroFadeIn 1s var(--ease-out) 0.6s both;
-}
-
-.hero-stats {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    animation: heroFadeIn 1s var(--ease-out) 0.7s both;
-}
-
-.stat {
-    text-align: center;
-}
-
-.stat-number {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 1.8rem;
-    font-weight: 700;
     color: var(--color-text);
-}
-
-.stat-label {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    font-weight: 500;
-}
-
-.stat-divider {
-    width: 1px;
-    height: 40px;
-    background: var(--color-border-hover);
-}
-
-/* Hero Visual - Cake Display */
-.hero-visual {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2;
-    animation: heroFadeIn 1.2s var(--ease-out) 0.4s both;
-}
-
-.cake-display {
-    position: relative;
-    width: 340px;
-    height: 400px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-}
-
-.cake-glow {
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    background: var(--gradient-glow);
-    border-radius: 50%;
-    bottom: 20%;
-    animation: pulseGlow 4s ease-in-out infinite;
-}
-
-@keyframes pulseGlow {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.1); }
-}
-
-.cake-illustration {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 2;
-}
-
-.cake-tier {
-    border-radius: var(--radius-md);
-    position: relative;
-}
-
-.tier-1 {
-    width: 200px;
-    height: 60px;
-    background: linear-gradient(135deg, #8B4513, #A0522D);
-    border-radius: 12px 12px 16px 16px;
-    box-shadow: 0 8px 30px rgba(139, 69, 19, 0.4);
-}
-
-.tier-2 {
-    width: 160px;
-    height: 55px;
-    background: linear-gradient(135deg, #D2691E, #CD853F);
-    border-radius: 10px;
-    margin-bottom: -4px;
-    box-shadow: 0 4px 20px rgba(210, 105, 30, 0.3);
-}
-
-.tier-3 {
-    width: 120px;
-    height: 50px;
-    background: linear-gradient(135deg, #C0392B, #E74C3C);
-    border-radius: 10px 10px 8px 8px;
-    margin-bottom: -4px;
-    box-shadow: 0 4px 20px rgba(192, 57, 43, 0.4);
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-}
-
-.cake-topper {
-    font-size: 2.5rem;
-    margin-top: -28px;
-    animation: bounce 2s ease-in-out infinite;
-    filter: drop-shadow(0 4px 12px rgba(192, 57, 43, 0.4));
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-
-.cake-plate {
-    width: 240px;
-    height: 14px;
-    background: linear-gradient(to bottom, #ddd, #bbb);
-    border-radius: 50%;
-    margin-top: -2px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-.floating-elements {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.float-item {
-    position: absolute;
-    font-size: 2rem;
-    animation: floatItem 6s ease-in-out infinite;
-}
-
-.float-1 { top: 5%; left: 5%; animation-delay: 0s; }
-.float-2 { top: 15%; right: 5%; animation-delay: 1.2s; }
-.float-3 { bottom: 30%; left: 0; animation-delay: 2.4s; }
-.float-4 { bottom: 40%; right: 0; animation-delay: 3.6s; }
-.float-5 { top: 35%; left: 15%; animation-delay: 4.8s; font-size: 1.5rem; }
-
-@keyframes floatItem {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
-    50% { transform: translate(10px, -20px) rotate(15deg); opacity: 1; }
-}
-
-/* Scroll Indicator */
-.scroll-indicator {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    color: var(--color-text-dim);
-    font-size: 0.75rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    animation: heroFadeIn 1s var(--ease-out) 1.2s both;
-}
-
-.scroll-arrow {
-    width: 20px;
-    height: 20px;
-    border-right: 2px solid var(--color-text-dim);
-    border-bottom: 2px solid var(--color-text-dim);
-    transform: rotate(45deg);
-    animation: scrollBounce 2s ease-in-out infinite;
-}
-
-@keyframes scrollBounce {
-    0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.5; }
-    50% { transform: rotate(45deg) translate(5px, 5px); opacity: 1; }
-}
-
-/* =============================================
-   ABOUT SECTION
-   ============================================= */
-.about {
-    padding: var(--section-pad) 0;
-    position: relative;
-}
-
-.about::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--color-border-hover), transparent);
-}
-
-.about-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 24px;
-}
-
-.about-card {
-    background: var(--gradient-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 36px 28px;
-    transition: all var(--transition-normal);
-    position: relative;
-    overflow: hidden;
-}
-
-.about-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--gradient-primary);
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-}
-
-.about-card:hover {
-    transform: translateY(-6px);
-    border-color: var(--color-border-hover);
-    box-shadow: var(--shadow-glow), var(--shadow-md);
-}
-
-.about-card:hover::before {
-    opacity: 1;
-}
-
-.card-icon {
-    font-size: 2.5rem;
     margin-bottom: 20px;
-}
-
-.about-card h3 {
-    font-family: var(--font-display);
-    font-size: 1.3rem;
-    margin-bottom: 12px;
-    font-weight: 600;
-}
-
-.about-card p {
-    font-size: 0.95rem;
-    color: var(--color-text-muted);
-    line-height: 1.7;
-}
-
-.card-featured {
-    border-color: rgba(192, 57, 43, 0.25);
-    background: linear-gradient(145deg, rgba(192, 57, 43, 0.12) 0%, rgba(211, 84, 0, 0.06) 100%);
-}
-
-/* =============================================
-   SPECIALTIES / MENU SECTION
-   ============================================= */
-.specialties {
-    padding: var(--section-pad) 0;
-    background: var(--color-bg-elevated);
-    position: relative;
-}
-
-.specialties::before,
-.specialties::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--color-border-hover), transparent);
-}
-
-.specialties::before { top: 0; }
-.specialties::after { bottom: 0; }
-
-.menu-tabs {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 48px;
-    flex-wrap: wrap;
-}
-
-.tab-btn {
-    padding: 12px 28px;
-    border-radius: var(--radius-full);
-    border: 1.5px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text-muted);
-    font-family: var(--font-body);
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-normal);
-}
-
-.tab-btn:hover {
-    border-color: var(--color-border-hover);
-    color: var(--color-text);
-}
-
-.tab-btn.active {
-    background: var(--gradient-primary);
-    border-color: transparent;
-    color: white;
-    box-shadow: var(--shadow-glow);
-}
-
-.menu-items {
-    display: none;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
-}
-
-.menu-items.active {
-    display: grid;
-    animation: fadeInUp 0.5s var(--ease-out);
-}
-
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.menu-item {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    transition: all var(--transition-normal);
-    display: flex;
-    flex-direction: column;
-}
-
-.menu-item:hover {
-    transform: translateY(-4px);
-    border-color: var(--color-border-hover);
-    box-shadow: var(--shadow-glow), var(--shadow-md);
-}
-
-.item-visual {
-    height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.item-emoji {
-    font-size: 4rem;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-    transition: transform var(--transition-normal);
-}
-
-.menu-item:hover .item-emoji {
-    transform: scale(1.15) rotate(-5deg);
-}
-
-.pastry-dutch { background: linear-gradient(135deg, #2c1810 0%, #4a2c1a 100%); }
-.pastry-swiss { background: linear-gradient(135deg, #3d1e12 0%, #5c3422 100%); }
-.pastry-forest { background: linear-gradient(135deg, #1a3320 0%, #2d4a32 100%); }
-.pastry-chips { background: linear-gradient(135deg, #3a2817 0%, #55391f 100%); }
-.cake-wedding { background: linear-gradient(135deg, #2a1a2e 0%, #452640 100%); }
-.cake-birthday { background: linear-gradient(135deg, #1a2a3e 0%, #264055 100%); }
-.cake-anniversary { background: linear-gradient(135deg, #3a1a22 0%, #552635 100%); }
-.cake-3d { background: linear-gradient(135deg, #1a2a1a 0%, #2d452d 100%); }
-.brownie-choco { background: linear-gradient(135deg, #1f120a 0%, #3a2011 100%); }
-.brownie-walnut { background: linear-gradient(135deg, #2a1f10 0%, #45321a 100%); }
-.treat-cookies { background: linear-gradient(135deg, #2f2210 0%, #4a3518 100%); }
-.treat-cupcakes { background: linear-gradient(135deg, #2a1525 0%, #451e3a 100%); }
-
-.item-info {
-    padding: 24px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.item-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-
-.item-header h3 {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 600;
-}
-
-.item-badge {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: var(--radius-full);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.item-badge.bestseller {
-    background: rgba(243, 156, 18, 0.15);
-    color: var(--color-accent);
-    border: 1px solid rgba(243, 156, 18, 0.3);
-}
-
-.item-badge.popular {
-    background: rgba(192, 57, 43, 0.15);
-    color: var(--color-primary-light);
-    border: 1px solid rgba(192, 57, 43, 0.3);
-}
-
-.item-badge.premium {
-    background: rgba(155, 89, 182, 0.15);
-    color: #bb86fc;
-    border: 1px solid rgba(155, 89, 182, 0.3);
-}
-
-.item-info p {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    line-height: 1.6;
-    flex: 1;
-}
-
-.item-footer {
-    display: flex;
-    gap: 8px;
-    margin-top: 16px;
-    flex-wrap: wrap;
-}
-
-.item-tag {
-    font-size: 0.7rem;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-dim);
-    font-weight: 500;
-}
-
-.menu-cta {
-    text-align: center;
-    margin-top: 48px;
-    padding-top: 32px;
-    border-top: 1px solid var(--color-border);
-}
-
-.menu-cta p {
-    color: var(--color-text-muted);
-    margin-bottom: 20px;
-    font-size: 1rem;
-}
-
-/* =============================================
-   REVIEWS SECTION
-   ============================================= */
-.reviews {
-    padding: var(--section-pad) 0;
-    position: relative;
-}
-
-.review-highlight {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 48px;
-}
-
-.review-score {
-    text-align: center;
-    padding: 36px 60px;
-    background: var(--gradient-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    position: relative;
-    overflow: hidden;
-}
-
-.review-score::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--gradient-glow);
-    opacity: 0.3;
-}
-
-.score-number {
-    font-family: var(--font-display);
-    font-size: 4rem;
-    font-weight: 700;
-    background: var(--gradient-warm);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    position: relative;
-    z-index: 1;
-}
-
-.score-stars {
-    font-size: 1.8rem;
-    color: var(--color-accent);
-    margin: 8px 0;
-    position: relative;
-    z-index: 1;
-}
-
-.score-count {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    position: relative;
-    z-index: 1;
-}
-
-.reviews-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-}
-
-.review-card {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 32px;
-    transition: all var(--transition-normal);
-    position: relative;
-}
-
-.review-card::before {
-    content: '"';
-    position: absolute;
-    top: 16px;
-    right: 24px;
-    font-family: var(--font-display);
-    font-size: 4rem;
-    color: rgba(192, 57, 43, 0.1);
     line-height: 1;
 }
-
-.review-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--color-border-hover);
-    box-shadow: var(--shadow-md);
-}
-
-.review-stars {
-    color: var(--color-accent);
-    font-size: 1.1rem;
-    margin-bottom: 16px;
-    letter-spacing: 2px;
-}
-
-.review-text {
-    font-size: 0.95rem;
-    color: var(--color-text-muted);
-    line-height: 1.7;
-    margin-bottom: 20px;
-    font-style: italic;
-}
-
-.review-author {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-top: 16px;
-    border-top: 1px solid var(--color-border);
-}
-
-.author-avatar {
-    width: 40px;
-    height: 40px;
-    background: var(--gradient-card);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    border: 1px solid var(--color-border);
-}
-
-.author-name {
+.hero-title-line {
     display: block;
-    font-size: 0.85rem;
+}
+.hero-title-line:first-child {
+    font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+    font-weight: 300;
+    font-style: italic;
+    color: var(--color-accent);
+    margin-bottom: 4px;
+}
+.hero-title-line:last-child {
+    font-size: clamp(4rem, 10vw, 7.5rem);
     font-weight: 600;
+    letter-spacing: -2px;
+}
+.hero-sub {
+    font-size: clamp(0.95rem, 1.8vw, 1.12rem);
+    color: var(--color-text-muted);
+    margin-bottom: 40px;
+    line-height: 1.8;
+}
+.hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.hero-scroll {
+    position: absolute; bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    z-index: 2;
+}
+.hero-scroll span {
+    font-size: 0.7rem; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--color-text-light);
+    writing-mode: vertical-lr;
+}
+.hero-scroll-line {
+    width: 1px; height: 48px;
+    background: linear-gradient(to bottom, var(--color-accent), transparent);
+    animation: scrollPulse 2s ease-in-out infinite;
+}
+@keyframes scrollPulse {
+    0%, 100% { opacity: 0.4; height: 48px; }
+    50% { opacity: 1; height: 64px; }
+}
+
+/* --- Marquee --- */
+.marquee {
+    padding: 20px 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+    overflow: hidden;
+    background: var(--color-bg);
+}
+.marquee-track {
+    display: flex; gap: 40px;
+    animation: marqueeScroll 25s linear infinite;
+    white-space: nowrap;
+    width: max-content;
+}
+.marquee-track span {
+    font-family: var(--font-display);
+    font-size: 1.1rem; font-weight: 500;
+    color: var(--color-text-muted);
+    letter-spacing: 1px;
+}
+.marquee-dot {
+    width: 5px; height: 5px;
+    background: var(--color-accent);
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    align-self: center;
+}
+@keyframes marqueeScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* --- Section Headers --- */
+.section-header { text-align: center; margin-bottom: clamp(48px, 8vw, 80px); }
+.label {
+    display: inline-block;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 14px;
+}
+.section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 500;
     color: var(--color-text);
+    line-height: 1.15;
+}
+.section-title em {
+    font-style: italic;
+    color: var(--color-accent);
+}
+.section-sub {
+    font-size: 1.02rem;
+    color: var(--color-text-muted);
+    max-width: 560px;
+    margin: 16px auto 0;
 }
 
-.author-source {
-    font-size: 0.75rem;
-    color: var(--color-text-dim);
+/* --- About --- */
+.about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(40px, 6vw, 80px);
+    align-items: center;
+}
+.about-images { position: relative; height: 550px; }
+.about-img-wrap {
+    position: absolute; border-radius: var(--radius-lg); overflow: hidden;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.08);
+}
+.about-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.6s var(--ease);
+}
+.about-img-wrap:hover img { transform: scale(1.05); }
+.about-img-1 { width: 65%; height: 75%; top: 0; left: 0; z-index: 2; }
+.about-img-2 { width: 55%; height: 55%; bottom: 0; right: 0; z-index: 1; }
+.about-content .label { margin-bottom: 12px; }
+.about-content .section-title { text-align: left; margin-bottom: 20px; }
+.about-text {
+    font-size: 1rem; color: var(--color-text-body);
+    margin-bottom: 32px; line-height: 1.8;
+}
+.about-features { display: flex; flex-direction: column; gap: 20px; }
+.about-feature {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 20px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all 0.3s var(--ease);
+}
+.about-feature:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 8px 24px rgba(139, 105, 20, 0.08);
+    transform: translateX(4px);
+}
+.feature-icon {
+    width: 48px; height: 48px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-accent-bg);
+    border-radius: 12px;
+    color: var(--color-accent);
+}
+.about-feature h4 {
+    font-size: 0.95rem; font-weight: 600;
+    color: var(--color-text); margin-bottom: 2px;
+}
+.about-feature p { font-size: 0.85rem; color: var(--color-text-muted); }
+
+/* --- Stats --- */
+.stats {
+    padding: 64px 0;
+    background: var(--color-text);
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 32px; text-align: center;
+}
+.stat-item { color: var(--color-bg); }
+.stat-number {
+    font-family: var(--font-display);
+    font-size: 3.5rem; font-weight: 600;
+    display: inline;
+}
+.stat-unit {
+    font-family: var(--font-display);
+    font-size: 1.4rem; font-weight: 400;
+    color: var(--color-accent-light);
+}
+.stat-label {
+    display: block;
+    font-size: 0.8rem; font-weight: 500;
+    color: rgba(253,251,247,0.5);
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-top: 4px;
 }
 
-/* =============================================
-   GALLERY SECTION
-   ============================================= */
-.gallery {
-    padding: var(--section-pad) 0;
-    background: var(--color-bg-elevated);
+/* --- Menu --- */
+.menu { background: var(--color-bg-alt); }
+.menu-tabs {
+    display: flex; justify-content: center; gap: 8px;
+    margin-bottom: 48px;
+}
+.menu-tab {
+    padding: 12px 28px;
+    border-radius: 100px;
+    border: 1.5px solid var(--color-border-strong);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.85rem; font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.3s var(--ease);
+}
+.menu-tab:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.menu-tab.active {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+}
+.menu-panel {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+}
+.menu-panel.active { display: grid; animation: panelIn 0.5s var(--ease); }
+@keyframes panelIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.menu-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    transition: all 0.4s var(--ease);
+}
+.menu-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 48px rgba(0,0,0,0.08);
+    border-color: transparent;
+}
+.menu-card-img {
     position: relative;
+    height: 200px; overflow: hidden;
 }
-
-.gallery::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--color-border-hover), transparent);
+.menu-card-img img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.6s var(--ease);
 }
+.menu-card:hover .menu-card-img img { transform: scale(1.08); }
+.menu-badge {
+    position: absolute; top: 14px; left: 14px;
+    padding: 5px 14px;
+    background: var(--color-text);
+    color: var(--color-bg);
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    border-radius: 100px;
+}
+.menu-badge.accent { background: var(--color-accent); color: #fff; }
+.menu-badge.premium { background: #6B4F8A; color: #fff; }
+.menu-card-body { padding: 24px; }
+.menu-card-body h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem; font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 8px;
+}
+.menu-card-body p { font-size: 0.88rem; color: var(--color-text-muted); line-height: 1.6; margin-bottom: 16px; }
+.menu-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.menu-tags span {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px;
+    padding: 4px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    color: var(--color-text-light);
+}
+.menu-footer {
+    text-align: center; margin-top: 56px;
+    padding-top: 32px; border-top: 1px solid var(--color-border);
+}
+.menu-footer p { color: var(--color-text-muted); margin-bottom: 20px; }
 
+/* --- Gallery --- */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 220px;
+    grid-auto-rows: 260px;
     gap: 16px;
-    margin-bottom: 32px;
 }
-
 .gallery-item {
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    position: relative;
+    position: relative; border-radius: var(--radius-lg);
+    overflow: hidden; cursor: pointer;
+}
+.gallery-item.gi-tall { grid-row: span 2; }
+.gallery-item.gi-wide { grid-column: span 2; }
+.gallery-item img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.6s var(--ease);
+}
+.gallery-item:hover img { transform: scale(1.06); }
+.gallery-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(26,20,16,0.7) 0%, transparent 60%);
+    display: flex; align-items: flex-end;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.gallery-item:hover .gallery-overlay { opacity: 1; }
+.gallery-overlay span {
+    font-family: var(--font-display);
+    font-size: 1.2rem; font-weight: 500;
+    color: #fff;
 }
 
-.gallery-item.gi-large {
-    grid-column: span 2;
+/* --- Reviews --- */
+.reviews { background: var(--color-bg-warm); }
+.reviews-slider { position: relative; max-width: 680px; margin: 0 auto 40px; min-height: 240px; }
+.review-slide {
+    position: absolute; inset: 0;
+    text-align: center;
+    opacity: 0; transform: translateX(40px);
+    transition: all 0.5s var(--ease);
+    pointer-events: none;
 }
-
-.gallery-placeholder {
-    width: 100%;
-    height: 100%;
-    background: var(--gradient-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    transition: all var(--transition-normal);
+.review-slide.active { opacity: 1; transform: translateX(0); pointer-events: auto; position: relative; }
+.review-stars {
+    display: flex; justify-content: center; gap: 4px;
+    color: var(--color-accent-light);
+    margin-bottom: 24px;
+}
+.review-slide blockquote {
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+    font-weight: 400;
+    font-style: italic;
+    color: var(--color-text);
+    line-height: 1.7;
+    margin-bottom: 28px;
+}
+.review-author {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.review-avatar {
+    width: 44px; height: 44px;
+    background: var(--color-accent-bg);
+    border: 1px solid rgba(139,105,20,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 600; font-size: 1.1rem;
+    color: var(--color-accent);
+}
+.review-author strong { display: block; font-size: 0.88rem; color: var(--color-text); }
+.review-author span { font-size: 0.75rem; color: var(--color-text-light); }
+.review-controls {
+    display: flex; align-items: center; justify-content: center; gap: 24px;
+    margin-bottom: 48px;
+}
+.review-btn {
+    width: 44px; height: 44px;
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: 50%;
+    background: var(--color-surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--color-text);
+    transition: all 0.3s var(--ease);
+}
+.review-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.review-dots { display: flex; gap: 8px; }
+.review-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+    transition: all 0.3s var(--ease);
     cursor: pointer;
 }
-
-.gallery-placeholder:hover {
-    border-color: var(--color-border-hover);
-    background: linear-gradient(145deg, rgba(192, 57, 43, 0.12) 0%, rgba(211, 84, 0, 0.06) 100%);
-    transform: scale(1.02);
+.review-dot.active { background: var(--color-accent); width: 24px; border-radius: 4px; }
+.review-score-bar {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    padding: 24px 40px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    max-width: 500px;
+    margin: 0 auto;
 }
-
-.gp-emoji {
-    font-size: 3rem;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+.score-big {
+    font-family: var(--font-display);
+    font-size: 2.2rem; font-weight: 600;
+    color: var(--color-text);
 }
+.score-big span { font-size: 1rem; color: var(--color-text-light); }
+.score-stars { display: flex; gap: 3px; color: var(--color-accent-light); }
+.score-count { font-size: 0.8rem; color: var(--color-text-muted); }
 
-.gp-label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-}
-
-.gallery-note {
-    text-align: center;
-    font-size: 0.95rem;
-    color: var(--color-text-muted);
-}
-
-/* =============================================
-   CONTACT SECTION
-   ============================================= */
-.contact {
-    padding: var(--section-pad) 0;
-    position: relative;
-}
-
+/* --- Contact --- */
 .contact-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 24px;
     margin-bottom: 48px;
 }
-
 .contact-card {
-    background: var(--color-bg-card);
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: 36px 28px;
+    padding: 40px 32px;
     text-align: center;
-    transition: all var(--transition-normal);
+    transition: all 0.4s var(--ease);
 }
-
-.contact-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--color-border-hover);
-    box-shadow: var(--shadow-md);
+.contact-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.06); }
+.contact-card-highlight {
+    background: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
 }
-
-.contact-icon {
-    font-size: 2.5rem;
-    margin-bottom: 20px;
+.contact-card-highlight h3 { color: var(--color-bg); }
+.contact-card-highlight p { color: rgba(253,251,247,0.6); }
+.contact-card-highlight .contact-card-icon { background: rgba(255,255,255,0.1); color: var(--color-accent-light); }
+.contact-card-icon {
+    width: 60px; height: 60px;
+    margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-accent-bg);
+    border-radius: 16px;
+    color: var(--color-accent);
 }
-
 .contact-card h3 {
     font-family: var(--font-display);
-    font-size: 1.3rem;
-    font-weight: 600;
+    font-size: 1.4rem; font-weight: 600;
+    color: var(--color-text);
     margin-bottom: 16px;
 }
-
-.address-text {
-    font-size: 0.95rem;
-    color: var(--color-text-muted);
-    line-height: 1.8;
-    margin-bottom: 20px;
-}
-
-.hours-list {
-    text-align: left;
-}
-
+.contact-card p { font-size: 0.9rem; color: var(--color-text-muted); line-height: 1.8; margin-bottom: 20px; }
+.hours-table { text-align: left; margin-bottom: 16px; }
 .hours-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
+    display: flex; justify-content: space-between;
+    padding: 10px 0;
     border-bottom: 1px solid var(--color-border);
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
+    font-size: 0.88rem;
 }
-
-.hours-row:last-child {
-    border-bottom: none;
-}
-
-.hours-time {
-    color: var(--color-text);
-    font-weight: 500;
-}
-
-.hours-note {
-    margin-top: 16px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-accent);
-}
-
-.phone-number {
+.hours-note { font-size: 0.85rem; font-weight: 600; color: var(--color-accent); }
+.phone-display {
     display: block;
     font-family: var(--font-display);
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--color-primary-light);
+    font-size: 1.6rem; font-weight: 600;
+    color: var(--color-accent-light);
     margin-bottom: 12px;
-    transition: color var(--transition-fast);
 }
-
-.phone-number:hover {
-    color: var(--color-accent);
-}
-
-.phone-desc {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    margin-bottom: 24px;
-    line-height: 1.6;
-}
-
-.contact-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.map-wrapper {
-    border-radius: var(--radius-lg);
-    overflow: hidden;
+.contact-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.contact-card-highlight .btn-filled { background: var(--color-accent); color: #fff; }
+.contact-card-highlight .btn-filled:hover { background: var(--color-accent-light); }
+.map-wrap {
+    border-radius: var(--radius-lg); overflow: hidden;
     border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.06);
 }
 
-/* =============================================
-   CTA BANNER
-   ============================================= */
-.cta-banner {
-    padding: 80px 0;
-    background: var(--color-bg-elevated);
+/* --- CTA --- */
+.cta {
     position: relative;
+    padding: clamp(80px, 12vw, 140px) 0;
     overflow: hidden;
 }
-
-.cta-banner::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--gradient-glow);
-    opacity: 0.3;
+.cta-bg { position: absolute; inset: 0; }
+.cta-bg img { width: 100%; height: 100%; object-fit: cover; }
+.cta-overlay {
+    position: absolute; inset: 0;
+    background: rgba(26,20,16,0.75);
 }
-
-.cta-content {
-    text-align: center;
-    position: relative;
-    z-index: 1;
-}
-
-.cta-content h2 {
+.cta-inner { position: relative; z-index: 2; text-align: center; color: #fff; }
+.cta-inner h2 {
     font-family: var(--font-display);
-    font-size: clamp(1.8rem, 4vw, 2.8rem);
-    font-weight: 700;
-    margin-bottom: 16px;
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    font-weight: 500; margin-bottom: 16px;
 }
+.cta-inner p { font-size: 1.05rem; color: rgba(255,255,255,0.7); max-width: 560px; margin: 0 auto 36px; }
+.cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 
-.cta-content p {
-    font-size: 1.05rem;
-    color: var(--color-text-muted);
-    max-width: 600px;
-    margin: 0 auto 32px;
-}
-
-.cta-buttons {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-/* =============================================
-   FOOTER
-   ============================================= */
+/* --- Footer --- */
 .footer {
-    padding: 60px 0 30px;
-    background: var(--color-bg);
-    border-top: 1px solid var(--color-border);
+    padding: 60px 0 28px;
+    background: var(--color-text);
+    color: rgba(253,251,247,0.5);
 }
-
 .footer-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1.5fr;
-    gap: 40px;
-    margin-bottom: 40px;
+    gap: 48px; margin-bottom: 40px;
 }
-
 .footer-logo {
     font-family: var(--font-display);
-    font-size: 1.4rem;
-    font-weight: 700;
-    display: block;
-    margin-bottom: 12px;
+    font-size: 1.5rem; font-weight: 600;
+    color: var(--color-bg);
+    display: block; margin-bottom: 12px;
 }
-
-.footer-brand p {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    line-height: 1.7;
-    margin-bottom: 16px;
-}
-
-.footer-rating {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-}
-
-.footer-stars {
-    color: var(--color-accent);
-    letter-spacing: 2px;
-}
-
-.footer-links h4,
-.footer-contact h4 {
+.footer-brand p { font-size: 0.88rem; line-height: 1.7; }
+.footer-col h4 {
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    font-size: 1.1rem; font-weight: 600;
+    color: var(--color-bg);
     margin-bottom: 20px;
-    font-weight: 600;
 }
-
-.footer-links ul {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.footer-links a {
-    font-size: 0.9rem;
-    color: var(--color-text-muted);
-    transition: color var(--transition-fast);
-}
-
-.footer-links a:hover {
-    color: var(--color-primary-light);
-}
-
-.footer-contact p {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    line-height: 1.8;
-    margin-bottom: 8px;
-}
-
-.footer-contact a {
-    color: var(--color-primary-light);
-    transition: color var(--transition-fast);
-}
-
-.footer-contact a:hover {
-    color: var(--color-accent);
-}
-
+.footer-col ul { display: flex; flex-direction: column; gap: 10px; }
+.footer-col a { font-size: 0.88rem; transition: color 0.3s ease; }
+.footer-col a:hover { color: var(--color-accent-light); }
+.footer-col p { font-size: 0.85rem; line-height: 1.8; margin-bottom: 6px; }
 .footer-bottom {
     padding-top: 24px;
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid rgba(253,251,247,0.08);
     text-align: center;
 }
+.footer-bottom p { font-size: 0.78rem; }
 
-.footer-bottom p {
-    font-size: 0.8rem;
-    color: var(--color-text-dim);
-}
-
-/* =============================================
-   BACK TO TOP
-   ============================================= */
-.back-to-top {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 48px;
-    height: 48px;
+/* --- To Top --- */
+.to-top {
+    position: fixed; bottom: 28px; right: 28px;
+    width: 48px; height: 48px;
     border-radius: 50%;
-    background: var(--gradient-primary);
+    background: var(--color-text);
+    color: var(--color-bg);
     border: none;
-    color: white;
-    font-size: 1.3rem;
+    display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: all var(--transition-normal);
-    box-shadow: var(--shadow-glow);
-    z-index: 900;
+    opacity: 0; visibility: hidden;
+    transform: translateY(16px);
+    transition: all 0.4s var(--ease);
+    z-index: 90;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.to-top.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+.to-top:hover { background: var(--color-accent); transform: translateY(-2px); }
+
+/* --- Reveal Animations --- */
+.reveal-up {
+    opacity: 0; transform: translateY(40px);
+    transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+    transition-delay: var(--d, 0s);
+}
+.reveal-left {
+    opacity: 0; transform: translateX(-40px);
+    transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+}
+.reveal-right {
+    opacity: 0; transform: translateX(40px);
+    transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+}
+.reveal-up.visible, .reveal-left.visible, .reveal-right.visible {
+    opacity: 1; transform: translate(0, 0);
 }
 
-.back-to-top.visible {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
+/* --- Responsive --- */
+@media (max-width: 900px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .about-images { height: 350px; margin-bottom: 20px; }
+    .about-content .section-title { text-align: center; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 220px; }
+    .gallery-item.gi-tall { grid-row: span 1; }
+    .gallery-item.gi-wide { grid-column: span 1; }
+    .footer-grid { grid-template-columns: 1fr; gap: 32px; text-align: center; }
+    .footer-col ul { align-items: center; }
 }
-
-.back-to-top:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-glow-strong);
-}
-
-/* =============================================
-   SCROLL REVEAL ANIMATIONS
-   ============================================= */
-.reveal {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
-}
-
-.reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* =============================================
-   RESPONSIVE
-   ============================================= */
 @media (max-width: 768px) {
-    .nav-links { display: none; }
-    .nav-cta { display: none; }
-    .mobile-toggle { display: flex; }
-
-    /* Mobile menu */
+    .nav-links, .nav-cta { display: none; }
+    .nav-toggle { display: flex; }
     .nav-links.open {
-        display: flex;
-        flex-direction: column;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: rgba(13, 11, 10, 0.98);
+        display: flex; flex-direction: column;
+        position: absolute; top: 100%; left: 0; right: 0;
+        background: rgba(253,251,247,0.98);
         backdrop-filter: blur(20px);
-        padding: 20px;
-        gap: 16px;
+        padding: 24px; gap: 16px;
         border-bottom: 1px solid var(--color-border);
-        animation: fadeInUp 0.3s var(--ease-out);
+        animation: panelIn 0.3s var(--ease);
     }
-
-    .hero {
-        flex-direction: column;
-        padding: 120px 20px 60px;
-        text-align: center;
-        min-height: auto;
-    }
-
-    .hero-content {
-        max-width: 100%;
-    }
-
-    .hero-actions {
-        justify-content: center;
-    }
-
-    .hero-stats {
-        justify-content: center;
-    }
-
-    .hero-visual {
-        display: none;
-    }
-
-    .gallery-grid {
-        grid-template-columns: 1fr;
-        grid-auto-rows: 180px;
-    }
-
-    .gallery-item.gi-large {
-        grid-column: span 1;
-    }
-
-    .footer-grid {
-        grid-template-columns: 1fr;
-        gap: 32px;
-        text-align: center;
-    }
-
-    .footer-links ul {
-        align-items: center;
-    }
-
-    .review-score {
-        padding: 28px 40px;
-    }
-
-    .score-number {
-        font-size: 3rem;
-    }
-
-    .cta-buttons {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .contact-grid {
-        grid-template-columns: 1fr;
-    }
+    .hero-content { padding: 120px 16px 80px; }
+    .contact-grid { grid-template-columns: 1fr; }
+    .review-score-bar { flex-direction: column; gap: 10px; padding: 20px; border-radius: var(--radius-lg); }
 }
-
 @media (max-width: 480px) {
-    .hero {
-        padding: 100px 16px 40px;
-    }
-
-    .btn {
-        padding: 12px 22px;
-        font-size: 0.9rem;
-    }
-
-    .btn-lg {
-        padding: 14px 28px;
-    }
-
-    .menu-tabs {
-        gap: 8px;
-    }
-
-    .tab-btn {
-        padding: 10px 18px;
-        font-size: 0.8rem;
-    }
-
-    .reviews-grid {
-        grid-template-columns: 1fr;
-    }
+    .gallery-grid { grid-template-columns: 1fr; grid-auto-rows: 200px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .menu-tabs { flex-direction: column; align-items: center; }
+    .menu-panel { grid-template-columns: 1fr; }
+    .cta-actions { flex-direction: column; align-items: center; }
+    .hero-actions { flex-direction: column; align-items: center; }
 }
 
 </style>
 </head>
 <body>
-    <!-- Floating Nav -->
-    <nav id="navbar" class="navbar">
-        <div class="nav-container">
-            <a href="#home" class="nav-logo">
-                <span class="logo-icon">🎂</span>
-                <span class="logo-text">The Cake Stop</span>
+
+    <!-- Preloader -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-inner">
+            <div class="preloader-ring"></div>
+            <span class="preloader-text">The Cake Stop</span>
+        </div>
+    </div>
+
+    <!-- Cursor Follower -->
+    <div class="cursor-dot" id="cursorDot"></div>
+    <div class="cursor-ring" id="cursorRing"></div>
+
+    <!-- Navigation -->
+    <nav class="nav" id="nav">
+        <div class="nav-inner">
+            <a href="#hero" class="nav-brand">
+                <svg class="nav-brand-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2C6.48 2 2 6 2 10c0 2 1 3.5 2.5 4.5L3 22h18l-1.5-7.5C21 13.5 22 12 22 10c0-4-4.48-8-10-8z"/>
+                    <path d="M8 10c0-2.2 1.8-4 4-4s4 1.8 4 4"/>
+                    <line x1="12" y1="2" x2="12" y2="5"/>
+                    <circle cx="12" cy="2" r="1"/>
+                </svg>
+                <span>The Cake Stop</span>
             </a>
             <ul class="nav-links" id="navLinks">
-                <li><a href="#home">Home</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#specialties">Menu</a></li>
-                <li><a href="#reviews">Reviews</a></li>
-                <li><a href="#gallery">Gallery</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><a href="#hero" class="nav-link active">Home</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#menu" class="nav-link">Menu</a></li>
+                <li><a href="#gallery" class="nav-link">Gallery</a></li>
+                <li><a href="#reviews" class="nav-link">Reviews</a></li>
+                <li><a href="#contact" class="nav-link">Visit</a></li>
             </ul>
             <a href="tel:+919223547022" class="nav-cta">
-                <span class="cta-icon">📞</span> Order Now
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                Order Now
             </a>
-            <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
                 <span></span><span></span><span></span>
             </button>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section id="home" class="hero">
-        <div class="hero-bg-shapes">
-            <div class="shape shape-1"></div>
-            <div class="shape shape-2"></div>
-            <div class="shape shape-3"></div>
-            <div class="shape shape-4"></div>
-            <div class="shape shape-5"></div>
+    <!-- Hero -->
+    <section id="hero" class="hero">
+        <div class="hero-media">
+            <img src="https://images.unsplash.com/photo-1558636508-e0db3814bd1d?w=1600&q=80" alt="The Cake Stop bakery interior" class="hero-img" loading="eager">
+            <div class="hero-overlay"></div>
         </div>
         <div class="hero-content">
-            <div class="hero-badge">
-                <span class="badge-star">★</span> Rated 4.9/5 by 500+ Happy Customers
+            <div class="hero-badge reveal-up">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Rated 4.9 out of 5 &mdash; 500+ Happy Customers
             </div>
             <h1 class="hero-title">
-                <span class="title-accent">The</span>
-                <span class="title-main">Cake Stop</span>
+                <span class="hero-title-line reveal-up" style="--d:0.1s">The</span>
+                <span class="hero-title-line reveal-up" style="--d:0.2s">Cake Stop</span>
             </h1>
-            <p class="hero-tagline">Where Every Slice Tells a Sweet Story</p>
-            <p class="hero-subtitle">Vile Parle East's Most Loved Bakery — Crafting Happiness Since Day One</p>
-            <div class="hero-actions">
-                <a href="tel:+919223547022" class="btn btn-primary">
-                    <span>📞</span> Call to Order
+            <p class="hero-sub reveal-up" style="--d:0.35s">Artisan bakery in the heart of Vile Parle East, Mumbai.<br>Where every creation is a masterpiece.</p>
+            <div class="hero-actions reveal-up" style="--d:0.5s">
+                <a href="tel:+919223547022" class="btn btn-filled">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    Call to Order
                 </a>
-                <a href="#specialties" class="btn btn-secondary">
-                    <span>✨</span> View Menu
+                <a href="#menu" class="btn btn-ghost">
+                    Explore Menu
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17l9.2-9.2M17 17V7.8H7.8"/></svg>
                 </a>
-            </div>
-            <div class="hero-stats">
-                <div class="stat">
-                    <span class="stat-number" data-target="4.9">4.9</span>
-                    <span class="stat-label">★ Rating</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat">
-                    <span class="stat-number" data-target="500">500+</span>
-                    <span class="stat-label">Reviews</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat">
-                    <span class="stat-number">🏆</span>
-                    <span class="stat-label">Top Rated</span>
-                </div>
             </div>
         </div>
-        <div class="hero-visual">
-            <div class="cake-display">
-                <div class="cake-glow"></div>
-                <div class="cake-illustration">
-                    <div class="cake-tier tier-3">
-                        <div class="cake-topper">🎂</div>
-                    </div>
-                    <div class="cake-tier tier-2"></div>
-                    <div class="cake-tier tier-1"></div>
-                    <div class="cake-plate"></div>
-                </div>
-                <div class="floating-elements">
-                    <span class="float-item float-1">🍰</span>
-                    <span class="float-item float-2">🧁</span>
-                    <span class="float-item float-3">🍫</span>
-                    <span class="float-item float-4">🍓</span>
-                    <span class="float-item float-5">✨</span>
-                </div>
-            </div>
-        </div>
-        <div class="scroll-indicator">
-            <span>Scroll Down</span>
-            <div class="scroll-arrow"></div>
+        <div class="hero-scroll">
+            <div class="hero-scroll-line"></div>
+            <span>Scroll</span>
         </div>
     </section>
 
-    <!-- About Section -->
-    <section id="about" class="about">
+    <!-- Marquee -->
+    <div class="marquee">
+        <div class="marquee-track">
+            <span>Fresh Daily</span><span class="marquee-dot"></span>
+            <span>Custom Cakes</span><span class="marquee-dot"></span>
+            <span>Wedding Specials</span><span class="marquee-dot"></span>
+            <span>Artisan Pastries</span><span class="marquee-dot"></span>
+            <span>Dutch Truffle</span><span class="marquee-dot"></span>
+            <span>Premium Brownies</span><span class="marquee-dot"></span>
+            <span>Fresh Daily</span><span class="marquee-dot"></span>
+            <span>Custom Cakes</span><span class="marquee-dot"></span>
+            <span>Wedding Specials</span><span class="marquee-dot"></span>
+            <span>Artisan Pastries</span><span class="marquee-dot"></span>
+            <span>Dutch Truffle</span><span class="marquee-dot"></span>
+            <span>Premium Brownies</span><span class="marquee-dot"></span>
+        </div>
+    </div>
+
+    <!-- About -->
+    <section id="about" class="about section">
         <div class="container">
-            <div class="section-header">
-                <span class="section-tag">Our Story</span>
-                <h2 class="section-title">A Hidden Gem in <span class="highlight">Vile Parle East</span></h2>
-                <p class="section-desc">Customers call us a "gem" — and we wear that badge proudly. The Cake Stop is where passion meets perfection, right in the heart of Mumbai.</p>
-            </div>
             <div class="about-grid">
-                <div class="about-card card-featured">
-                    <div class="card-icon">👨‍🍳</div>
-                    <h3>Personal Touch</h3>
-                    <p>Owner Mr. Avinash personally ensures every order exceeds expectations — from custom cake consultations to surprise bouquet arrangements with deliveries.</p>
+                <div class="about-images">
+                    <div class="about-img-wrap about-img-1 reveal-left">
+                        <img src="https://images.unsplash.com/photo-1486427944544-d2c246c4df14?w=800&q=80" alt="Artisan chocolate cake" loading="lazy">
+                    </div>
+                    <div class="about-img-wrap about-img-2 reveal-right">
+                        <img src="https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=80" alt="Fresh pastries display" loading="lazy">
+                    </div>
                 </div>
-                <div class="about-card">
-                    <div class="card-icon">🎨</div>
-                    <h3>Creative Designs</h3>
-                    <p>From elegant wedding tiers to themed birthday cakes — our creative team brings your vision to life with stunning, Instagram-worthy designs.</p>
-                </div>
-                <div class="about-card">
-                    <div class="card-icon">🌿</div>
-                    <h3>Fresh Daily</h3>
-                    <p>Every cake, pastry, and brownie is freshly prepared daily using premium ingredients. No compromises on quality — ever.</p>
-                </div>
-                <div class="about-card">
-                    <div class="card-icon">💰</div>
-                    <h3>Honest Pricing</h3>
-                    <p>Exceptional quality doesn't have to break the bank. Our customers love our generous portions and fair pricing — starting from just ₹450.</p>
+                <div class="about-content">
+                    <span class="label reveal-up">Our Story</span>
+                    <h2 class="section-title reveal-up">A Hidden Gem in<br><em>Vile Parle East</em></h2>
+                    <p class="about-text reveal-up">Customers call us a "gem" — and we wear that title proudly. At The Cake Stop, every cake is a canvas, every pastry a craft. Owner Mr. Avinash personally ensures each order exceeds expectations, from custom consultations to surprise bouquet arrangements alongside deliveries.</p>
+                    <div class="about-features">
+                        <div class="about-feature reveal-up">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </div>
+                            <div>
+                                <h4>Premium Quality</h4>
+                                <p>Freshly baked daily with finest ingredients</p>
+                            </div>
+                        </div>
+                        <div class="about-feature reveal-up">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                            </div>
+                            <div>
+                                <h4>Made with Love</h4>
+                                <p>Personal touch from owner Mr. Avinash</p>
+                            </div>
+                        </div>
+                        <div class="about-feature reveal-up">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 100 4h4a2 2 0 110 4H8"/><path d="M12 18V6"/></svg>
+                            </div>
+                            <div>
+                                <h4>Honest Pricing</h4>
+                                <p>Exceptional quality starting from just &#8377;450</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Specialties Section -->
-    <section id="specialties" class="specialties">
+    <!-- Stats -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item reveal-up">
+                    <span class="stat-number" data-count="4.9">0</span>
+                    <span class="stat-unit">/5</span>
+                    <span class="stat-label">Customer Rating</span>
+                </div>
+                <div class="stat-item reveal-up" style="--d:0.1s">
+                    <span class="stat-number" data-count="500">0</span>
+                    <span class="stat-unit">+</span>
+                    <span class="stat-label">Happy Reviews</span>
+                </div>
+                <div class="stat-item reveal-up" style="--d:0.2s">
+                    <span class="stat-number" data-count="7">0</span>
+                    <span class="stat-unit">Days</span>
+                    <span class="stat-label">Open Every Week</span>
+                </div>
+                <div class="stat-item reveal-up" style="--d:0.3s">
+                    <span class="stat-number" data-count="11">0</span>
+                    <span class="stat-unit">Hrs</span>
+                    <span class="stat-label">Open Daily</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Menu -->
+    <section id="menu" class="menu section">
         <div class="container">
             <div class="section-header">
-                <span class="section-tag">Our Menu</span>
-                <h2 class="section-title">Signature <span class="highlight">Specialties</span></h2>
-                <p class="section-desc">Each creation is a labor of love — baked fresh, beautifully crafted, and made to make your day sweeter.</p>
+                <span class="label reveal-up">What We Offer</span>
+                <h2 class="section-title reveal-up">Signature <em>Specialties</em></h2>
+                <p class="section-sub reveal-up">Each creation is a labour of love — baked fresh, beautifully crafted, and made to elevate your celebration.</p>
             </div>
-            <div class="menu-tabs">
-                <button class="tab-btn active" data-tab="pastries">🍰 Pastries</button>
-                <button class="tab-btn" data-tab="cakes">🎂 Custom Cakes</button>
-                <button class="tab-btn" data-tab="brownies">🍫 Brownies & More</button>
+            <div class="menu-tabs reveal-up">
+                <button class="menu-tab active" data-tab="pastries">Pastries</button>
+                <button class="menu-tab" data-tab="cakes">Custom Cakes</button>
+                <button class="menu-tab" data-tab="treats">Brownies &amp; Treats</button>
             </div>
-            <div class="menu-grid" id="menuGrid">
-                <!-- Pastries Tab -->
-                <div class="menu-items active" data-tab-content="pastries">
-                    <div class="menu-item">
-                        <div class="item-visual pastry-dutch">
-                            <span class="item-emoji">🍫</span>
+            <div class="menu-panels">
+                <!-- Pastries -->
+                <div class="menu-panel active" data-panel="pastries">
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&q=80" alt="Dutch Truffle Pastry" loading="lazy">
+                            <span class="menu-badge">Bestseller</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Dutch Truffle Pastry</h3>
-                                <span class="item-badge bestseller">★ Bestseller</span>
-                            </div>
-                            <p>Rich, decadent layers of dark chocolate truffle with velvety smooth ganache. Our most-loved pastry.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Chocolate</span>
-                                <span class="item-tag">Premium</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Dutch Truffle Pastry</h3>
+                            <p>Rich, decadent layers of dark chocolate truffle with velvety smooth ganache. Our most-loved creation.</p>
+                            <div class="menu-tags"><span>Chocolate</span><span>Premium</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual pastry-swiss">
-                            <span class="item-emoji">🍰</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1587668178277-295251f900ce?w=600&q=80" alt="Swiss Chocolate Pastry" loading="lazy">
+                            <span class="menu-badge accent">Popular</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Swiss Chocolate Pastry</h3>
-                                <span class="item-badge popular">♥ Popular</span>
-                            </div>
-                            <p>Imported Swiss chocolate layered with airy mousse and delicate sponge. A European classic with an Indian heart.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Swiss</span>
-                                <span class="item-tag">Chocolate</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Swiss Chocolate Pastry</h3>
+                            <p>Imported Swiss chocolate layered with airy mousse and delicate sponge. A European classic with an Indian soul.</p>
+                            <div class="menu-tags"><span>Swiss</span><span>Mousse</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual pastry-forest">
-                            <span class="item-emoji">🌲</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1571115177098-24ec42ed204d?w=600&q=80" alt="Chocolate Forest Pastry" loading="lazy">
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Chocolate Forest Pastry</h3>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Chocolate Forest Pastry</h3>
                             <p>A lush medley of chocolate layers, cream, and cherry compote — inspired by the timeless Black Forest classic.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Classic</span>
-                                <span class="item-tag">Cherry</span>
-                            </div>
+                            <div class="menu-tags"><span>Classic</span><span>Cherry</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual pastry-chips">
-                            <span class="item-emoji">🍪</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1612809075925-230bbe67f00f?w=600&q=80" alt="Choco Chips Pastry" loading="lazy">
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Choco Chips Pastry</h3>
-                            </div>
-                            <p>Soft, pillowy pastry generously studded with premium chocolate chips. A crowd favourite for all ages.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Choco Chips</span>
-                                <span class="item-tag">Family</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Choco Chips Pastry</h3>
+                            <p>Soft, pillowy pastry generously studded with premium chocolate chips. A favourite across all ages.</p>
+                            <div class="menu-tags"><span>Choco Chips</span><span>Family</span></div>
                         </div>
                     </div>
                 </div>
-                <!-- Custom Cakes Tab -->
-                <div class="menu-items" data-tab-content="cakes">
-                    <div class="menu-item">
-                        <div class="item-visual cake-wedding">
-                            <span class="item-emoji">💒</span>
+                <!-- Cakes -->
+                <div class="menu-panel" data-panel="cakes">
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1535254973040-607b474cb50d?w=600&q=80" alt="Wedding Cake" loading="lazy">
+                            <span class="menu-badge premium">Premium</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Wedding Cakes</h3>
-                                <span class="item-badge premium">💎 Premium</span>
-                            </div>
-                            <p>Multi-tiered masterpieces designed for your special day. Custom themes, fondant art, and elegant floral decorations.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Custom</span>
-                                <span class="item-tag">Multi-tier</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Wedding Cakes</h3>
+                            <p>Multi-tiered masterpieces designed for your special day. Custom themes, fondant art, and elegant floral work.</p>
+                            <div class="menu-tags"><span>Custom</span><span>Multi-Tier</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual cake-birthday">
-                            <span class="item-emoji">🎉</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1558301211-0d8c8ddee6ec?w=600&q=80" alt="Birthday Cake" loading="lazy">
+                            <span class="menu-badge">Bestseller</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Birthday Cakes</h3>
-                                <span class="item-badge bestseller">★ Bestseller</span>
-                            </div>
-                            <p>Themed cakes for kids and adults — cartoon characters, photo cakes, number cakes, and more. Tell us your theme!</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Themed</span>
-                                <span class="item-tag">Photo Cakes</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Birthday Cakes</h3>
+                            <p>Themed cakes for every milestone — from cartoon characters and photo cakes to elegant number designs.</p>
+                            <div class="menu-tags"><span>Themed</span><span>Photo Cakes</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual cake-anniversary">
-                            <span class="item-emoji">💕</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1621303837174-89787a7d4729?w=600&q=80" alt="Anniversary Cake" loading="lazy">
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Anniversary Specials</h3>
-                            </div>
-                            <p>Heart-shaped, elegant fondant designs, or classic buttercream roses — celebrate love with a cake that speaks volumes.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Romantic</span>
-                                <span class="item-tag">Fondant</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Anniversary Specials</h3>
+                            <p>Heart-shaped creations, elegant fondant designs, and classic buttercream roses — celebrate love in style.</p>
+                            <div class="menu-tags"><span>Romantic</span><span>Fondant</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual cake-3d">
-                            <span class="item-emoji">🏗️</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&q=80" alt="3D Designer Cake" loading="lazy">
+                            <span class="menu-badge premium">Premium</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>3D Designer Cakes</h3>
-                                <span class="item-badge premium">💎 Premium</span>
-                            </div>
-                            <p>Sculpted 3D cakes that look almost too good to eat — from cars to shoes to your favourite characters. True edible art.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">3D</span>
-                                <span class="item-tag">Sculpted</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>3D Designer Cakes</h3>
+                            <p>Sculpted 3D cakes that look too good to eat — cars, shoes, characters. True edible art, crafted to perfection.</p>
+                            <div class="menu-tags"><span>3D Sculpted</span><span>Custom</span></div>
                         </div>
                     </div>
                 </div>
-                <!-- Brownies Tab -->
-                <div class="menu-items" data-tab-content="brownies">
-                    <div class="menu-item">
-                        <div class="item-visual brownie-choco">
-                            <span class="item-emoji">🍫</span>
+                <!-- Treats -->
+                <div class="menu-panel" data-panel="treats">
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&q=80" alt="Choco Chips Brownie" loading="lazy">
+                            <span class="menu-badge">Bestseller</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Choco Chips Brownie</h3>
-                                <span class="item-badge bestseller">★ Bestseller</span>
-                            </div>
-                            <p>Dense, fudgy, and loaded with chocolate chips. The perfect balance of crispy edges and gooey center.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Fudgy</span>
-                                <span class="item-tag">Choco Chips</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Choco Chips Brownie</h3>
+                            <p>Dense, fudgy, loaded with chocolate chips. The perfect balance of crispy edges and gooey centre.</p>
+                            <div class="menu-tags"><span>Fudgy</span><span>Choco Chips</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual brownie-walnut">
-                            <span class="item-emoji">🥜</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1607920591413-4ec007e70023?w=600&q=80" alt="Walnut Brownie" loading="lazy">
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Walnut Brownie</h3>
-                            </div>
-                            <p>Classic chocolate brownie with crunchy walnut pieces. A timeless combination that never gets old.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Nutty</span>
-                                <span class="item-tag">Classic</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Walnut Brownie</h3>
+                            <p>Classic chocolate brownie with crunchy walnut pieces. A timeless combination that never disappoints.</p>
+                            <div class="menu-tags"><span>Nutty</span><span>Classic</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual treat-cookies">
-                            <span class="item-emoji">🍪</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=600&q=80" alt="Assorted Cookies" loading="lazy">
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Assorted Cookies</h3>
-                            </div>
-                            <p>Freshly baked cookies in a variety of flavours — butter, chocolate chip, oatmeal raisin, and seasonal specials.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Assorted</span>
-                                <span class="item-tag">Fresh</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Assorted Cookies</h3>
+                            <p>Freshly baked in butter, chocolate chip, oatmeal raisin, and seasonal specials. Perfect for gifting.</p>
+                            <div class="menu-tags"><span>Assorted</span><span>Gift Box</span></div>
                         </div>
                     </div>
-                    <div class="menu-item">
-                        <div class="item-visual treat-cupcakes">
-                            <span class="item-emoji">🧁</span>
+                    <div class="menu-card">
+                        <div class="menu-card-img">
+                            <img src="https://images.unsplash.com/photo-1614707267537-b85aaf00c4b7?w=600&q=80" alt="Cupcakes" loading="lazy">
+                            <span class="menu-badge accent">Popular</span>
                         </div>
-                        <div class="item-info">
-                            <div class="item-header">
-                                <h3>Cupcakes</h3>
-                                <span class="item-badge popular">♥ Popular</span>
-                            </div>
-                            <p>Perfectly portioned, beautifully piped cupcakes in flavours like Red Velvet, Chocolate, and Vanilla Bean.</p>
-                            <div class="item-footer">
-                                <span class="item-tag">Mini</span>
-                                <span class="item-tag">Party</span>
-                            </div>
+                        <div class="menu-card-body">
+                            <h3>Gourmet Cupcakes</h3>
+                            <p>Perfectly portioned, beautifully piped — Red Velvet, Chocolate Ganache, Vanilla Bean, and seasonal rotations.</p>
+                            <div class="menu-tags"><span>Party</span><span>Mini</span></div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="menu-cta">
-                <p>Prices start from <strong>₹450 for two</strong> · Custom quotes on request</p>
-                <a href="tel:+919223547022" class="btn btn-primary">📞 Call for Full Menu & Pricing</a>
+            <div class="menu-footer reveal-up">
+                <p>Prices start from <strong>&#8377;450 for two</strong> &middot; Custom quotes on request</p>
+                <a href="tel:+919223547022" class="btn btn-filled">Call for Full Menu &amp; Pricing</a>
             </div>
         </div>
     </section>
 
-    <!-- Reviews Section -->
-    <section id="reviews" class="reviews">
+    <!-- Gallery -->
+    <section id="gallery" class="gallery section">
         <div class="container">
             <div class="section-header">
-                <span class="section-tag">Customer Love</span>
-                <h2 class="section-title">Why Mumbai <span class="highlight">Loves Us</span></h2>
-                <p class="section-desc">Don't just take our word for it — hear what our customers have to say.</p>
-            </div>
-            <div class="review-highlight">
-                <div class="review-score">
-                    <span class="score-number">4.9</span>
-                    <div class="score-stars">★★★★★</div>
-                    <span class="score-count">Based on 500+ reviews</span>
-                </div>
-            </div>
-            <div class="reviews-grid">
-                <div class="review-card">
-                    <div class="review-stars">★★★★★</div>
-                    <p class="review-text">"Absolute gem! The cakes are fresh, delicious, and the quantity is amazing for the price. Mr. Avinash goes above and beyond to make sure everything is perfect."</p>
-                    <div class="review-author">
-                        <div class="author-avatar">👤</div>
-                        <div>
-                            <span class="author-name">Verified Customer</span>
-                            <span class="author-source">via Justdial</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="review-card">
-                    <div class="review-stars">★★★★★</div>
-                    <p class="review-text">"Ordered a custom wedding cake and it exceeded all expectations! The design was exactly what we wanted. They even arranged a beautiful bouquet alongside the delivery. Highly recommended!"</p>
-                    <div class="review-author">
-                        <div class="author-avatar">👤</div>
-                        <div>
-                            <span class="author-name">Verified Customer</span>
-                            <span class="author-source">via Justdial</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="review-card">
-                    <div class="review-stars">★★★★★</div>
-                    <p class="review-text">"Best bakery in Vile Parle! The Dutch Truffle pastry is to die for. They always use fresh ingredients and the service is incredibly friendly. A hidden gem indeed!"</p>
-                    <div class="review-author">
-                        <div class="author-avatar">👤</div>
-                        <div>
-                            <span class="author-name">Verified Customer</span>
-                            <span class="author-source">via Justdial</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Gallery Placeholder -->
-    <section id="gallery" class="gallery">
-        <div class="container">
-            <div class="section-header">
-                <span class="section-tag">Our Creations</span>
-                <h2 class="section-title">Sweet <span class="highlight">Gallery</span></h2>
-                <p class="section-desc">A peek into our cake creations and bakery life — each one crafted with love.</p>
+                <span class="label reveal-up">Our Creations</span>
+                <h2 class="section-title reveal-up">Sweet <em>Gallery</em></h2>
             </div>
             <div class="gallery-grid">
-                <div class="gallery-item gi-large">
-                    <div class="gallery-placeholder">
-                        <span class="gp-emoji">🎂</span>
-                        <span class="gp-label">Custom Wedding Cakes</span>
-                    </div>
+                <div class="gallery-item gi-tall reveal-up" style="--d:0s">
+                    <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80" alt="Layered chocolate cake" loading="lazy">
+                    <div class="gallery-overlay"><span>Signature Cakes</span></div>
                 </div>
-                <div class="gallery-item">
-                    <div class="gallery-placeholder">
-                        <span class="gp-emoji">🍰</span>
-                        <span class="gp-label">Pastry Collection</span>
-                    </div>
+                <div class="gallery-item reveal-up" style="--d:0.08s">
+                    <img src="https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=600&q=80" alt="Pastry assortment" loading="lazy">
+                    <div class="gallery-overlay"><span>Pastry Collection</span></div>
                 </div>
-                <div class="gallery-item">
-                    <div class="gallery-placeholder">
-                        <span class="gp-emoji">🧁</span>
-                        <span class="gp-label">Cupcake Designs</span>
-                    </div>
+                <div class="gallery-item reveal-up" style="--d:0.16s">
+                    <img src="https://images.unsplash.com/photo-1614707267537-b85aaf00c4b7?w=600&q=80" alt="Cupcake designs" loading="lazy">
+                    <div class="gallery-overlay"><span>Cupcake Designs</span></div>
                 </div>
-                <div class="gallery-item">
-                    <div class="gallery-placeholder">
-                        <span class="gp-emoji">🎉</span>
-                        <span class="gp-label">Birthday Themes</span>
-                    </div>
+                <div class="gallery-item reveal-up" style="--d:0.24s">
+                    <img src="https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=600&q=80" alt="Cookies and treats" loading="lazy">
+                    <div class="gallery-overlay"><span>Cookies &amp; Treats</span></div>
                 </div>
-                <div class="gallery-item gi-large">
-                    <div class="gallery-placeholder">
-                        <span class="gp-emoji">🍫</span>
-                        <span class="gp-label">Brownies & Treats</span>
-                    </div>
+                <div class="gallery-item gi-tall reveal-up" style="--d:0.32s">
+                    <img src="https://images.unsplash.com/photo-1535254973040-607b474cb50d?w=800&q=80" alt="Wedding cake" loading="lazy">
+                    <div class="gallery-overlay"><span>Wedding Cakes</span></div>
+                </div>
+                <div class="gallery-item gi-wide reveal-up" style="--d:0.4s">
+                    <img src="https://images.unsplash.com/photo-1486427944544-d2c246c4df14?w=1000&q=80" alt="Chocolate ganache cake" loading="lazy">
+                    <div class="gallery-overlay"><span>Chocolate Creations</span></div>
                 </div>
             </div>
-            <p class="gallery-note">📸 Visit our shop or check our <strong>Justdial listing</strong> for 70+ real photos of our creations!</p>
         </div>
     </section>
 
-    <!-- Location & Hours -->
-    <section id="contact" class="contact">
+    <!-- Testimonials -->
+    <section id="reviews" class="reviews section">
         <div class="container">
             <div class="section-header">
-                <span class="section-tag">Visit Us</span>
-                <h2 class="section-title">Find <span class="highlight">The Cake Stop</span></h2>
+                <span class="label reveal-up">Testimonials</span>
+                <h2 class="section-title reveal-up">What Mumbai <em>Says</em></h2>
             </div>
-            <div class="contact-grid">
-                <div class="contact-card location-card">
-                    <div class="contact-icon">📍</div>
-                    <h3>Our Address</h3>
-                    <p class="address-text">Shop No. 6, Zee Heights,<br>Shraddhanand Road, Navpada,<br>Opposite Akruti Erica,<br><strong>Vile Parle East, Mumbai 400057</strong></p>
-                    <a href="https://www.google.com/maps/search/The+Cake+Stop+Vile+Parle+East+Mumbai" target="_blank" rel="noopener" class="btn btn-outline">
-                        🗺️ Get Directions
-                    </a>
-                </div>
-                <div class="contact-card hours-card">
-                    <div class="contact-icon">🕐</div>
-                    <h3>Opening Hours</h3>
-                    <div class="hours-list">
-                        <div class="hours-row">
-                            <span>Monday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Tuesday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Wednesday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Thursday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Friday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Saturday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
-                        <div class="hours-row">
-                            <span>Sunday</span><span class="hours-time">11:30 AM – 11:00 PM</span>
-                        </div>
+            <div class="reviews-slider" id="reviewsSlider">
+                <div class="review-slide active">
+                    <div class="review-stars">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </div>
-                    <div class="hours-note">Open all 7 days! 🎉</div>
+                    <blockquote>&ldquo;Absolute gem! The cakes are fresh, delicious, and the quantity is amazing for the price. Mr. Avinash goes above and beyond to make sure everything is perfect.&rdquo;</blockquote>
+                    <div class="review-author">
+                        <div class="review-avatar">V</div>
+                        <div><strong>Verified Customer</strong><span>via Justdial</span></div>
+                    </div>
                 </div>
-                <div class="contact-card phone-card">
-                    <div class="contact-icon">📞</div>
-                    <h3>Get in Touch</h3>
-                    <a href="tel:+919223547022" class="phone-number">+91 92235 47022</a>
-                    <p class="phone-desc">Call us to place orders, enquire about custom cakes, or get a quote for your special occasion.</p>
-                    <div class="contact-actions">
-                        <a href="tel:+919223547022" class="btn btn-primary btn-full">📞 Call Now</a>
-                        <a href="https://wa.me/919223547022" target="_blank" rel="noopener" class="btn btn-whatsapp btn-full">💬 WhatsApp</a>
+                <div class="review-slide">
+                    <div class="review-stars">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <blockquote>&ldquo;Ordered a custom wedding cake and it exceeded all expectations! The design was exactly what we wanted. They even arranged a beautiful bouquet alongside the delivery.&rdquo;</blockquote>
+                    <div class="review-author">
+                        <div class="review-avatar">V</div>
+                        <div><strong>Verified Customer</strong><span>via Justdial</span></div>
+                    </div>
+                </div>
+                <div class="review-slide">
+                    <div class="review-stars">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <blockquote>&ldquo;Best bakery in Vile Parle! The Dutch Truffle pastry is to die for. They always use fresh ingredients and the service is incredibly friendly. A hidden gem indeed!&rdquo;</blockquote>
+                    <div class="review-author">
+                        <div class="review-avatar">V</div>
+                        <div><strong>Verified Customer</strong><span>via Justdial</span></div>
                     </div>
                 </div>
             </div>
-            <!-- Embedded Google Map -->
-            <div class="map-wrapper">
-                <iframe 
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3769.7!2d72.8487!3d19.0996!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDA1JzU4LjUiTiA3MsKwNTAnNTUuNSJF!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
-                    width="100%" 
-                    height="400" 
-                    style="border:0; border-radius: 20px;" 
-                    allowfullscreen="" 
-                    loading="lazy" 
-                    referrerpolicy="no-referrer-when-downgrade"
-                    title="The Cake Stop Location Map">
-                </iframe>
+            <div class="review-controls">
+                <button class="review-btn" id="prevReview" aria-label="Previous review">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <div class="review-dots" id="reviewDots">
+                    <span class="review-dot active"></span>
+                    <span class="review-dot"></span>
+                    <span class="review-dot"></span>
+                </div>
+                <button class="review-btn" id="nextReview" aria-label="Next review">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+            </div>
+            <div class="review-score-bar reveal-up">
+                <div class="score-big">4.9<span>/5</span></div>
+                <div class="score-stars">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <span class="score-count">Based on 500+ verified reviews</span>
             </div>
         </div>
     </section>
 
-    <!-- CTA Banner -->
-    <section class="cta-banner">
+    <!-- Contact / Visit -->
+    <section id="contact" class="contact section">
         <div class="container">
-            <div class="cta-content">
-                <h2>Ready to Make Your Celebration Sweeter?</h2>
-                <p>Whether it's a wedding, birthday, anniversary, or just a Tuesday — we've got the perfect cake for you.</p>
-                <div class="cta-buttons">
-                    <a href="tel:+919223547022" class="btn btn-primary btn-lg">📞 Call +91 92235 47022</a>
-                    <a href="https://wa.me/919223547022?text=Hi!%20I%20would%20like%20to%20order%20a%20cake%20from%20The%20Cake%20Stop" target="_blank" rel="noopener" class="btn btn-whatsapp btn-lg">💬 WhatsApp Order</a>
+            <div class="section-header">
+                <span class="label reveal-up">Visit Us</span>
+                <h2 class="section-title reveal-up">Find <em>The Cake Stop</em></h2>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-card reveal-up">
+                    <div class="contact-card-icon">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    </div>
+                    <h3>Address</h3>
+                    <p>Shop No. 6, Zee Heights,<br>Shraddhanand Road, Navpada,<br>Opp. Akruti Erica,<br><strong>Vile Parle East, Mumbai 400057</strong></p>
+                    <a href="https://www.google.com/maps/search/The+Cake+Stop+Vile+Parle+East+Mumbai" target="_blank" rel="noopener" class="btn btn-outlined">Get Directions</a>
                 </div>
+                <div class="contact-card reveal-up" style="--d:0.1s">
+                    <div class="contact-card-icon">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <h3>Hours</h3>
+                    <div class="hours-table">
+                        <div class="hours-row"><span>Monday &ndash; Sunday</span><strong>11:30 AM &ndash; 11:00 PM</strong></div>
+                    </div>
+                    <p class="hours-note">Open all 7 days of the week</p>
+                </div>
+                <div class="contact-card contact-card-highlight reveal-up" style="--d:0.2s">
+                    <div class="contact-card-icon">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    </div>
+                    <h3>Get in Touch</h3>
+                    <a href="tel:+919223547022" class="phone-display">+91 92235 47022</a>
+                    <p>Call for orders, custom cake enquiries, or quotes for your special occasion.</p>
+                    <div class="contact-btns">
+                        <a href="tel:+919223547022" class="btn btn-filled btn-block">Call Now</a>
+                        <a href="https://wa.me/919223547022?text=Hi!%20I%20would%20like%20to%20order%20from%20The%20Cake%20Stop" target="_blank" rel="noopener" class="btn btn-wa btn-block">WhatsApp</a>
+                    </div>
+                </div>
+            </div>
+            <div class="map-wrap reveal-up">
+                <iframe src="https://maps.google.com/maps?q=The+Cake+Stop+Vile+Parle+East+Mumbai&t=&z=15&ie=UTF8&iwloc=&output=embed" width="100%" height="400" style="border:0; border-radius:16px;" allowfullscreen="" loading="lazy" title="Location Map"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="cta-bg">
+            <img src="https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=1600&q=80" alt="Bakery ambiance" loading="lazy">
+            <div class="cta-overlay"></div>
+        </div>
+        <div class="container cta-inner">
+            <h2 class="reveal-up">Ready to Make Your Celebration Sweeter?</h2>
+            <p class="reveal-up">Whether it's a wedding, birthday, anniversary, or just a reason to smile &mdash; we have the perfect cake waiting for you.</p>
+            <div class="cta-actions reveal-up">
+                <a href="tel:+919223547022" class="btn btn-filled btn-lg">Call +91 92235 47022</a>
+                <a href="https://wa.me/919223547022?text=Hi!%20I%20would%20like%20to%20order%20a%20cake" target="_blank" rel="noopener" class="btn btn-ghost-light btn-lg">WhatsApp Order</a>
             </div>
         </div>
     </section>
@@ -2120,204 +1343,259 @@ img {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <span class="footer-logo">🎂 The Cake Stop</span>
-                    <p>Vile Parle East's most loved bakery. Crafting sweet memories one cake at a time.</p>
-                    <div class="footer-rating">
-                        <span class="footer-stars">★★★★★</span>
-                        <span>4.9/5 — 500+ Reviews</span>
-                    </div>
+                    <span class="footer-logo">The Cake Stop</span>
+                    <p>Vile Parle East's most loved bakery. Crafting sweet memories, one cake at a time.</p>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
                     <h4>Quick Links</h4>
                     <ul>
-                        <li><a href="#home">Home</a></li>
-                        <li><a href="#about">About Us</a></li>
-                        <li><a href="#specialties">Menu</a></li>
+                        <li><a href="#hero">Home</a></li>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#menu">Menu</a></li>
+                        <li><a href="#gallery">Gallery</a></li>
                         <li><a href="#reviews">Reviews</a></li>
                         <li><a href="#contact">Contact</a></li>
                     </ul>
                 </div>
-                <div class="footer-contact">
-                    <h4>Contact Info</h4>
-                    <p>📍 Shop 6, Zee Heights, Shraddhanand Rd,<br>Vile Parle East, Mumbai 400057</p>
-                    <p>📞 <a href="tel:+919223547022">+91 92235 47022</a></p>
-                    <p>🕐 11:30 AM – 11:00 PM (All days)</p>
+                <div class="footer-col">
+                    <h4>Contact</h4>
+                    <p>Shop 6, Zee Heights, Shraddhanand Rd,<br>Vile Parle East, Mumbai 400057</p>
+                    <p><a href="tel:+919223547022">+91 92235 47022</a></p>
+                    <p>Daily &middot; 11:30 AM &ndash; 11:00 PM</p>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>© 2024 The Cake Stop. All rights reserved. Made with 🤍 in Mumbai.</p>
+                <p>&copy; 2024 The Cake Stop. All rights reserved.</p>
             </div>
         </div>
     </footer>
 
-    <!-- Back to Top -->
-    <button id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
+    <button class="to-top" id="toTop" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+    </button>
 
     <script>
 /* =============================================
-   THE CAKE STOP — JavaScript
-   Navigation, Tabs, Scroll Animations, Interactions
+   THE CAKE STOP — Professional Interactions
    ============================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Navbar Scroll Effect ---
-    const navbar = document.getElementById('navbar');
-    const backToTop = document.getElementById('backToTop');
+    // --- Preloader ---
+    const preloader = document.getElementById('preloader');
+    window.addEventListener('load', () => {
+        setTimeout(() => preloader.classList.add('hidden'), 600);
+    });
+    setTimeout(() => preloader.classList.add('hidden'), 3000); // fallback
 
-    window.addEventListener('scroll', () => {
-        const scrollY = window.scrollY;
+    // --- Custom Cursor ---
+    const dot = document.getElementById('cursorDot');
+    const ring = document.getElementById('cursorRing');
+    let mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
 
-        // Navbar background on scroll
-        if (scrollY > 60) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
-        }
-
-        // Back to top button
-        if (scrollY > 400) {
-            backToTop.classList.add('visible');
-        } else {
-            backToTop.classList.remove('visible');
-        }
+    document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        dot.style.left = mouseX - 3 + 'px';
+        dot.style.top = mouseY - 3 + 'px';
     });
 
-    // Back to top click
-    backToTop.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    function animateRing() {
+        ringX += (mouseX - ringX) * 0.15;
+        ringY += (mouseY - ringY) * 0.15;
+        ring.style.left = ringX + 'px';
+        ring.style.top = ringY + 'px';
+        requestAnimationFrame(animateRing);
+    }
+    animateRing();
+
+    document.querySelectorAll('a, button, .menu-card, .gallery-item').forEach(el => {
+        el.addEventListener('mouseenter', () => ring.classList.add('hover'));
+        el.addEventListener('mouseleave', () => ring.classList.remove('hover'));
     });
 
-    // --- Mobile Menu Toggle ---
-    const mobileToggle = document.getElementById('mobileToggle');
+    // --- Navbar ---
+    const nav = document.getElementById('nav');
+    const toTop = document.getElementById('toTop');
+    const navToggle = document.getElementById('navToggle');
     const navLinks = document.getElementById('navLinks');
 
-    mobileToggle.addEventListener('click', () => {
-        navLinks.classList.toggle('open');
-        mobileToggle.classList.toggle('active');
+    window.addEventListener('scroll', () => {
+        const sy = window.scrollY;
+        nav.classList.toggle('scrolled', sy > 60);
+        toTop.classList.toggle('visible', sy > 500);
     });
 
-    // Close mobile menu on link click
+    toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    navToggle.addEventListener('click', () => {
+        navToggle.classList.toggle('open');
+        navLinks.classList.toggle('open');
+    });
+
     navLinks.querySelectorAll('a').forEach(link => {
         link.addEventListener('click', () => {
+            navToggle.classList.remove('open');
             navLinks.classList.remove('open');
-            mobileToggle.classList.remove('active');
         });
     });
 
-    // --- Menu Tabs ---
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const menuItems = document.querySelectorAll('.menu-items');
+    // --- Active Nav Highlighting ---
+    const sections = document.querySelectorAll('section[id]');
+    const allNavLinks = document.querySelectorAll('.nav-link');
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = btn.dataset.tab;
-
-            // Remove active from all
-            tabBtns.forEach(b => b.classList.remove('active'));
-            menuItems.forEach(m => m.classList.remove('active'));
-
-            // Activate clicked
-            btn.classList.add('active');
-            document.querySelector(`[data-tab-content="${target}"]`).classList.add('active');
+    function updateActiveNav() {
+        const scrollPos = window.scrollY + 120;
+        sections.forEach(section => {
+            const top = section.offsetTop;
+            const height = section.offsetHeight;
+            const id = section.getAttribute('id');
+            const link = document.querySelector(`.nav-link[href="#${id}"]`);
+            if (link) {
+                if (scrollPos >= top && scrollPos < top + height) {
+                    allNavLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                }
+            }
         });
-    });
+    }
+    window.addEventListener('scroll', updateActiveNav);
 
-    // --- Smooth Scroll for Anchor Links ---
+    // --- Smooth Scroll ---
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', (e) => {
-            const targetId = anchor.getAttribute('href');
-            if (targetId === '#') return;
-
-            const targetEl = document.querySelector(targetId);
-            if (targetEl) {
+            const id = anchor.getAttribute('href');
+            if (id === '#') return;
+            const target = document.querySelector(id);
+            if (target) {
                 e.preventDefault();
-                const navHeight = navbar.offsetHeight;
-                const targetPosition = targetEl.getBoundingClientRect().top + window.scrollY - navHeight - 20;
-
+                const offset = nav.offsetHeight + 20;
                 window.scrollTo({
-                    top: targetPosition,
+                    top: target.offsetTop - offset,
                     behavior: 'smooth'
                 });
             }
         });
     });
 
-    // --- Scroll Reveal Animation ---
-    const revealElements = document.querySelectorAll(
-        '.about-card, .menu-item, .review-card, .contact-card, .gallery-item, .review-score, .section-header, .menu-cta, .cta-content'
-    );
+    // --- Menu Tabs ---
+    const tabs = document.querySelectorAll('.menu-tab');
+    const panels = document.querySelectorAll('.menu-panel');
 
-    revealElements.forEach(el => el.classList.add('reveal'));
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelector(`[data-panel="${target}"]`).classList.add('active');
+        });
+    });
 
-    const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry, index) => {
+    // --- Reviews Slider ---
+    const slides = document.querySelectorAll('.review-slide');
+    const dots = document.querySelectorAll('.review-dot');
+    const prevBtn = document.getElementById('prevReview');
+    const nextBtn = document.getElementById('nextReview');
+    let current = 0;
+    let autoSlide;
+
+    function goToSlide(n) {
+        slides[current].classList.remove('active');
+        dots[current].classList.remove('active');
+        current = (n + slides.length) % slides.length;
+        slides[current].classList.add('active');
+        dots[current].classList.add('active');
+    }
+
+    function startAutoSlide() {
+        autoSlide = setInterval(() => goToSlide(current + 1), 5000);
+    }
+
+    function resetAutoSlide() {
+        clearInterval(autoSlide);
+        startAutoSlide();
+    }
+
+    prevBtn.addEventListener('click', () => { goToSlide(current - 1); resetAutoSlide(); });
+    nextBtn.addEventListener('click', () => { goToSlide(current + 1); resetAutoSlide(); });
+    dots.forEach((dot, i) => {
+        dot.addEventListener('click', () => { goToSlide(i); resetAutoSlide(); });
+    });
+    startAutoSlide();
+
+    // --- Counter Animation ---
+    const counters = document.querySelectorAll('.stat-number[data-count]');
+    const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
             if (entry.isIntersecting) {
-                // Stagger the animation
-                setTimeout(() => {
-                    entry.target.classList.add('visible');
-                }, index * 80);
+                const el = entry.target;
+                const target = parseFloat(el.dataset.count);
+                const isFloat = target % 1 !== 0;
+                const duration = 2000;
+                const start = performance.now();
+
+                function tick(now) {
+                    const elapsed = now - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const value = eased * target;
+                    el.textContent = isFloat ? value.toFixed(1) : Math.floor(value);
+                    if (progress < 1) requestAnimationFrame(tick);
+                }
+                requestAnimationFrame(tick);
+                counterObserver.unobserve(el);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    counters.forEach(c => counterObserver.observe(c));
+
+    // --- Scroll Reveal ---
+    const reveals = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right');
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
                 revealObserver.unobserve(entry.target);
             }
         });
-    }, {
-        threshold: 0.1,
-        rootMargin: '0px 0px -40px 0px'
-    });
+    }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
 
-    revealElements.forEach(el => revealObserver.observe(el));
+    reveals.forEach(el => revealObserver.observe(el));
 
-    // --- Active Nav Link Highlighting ---
-    const sections = document.querySelectorAll('section[id]');
-
-    const highlightNav = () => {
-        const scrollPos = window.scrollY + 100;
-
-        sections.forEach(section => {
-            const top = section.offsetTop;
-            const height = section.offsetHeight;
-            const id = section.getAttribute('id');
-            const navLink = document.querySelector(`.nav-links a[href="#${id}"]`);
-
-            if (navLink) {
-                if (scrollPos >= top && scrollPos < top + height) {
-                    navLink.style.color = 'var(--color-text)';
-                    navLink.style.setProperty('--underline-width', '100%');
-                } else {
-                    navLink.style.color = '';
-                    navLink.style.setProperty('--underline-width', '0');
-                }
-            }
-        });
-    };
-
-    window.addEventListener('scroll', highlightNav);
-
-    // --- Parallax on Hero Shapes ---
-    const shapes = document.querySelectorAll('.shape');
-
+    // --- Parallax on Hero Image ---
+    const heroImg = document.querySelector('.hero-img');
     window.addEventListener('scroll', () => {
-        const scrollY = window.scrollY;
-        shapes.forEach((shape, i) => {
-            const speed = 0.05 + (i * 0.02);
-            shape.style.transform = `translateY(${scrollY * speed}px)`;
-        });
+        if (window.scrollY < window.innerHeight) {
+            heroImg.style.transform = `scale(${1 + window.scrollY * 0.0002}) translateY(${window.scrollY * 0.2}px)`;
+        }
     });
 
-    // --- Hover ripple on cards ---
-    document.querySelectorAll('.about-card, .menu-item, .review-card, .contact-card').forEach(card => {
+    // --- Tilt effect on menu cards ---
+    document.querySelectorAll('.menu-card').forEach(card => {
         card.addEventListener('mousemove', (e) => {
             const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            card.style.setProperty('--mouse-x', `${x}px`);
-            card.style.setProperty('--mouse-y', `${y}px`);
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+            card.style.transform = `translateY(-6px) perspective(600px) rotateX(${-y * 4}deg) rotateY(${x * 4}deg)`;
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = '';
         });
     });
 
-    // --- Console Easter Egg ---
-    console.log('%c🎂 The Cake Stop', 'font-size: 24px; font-weight: bold; color: #E74C3C;');
-    console.log('%cVile Parle East, Mumbai | +91 92235 47022', 'font-size: 12px; color: #F39C12;');
+    // --- Gallery lightbox effect (subtle zoom on click) ---
+    document.querySelectorAll('.gallery-item').forEach(item => {
+        item.addEventListener('click', () => {
+            item.style.zIndex = '10';
+            item.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                item.style.transform = '';
+                item.style.zIndex = '';
+            }, 400);
+        });
+    });
 });
 
 </script>
