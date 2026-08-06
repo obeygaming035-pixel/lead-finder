@@ -471,18 +471,30 @@ def render_live_dashboard():
 
         with tab3:
             st.markdown("### 📦 Leads Copyable Batches (Groups of 50)")
-            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Live Website Short Link**.")
+            st.markdown("Easily copy leads in bulk formatted with **Phone Number**, **Business Name**, **Location (City)**, and **Live Website Link**.")
             
             if not df.empty:
                 import crawler
+                
+                # Fast cached shortener to keep batch loading sub-millisecond instant
+                @st.cache_data(ttl=86400)
+                def get_fast_short_url(lead_id):
+                    raw = crawler.get_github_pages_url(lead_id)
+                    return crawler.shorten_url(raw)
+
                 # Divide leads into batches of 50
                 batch_size = 50
                 total_leads = len(df)
                 num_batches = (total_leads + batch_size - 1) // batch_size
                 
                 batch_options = [f"Batch {i+1} (Leads {i*batch_size + 1} - {min((i+1)*batch_size, total_leads)})" for i in range(num_batches)]
-                selected_batch_idx = st.selectbox("Select Batch to Copy:", range(num_batches), format_func=lambda x: batch_options[x])
                 
+                col_b1, col_b2 = st.columns([2, 2])
+                with col_b1:
+                    selected_batch_idx = st.selectbox("Select Batch to Copy:", range(num_batches), format_func=lambda x: batch_options[x])
+                with col_b2:
+                    link_type = st.radio("Link Format in Copy Box:", ["Shortened Links (TinyURL)", "Direct GitHub Pages Links (HTTPS)"], horizontal=True)
+
                 # Get leads in the selected batch
                 start_idx = selected_batch_idx * batch_size
                 end_idx = min(start_idx + batch_size, total_leads)
@@ -490,25 +502,51 @@ def render_live_dashboard():
                 
                 # Format leads
                 formatted_leads = []
+                visual_rows = []
+                
                 for _, row in batch_df.iterrows():
                     lead_id = row['id']
                     phone_clean = str(row['phone']).strip()
-                    biz_name_clean = str(row['business_name']).split(' (')[0].strip() # strip city from name
+                    biz_name_clean = str(row['business_name']).split(' (')[0].strip()
                     city_clean = str(row['city']).strip()
                     
-                    raw_url = crawler.get_github_pages_url(lead_id)
-                    short_link = crawler.shorten_url(raw_url)
+                    direct_url = crawler.get_github_pages_url(lead_id)
+                    if "Shortened" in link_type:
+                        web_link = get_fast_short_url(lead_id)
+                    else:
+                        web_link = direct_url
                     
-                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {short_link}")
+                    formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {web_link}")
+                    visual_rows.append({
+                        "ID": f"#{lead_id}",
+                        "Business Name": biz_name_clean,
+                        "City": city_clean,
+                        "Phone": phone_clean,
+                        "Generated Website": direct_url
+                    })
                 
                 batch_text = "\n".join(formatted_leads)
                 
                 # Display text area
                 st.text_area(
-                    label=f"Copyable Leads - {batch_options[selected_batch_idx]}",
+                    label=f"Copyable Leads Text - {batch_options[selected_batch_idx]} ({len(batch_df)} Leads)",
                     value=batch_text,
-                    height=350,
+                    height=280,
                     help="Click the copy button in the top-right corner of the text box to copy the entire batch to your clipboard."
+                )
+
+                st.markdown("---")
+                st.markdown(f"### 🌐 Visual Inspection Grid - {batch_options[selected_batch_idx]}")
+                st.dataframe(
+                    visual_rows,
+                    column_config={
+                        "Generated Website": st.column_config.LinkColumn(
+                            "Generated Website Mockup",
+                            display_text="🌐 Open Live Website"
+                        )
+                    },
+                    use_container_width=True,
+                    hide_index=True
                 )
             else:
                 st.info("No leads available in database yet.")
