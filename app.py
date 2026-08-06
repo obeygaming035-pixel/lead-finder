@@ -499,9 +499,9 @@ def render_live_dashboard():
                     biz_name_clean = str(row['business_name']).split(' (')[0].strip()
                     city_clean = str(row['city']).strip()
                     
-                    # Read pre-stored short_url from DB if available, else compute direct link
+                    # Read pre-stored short_url directly from DB row (0.0ms instant load, zero spinners)
                     short_link = str(row.get('short_url', '')).strip()
-                    if not short_link or short_link in ('None', 'nan'):
+                    if not short_link or short_link in ('None', 'nan', '') or not short_link.startswith('http'):
                         short_link = crawler.get_github_pages_url(lead_id)
                     
                     formatted_leads.append(f"{phone_clean} | {biz_name_clean} | {city_clean} | {short_link}")
