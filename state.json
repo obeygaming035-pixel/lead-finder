@@ -1,12 +1,12 @@
 {
-  "timestamp": 1787332132,
-  "last_updated_utc": "2026-08-21 17:08:52 UTC",
+  "timestamp": 1787332609,
+  "last_updated_utc": "2026-08-21 17:16:49 UTC",
   "account": {
     "balance": 10322.73,
-    "equity": 10314.48,
-    "profit": -8.25,
-    "margin": 197.28,
-    "margin_free": 10117.2,
+    "equity": 10286.99,
+    "profit": -35.74,
+    "margin": 382.5,
+    "margin_free": 9904.49,
     "leverage": 100,
     "server": "MetaQuotes-Demo",
     "login": 111431681,
@@ -19,13 +19,27 @@
       "type": "SHORT",
       "lots": 0.33,
       "openPrice": 0.59782,
-      "currentPrice": 0.59807,
+      "currentPrice": 0.598,
       "sl": 0.60229,
       "tp": 0.58884,
-      "profit": -8.25,
+      "profit": -5.9399999999999995,
       "swap": 0.0,
       "time": 1787312728,
       "comment": "AEGIS_SELL"
+    },
+    {
+      "ticket": 10152058396,
+      "symbol": "XAUUSD",
+      "type": "LONG",
+      "lots": 0.04,
+      "openPrice": 4630.39,
+      "currentPrice": 4622.94,
+      "sl": 4595.4,
+      "tp": 4699.58,
+      "profit": -29.8,
+      "swap": 0.0,
+      "time": 1787343096,
+      "comment": "AEGIS_BUY"
     }
   ],
   "recent_deals": [
@@ -177,76 +191,76 @@
   "total_realized_profit": 322.73,
   "live_ticks": {
     "EURUSD": {
-      "bid": 1.16794,
-      "ask": 1.16794,
+      "bid": 1.16782,
+      "ask": 1.16783,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343412
     },
     "GBPUSD": {
-      "bid": 1.3642,
-      "ask": 1.36421,
+      "bid": 1.36406,
+      "ask": 1.36406,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343411
     },
     "USDJPY": {
-      "bid": 159.018,
-      "ask": 159.019,
+      "bid": 159.036,
+      "ask": 159.038,
       "last": 0.0,
-      "time": 1787342932
+      "time": 1787343412
     },
     "XAUUSD": {
-      "bid": 4631.32,
-      "ask": 4631.63,
+      "bid": 4622.94,
+      "ask": 4623.2,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343412
     },
     "XAGUSD": {
-      "bid": 69.848,
-      "ask": 69.867,
+      "bid": 69.688,
+      "ask": 69.707,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343412
     },
     "AUDUSD": {
-      "bid": 0.7174,
-      "ask": 0.71742,
+      "bid": 0.71739,
+      "ask": 0.7174,
       "last": 0.0,
-      "time": 1787342932
+      "time": 1787343412
     },
     "USDCAD": {
-      "bid": 1.37664,
-      "ask": 1.37664,
+      "bid": 1.37642,
+      "ask": 1.37642,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343406
     },
     "USDCHF": {
-      "bid": 0.80124,
-      "ask": 0.80125,
+      "bid": 0.8014,
+      "ask": 0.80141,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343411
     },
     "NZDUSD": {
-      "bid": 0.59806,
-      "ask": 0.59807,
+      "bid": 0.598,
+      "ask": 0.598,
       "last": 0.0,
-      "time": 1787342933
+      "time": 1787343412
     },
     "EURGBP": {
-      "bid": 0.85613,
-      "ask": 0.85614,
+      "bid": 0.85614,
+      "ask": 0.85616,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343412
     },
     "EURJPY": {
-      "bid": 185.725,
-      "ask": 185.727,
+      "bid": 185.728,
+      "ask": 185.731,
       "last": 0.0,
-      "time": 1787342934
+      "time": 1787343411
     },
     "GBPJPY": {
-      "bid": 216.929,
-      "ask": 216.935,
+      "bid": 216.931,
+      "ask": 216.939,
       "last": 0.0,
-      "time": 1787342932
+      "time": 1787343411
     }
   }
 }
