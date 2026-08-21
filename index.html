@@ -925,86 +925,287 @@
         'use strict';
 
         // ==========================================
-        // 1. EXACT LIVE DATA FROM METATRADER 5
+        // 1. LIVE STATE FROM GITHUB (auto-updated by MT5 engine)
         // ==========================================
-        let currentBalance = 10315.16; // Exact MT5 realized balance
+        const STATE_URL = 'https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/state.json';
+        const FETCH_INTERVAL_MS = 10000; // Fetch every 10 seconds
 
-        // Exact 3 open positions on MT5 account #111431681
-        let livePositions = [
-            {
-                ticket: 10140465437,
-                symbol: "NZDUSD",
-                type: "SHORT",
-                lots: 0.33,
-                openPrice: 0.59782,
-                currentPrice: 0.59785,
-                sl: 0.60229,
-                tp: 0.58884,
-                contractSize: 100000,
-                baseSpread: 0.00014,
-                volatility: 0.00003
-            },
-            {
-                ticket: 10145278552,
-                symbol: "GBPUSD",
-                type: "LONG",
-                lots: 0.15,
-                openPrice: 1.36375,
-                currentPrice: 1.36373,
-                sl: 1.35354,
-                tp: 1.38423,
-                contractSize: 100000,
-                baseSpread: 0.00012,
-                volatility: 0.00003
-            },
-            {
-                ticket: 10145301161,
-                symbol: "GBPJPY",
-                type: "LONG",
-                lots: 0.01,
-                openPrice: 216.557,
-                currentPrice: 216.604,
-                sl: 214.922,
-                tp: 219.794,
-                contractSize: 100000,
-                baseSpread: 0.018,
-                volatility: 0.012
+        // Current state - will be populated from state.json
+        let currentState = null;
+        let lastFetchTime = null;
+        let fetchErrors = 0;
+
+        async function fetchLiveState() {
+            try {
+                const cacheBuster = Date.now();
+                const resp = await fetch(STATE_URL + '?t=' + cacheBuster, {
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                currentState = data;
+                lastFetchTime = new Date();
+                fetchErrors = 0;
+                renderAllFromState();
+                updateSyncStatus(true);
+            } catch (e) {
+                fetchErrors++;
+                console.warn('[LiveSync] Fetch error:', e.message, '(attempt ' + fetchErrors + ')');
+                updateSyncStatus(false);
             }
-        ];
+        }
 
-        // Exact 11 recent closed deals from MT5 history
-        let recentDeals = [
-            { ticket: 9852163036, symbol: "XAUUSD (Gold)", type: "SELL", volume: 0.04, price: 4585.08, profit: 19.00 },
-            { ticket: 9852160240, symbol: "XAGUSD (Silver)", type: "SELL", volume: 0.06, price: 69.588, profit: 52.80 },
-            { ticket: 9851652465, symbol: "XAUUSD (Gold)", type: "SELL", volume: 0.04, price: 4580.68, profit: 39.12 },
-            { ticket: 9851652332, symbol: "XAGUSD (Silver)", type: "SELL", volume: 0.06, price: 69.463, profit: 52.80 },
-            { ticket: 9851098543, symbol: "GBPUSD", type: "BUY", volume: 0.15, price: 1.36417, profit: 20.55 },
-            { ticket: 9850939462, symbol: "XAUUSD (Gold)", type: "BUY", volume: 0.04, price: 4579.29, profit: 12.40 },
-            { ticket: 9850904069, symbol: "EURUSD", type: "BUY", volume: 0.17, price: 1.16928, profit: 19.55 },
-            { ticket: 9847463710, symbol: "XAGUSD (Silver)", type: "BUY", volume: 0.06, price: 69.477, profit: 95.70 },
-            { ticket: 9846264411, symbol: "AUDUSD", type: "BUY", volume: 0.28, price: 0.71610, profit: 2.24 },
-            { ticket: 9850905868, symbol: "USDJPY", type: "SELL", volume: 0.01, price: 158.746, profit: 1.01 }
-        ];
+        function updateSyncStatus(ok) {
+            const el = document.getElementById('sync-status');
+            const lastUpdate = currentState ? currentState.last_updated_utc : 'Never';
+            if (ok) {
+                el.textContent = 'MT5 #111431681 • LIVE • Last sync: ' + lastUpdate;
+                el.parentElement.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+                el.parentElement.style.background = 'rgba(0, 255, 136, 0.08)';
+                el.parentElement.style.color = 'var(--emerald)';
+            } else {
+                el.textContent = 'MT5 #111431681 • RECONNECTING... (' + fetchErrors + ' errors)';
+                el.parentElement.style.borderColor = 'rgba(255, 215, 0, 0.3)';
+                el.parentElement.style.background = 'rgba(255, 215, 0, 0.08)';
+                el.parentElement.style.color = 'var(--gold)';
+            }
 
-        // Exact live ticks from MetaTrader 5
-        const marketQuotes = {
-            "EURUSD": { price: 1.16866, change: "+0.14%" },
-            "GBPUSD": { price: 1.36373, change: "+0.28%" },
-            "USDJPY": { price: 158.834, change: "-0.12%" },
-            "XAUUSD": { price: 4583.65, change: "+0.96%" },
-            "XAGUSD": { price: 69.566, change: "+1.38%" },
-            "AUDUSD": { price: 0.71639, change: "+0.09%" },
-            "USDCAD": { price: 1.37488, change: "-0.05%" },
-            "USDCHF": { price: 0.80034, change: "-0.18%" },
-            "NZDUSD": { price: 0.59784, change: "-0.22%" },
-            "EURGBP": { price: 0.85695, change: "-0.11%" },
-            "EURJPY": { price: 185.622, change: "+0.04%" },
-            "GBPJPY": { price: 216.604, change: "+0.19%" }
-        };
+            const footerLat = document.getElementById('footer-lat');
+            if (footerLat && lastFetchTime) {
+                const ago = Math.round((Date.now() - lastFetchTime.getTime()) / 1000);
+                footerLat.textContent = ago + 's ago • Auto-refresh every ' + (FETCH_INTERVAL_MS / 1000) + 's';
+            }
+        }
 
         // ==========================================
-        // 2. TRADINGVIEW ADVANCED CHART EMBEDDING
-        // (Years of Historical Candles + Real-Time Streaming)
+        // 2. RENDER ALL DATA FROM STATE
+        // ==========================================
+        function renderAllFromState() {
+            if (!currentState) return;
+            const acc = currentState.account || {};
+            const positions = currentState.positions || [];
+            const deals = currentState.recent_deals || [];
+            const ticks = currentState.live_ticks || {};
+
+            // --- Account Stats ---
+            const balance = acc.balance || 0;
+            const equity = acc.equity || 0;
+            const floatingPnl = acc.profit || 0;
+            const marginFree = acc.margin_free || 0;
+            const marginUsed = acc.margin || 0;
+            const totalRealized = currentState.total_realized_profit || 0;
+            const startingCapital = 10000; // Known starting capital
+            const gainPct = ((balance - startingCapital) / startingCapital * 100).toFixed(2);
+
+            document.getElementById('stat-balance').textContent = '$' + balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const balSub = document.getElementById('stat-balance-sub');
+            const gainColor = totalRealized >= 0 ? 'var(--emerald)' : 'var(--coral)';
+            const gainSign = totalRealized >= 0 ? '+' : '';
+            balSub.innerHTML = 'Realized Gain: <span style="color:' + gainColor + '; font-weight:700;">' + gainSign + '$' + totalRealized.toFixed(2) + ' (' + gainSign + gainPct + '%)</span>';
+
+            const equityEl = document.getElementById('stat-equity');
+            equityEl.textContent = '$' + equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            equityEl.className = 'stat-value ' + (floatingPnl >= 0 ? 'profit' : 'loss');
+
+            const eqDiff = document.getElementById('stat-equity-diff');
+            eqDiff.textContent = (floatingPnl >= 0 ? '+' : '') + '$' + floatingPnl.toFixed(2);
+            eqDiff.style.color = floatingPnl >= 0 ? 'var(--emerald)' : 'var(--coral)';
+
+            const pnlEl = document.getElementById('stat-pnl');
+            pnlEl.textContent = (floatingPnl >= 0 ? '+' : '') + '$' + floatingPnl.toFixed(2);
+            pnlEl.className = 'stat-value ' + (floatingPnl >= 0 ? 'profit' : 'loss');
+
+            const pnlPctEl = document.getElementById('stat-pnl-pct');
+            const pnlPct = balance > 0 ? (floatingPnl / balance * 100) : 0;
+            pnlPctEl.textContent = (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
+            pnlPctEl.style.color = floatingPnl >= 0 ? 'var(--emerald)' : 'var(--coral)';
+
+            const pnlSub = document.getElementById('stat-pnl-sub');
+            pnlSub.textContent = positions.length + ' Live Position' + (positions.length !== 1 ? 's' : '') + ' Active';
+
+            const marginEl = document.getElementById('stat-margin');
+            marginEl.textContent = '$' + marginFree.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const marginSub = document.getElementById('stat-margin-sub');
+            const marginPct = equity > 0 ? (marginUsed / equity * 100).toFixed(1) : '0.0';
+            marginSub.textContent = 'Margin Utilized: $' + marginUsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + marginPct + '%)';
+
+            // --- Positions ---
+            renderPositions(positions);
+
+            // --- Deals ---
+            renderDealsTable(deals, totalRealized);
+
+            // --- Ticker ---
+            renderTicker(ticks, positions);
+
+            // --- KPIs ---
+            const totalDeals = currentState.total_deals_count || 0;
+            const kpiDeals = document.getElementById('kpi-total-deals');
+            if (kpiDeals) kpiDeals.textContent = totalDeals;
+        }
+
+        function getDecimals(symbol) {
+            if (symbol.includes('JPY')) return 3;
+            if (symbol.includes('XAU')) return 2;
+            if (symbol.includes('XAG')) return 3;
+            return 5;
+        }
+
+        function renderPositions(positions) {
+            const container = document.getElementById('positions-list');
+            if (!container) return;
+
+            if (!positions || positions.length === 0) {
+                container.innerHTML = '<div class="glass" style="text-align:center; padding:2rem; color:var(--text-dim); grid-column: 1/-1;">No active positions on MT5</div>';
+                return;
+            }
+
+            let cardsHtml = '';
+            positions.forEach(pos => {
+                const pnl = pos.profit || 0;
+                const isProfit = pnl >= 0;
+                const pnlColor = isProfit ? 'var(--emerald)' : 'var(--coral)';
+                const sign = isProfit ? '+' : '';
+                const dec = getDecimals(pos.symbol);
+                const side = pos.type || 'LONG';
+                const sideLC = side.toLowerCase();
+
+                let progress = 50;
+                if (pos.tp && pos.tp > 0) {
+                    if (side === 'LONG') {
+                        const totalRange = pos.tp - pos.openPrice;
+                        const curMove = pos.currentPrice - pos.openPrice;
+                        progress = totalRange > 0 ? Math.max(5, Math.min(95, (curMove / totalRange) * 100)) : 50;
+                    } else {
+                        const totalRange = pos.openPrice - pos.tp;
+                        const curMove = pos.openPrice - pos.currentPrice;
+                        progress = totalRange > 0 ? Math.max(5, Math.min(95, (curMove / totalRange) * 100)) : 50;
+                    }
+                }
+
+                cardsHtml += `
+                    <div class="glass pos-card ${sideLC}">
+                        <div class="pos-top">
+                            <div class="pos-sym-group">
+                                <span class="pos-symbol">${pos.symbol}</span>
+                                <span class="pos-lots">${pos.lots} Lots</span>
+                            </div>
+                            <div class="pos-badge ${sideLC}">${side}</div>
+                        </div>
+
+                        <div class="pos-details-grid">
+                            <div class="pos-detail-item">
+                                <span class="detail-label">Entry Price</span>
+                                <span class="detail-val">${parseFloat(pos.openPrice).toFixed(dec)}</span>
+                            </div>
+                            <div class="pos-detail-item">
+                                <span class="detail-label">Current Live</span>
+                                <span class="detail-val" style="color: ${pnlColor}">${parseFloat(pos.currentPrice).toFixed(dec)}</span>
+                            </div>
+                            <div class="pos-detail-item">
+                                <span class="detail-label">Stop Loss</span>
+                                <span class="detail-val" style="color: var(--coral)">${parseFloat(pos.sl).toFixed(dec)}</span>
+                            </div>
+                            <div class="pos-detail-item">
+                                <span class="detail-label">Take Profit</span>
+                                <span class="detail-val" style="color: var(--emerald)">${parseFloat(pos.tp).toFixed(dec)}</span>
+                            </div>
+                        </div>
+
+                        <div class="pos-progress-wrap">
+                            <div class="pos-progress-bar" style="width: ${progress.toFixed(1)}%; background: ${pnlColor};"></div>
+                        </div>
+
+                        <div class="pos-footer">
+                            <div class="pos-ticket">#${pos.ticket} • Swap: $${(pos.swap || 0).toFixed(2)}</div>
+                            <div class="pos-pnl-val" style="color: ${pnlColor}">${sign}$${Math.abs(pnl).toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = cardsHtml;
+        }
+
+        function renderDealsTable(deals, totalRealized) {
+            const tbody = document.getElementById('deals-table-body');
+            if (!tbody) return;
+
+            // Update the total realized header
+            const dealHeader = document.querySelector('.section-title + div');
+
+            if (!deals || deals.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-dim);">No closed deals yet</td></tr>';
+                return;
+            }
+
+            let html = '';
+            deals.forEach(deal => {
+                const isProf = deal.profit >= 0;
+                const symColor = deal.symbol.includes('XAU') ? 'var(--gold)' : (deal.symbol.includes('XAG') ? '#c0c0c0' : '#fff');
+                html += `
+                    <tr>
+                        <td>#${deal.ticket}</td>
+                        <td><strong style="color:${symColor};">${deal.symbol}</strong></td>
+                        <td><span style="color:${deal.type === 'BUY' ? 'var(--emerald)' : 'var(--coral)'};">${deal.type}</span></td>
+                        <td>${deal.volume} Lots</td>
+                        <td>${deal.price}</td>
+                        <td><strong style="color:${isProf ? 'var(--emerald)' : 'var(--coral)'};">${isProf ? '+' : ''}$${deal.profit.toFixed(2)}</strong></td>
+                        <td><span style="color:var(--emerald);">✓ Realized</span></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderTicker(ticks, positions) {
+            const ticker = document.getElementById('live-ticker');
+            if (!ticker) return;
+
+            let html = '';
+
+            // Build quotes map from live ticks
+            const quotesMap = {};
+            if (ticks) {
+                for (const [sym, t] of Object.entries(ticks)) {
+                    const mid = t.bid && t.ask ? ((t.bid + t.ask) / 2) : (t.bid || t.ask || 0);
+                    quotesMap[sym] = { price: mid, bid: t.bid, ask: t.ask };
+                }
+            }
+
+            // Also add position prices to ensure coverage
+            if (positions) {
+                positions.forEach(p => {
+                    if (!quotesMap[p.symbol]) {
+                        quotesMap[p.symbol] = { price: p.currentPrice, bid: p.currentPrice, ask: p.currentPrice };
+                    }
+                });
+            }
+
+            const defaultSymbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'XAGUSD', 'AUDUSD', 'USDCAD', 'NZDUSD', 'GBPJPY', 'EURJPY', 'USDCHF', 'EURGBP'];
+
+            for (const sym of defaultSymbols) {
+                const q = quotesMap[sym];
+                if (!q) continue;
+                const dec = getDecimals(sym);
+                const priceStr = (sym.includes('XAU') || sym.includes('XAG'))
+                    ? '$' + q.price.toFixed(dec)
+                    : q.price.toFixed(dec);
+
+                html += `
+                    <div class="ticker-item" onclick="selectSymbolFromTicker('${sym}')">
+                        <span class="ticker-sym">${sym}</span>
+                        <span class="up">${priceStr}</span>
+                        <span style="font-size:0.75rem; color:var(--text-dim);">LIVE</span>
+                    </div>
+                `;
+            }
+            ticker.innerHTML = html + html; // Double for infinite scroll
+        }
+
+        // ==========================================
+        // 3. TRADINGVIEW ADVANCED CHART EMBEDDING
         // ==========================================
         let currentChartSymbol = "FX:EURUSD";
         let currentInterval = "1";
@@ -1021,7 +1222,7 @@
                 "interval": currentInterval,
                 "timezone": "Etc/UTC",
                 "theme": "dark",
-                "style": "1", // Candlesticks
+                "style": "1",
                 "locale": "en",
                 "toolbar_bg": "#070a12",
                 "enable_publishing": false,
@@ -1072,179 +1273,10 @@
             });
         });
 
-        mountTradingViewChart("FX:EURUSD", "1");
-
-        // ==========================================
-        // 3. REAL-TIME POSITIONS & TICK RECALCULATION
-        // ==========================================
-        function calculatePositionPnL(pos) {
-            let pnl = 0;
-            if (pos.type === 'LONG') {
-                if (pos.symbol === 'GBPJPY') {
-                    pnl = (pos.currentPrice - pos.openPrice) * pos.lots * 100000 / 158.83;
-                } else if (pos.symbol === 'XAUUSD') {
-                    pnl = (pos.currentPrice - pos.openPrice) * pos.lots * 100;
-                } else if (pos.symbol === 'XAGUSD') {
-                    pnl = (pos.currentPrice - pos.openPrice) * pos.lots * 5000;
-                } else {
-                    pnl = (pos.currentPrice - pos.openPrice) * pos.lots * 100000;
-                }
-            } else {
-                pnl = (pos.openPrice - pos.currentPrice) * pos.lots * 100000;
-            }
-            return pnl;
-        }
-
-        function renderPositions() {
-            const container = document.getElementById('positions-list');
-            let totalUnrealizedPnL = 0;
-            let cardsHtml = '';
-
-            livePositions.forEach(pos => {
-                const pnl = calculatePositionPnL(pos);
-                totalUnrealizedPnL += pnl;
-                const isProfit = pnl >= 0;
-                const pnlClass = isProfit ? 'profit' : 'loss';
-                const pnlColor = isProfit ? 'var(--emerald)' : 'var(--coral)';
-                const sign = isProfit ? '+' : '';
-
-                let progress = 0;
-                if (pos.type === 'LONG') {
-                    const totalRange = pos.tp - pos.openPrice;
-                    const curMove = pos.currentPrice - pos.openPrice;
-                    progress = Math.max(5, Math.min(95, (curMove / totalRange) * 100));
-                } else {
-                    const totalRange = pos.openPrice - pos.tp;
-                    const curMove = pos.openPrice - pos.currentPrice;
-                    progress = Math.max(5, Math.min(95, (curMove / totalRange) * 100));
-                }
-
-                cardsHtml += `
-                    <div class="glass pos-card ${pos.type.toLowerCase()}">
-                        <div class="pos-top">
-                            <div class="pos-sym-group">
-                                <span class="pos-symbol">${pos.symbol}</span>
-                                <span class="pos-lots">${pos.lots} Lots</span>
-                            </div>
-                            <div class="pos-badge ${pos.type.toLowerCase()}">${pos.type}</div>
-                        </div>
-
-                        <div class="pos-details-grid">
-                            <div class="pos-detail-item">
-                                <span class="detail-label">Entry Price</span>
-                                <span class="detail-val">${parseFloat(pos.openPrice).toFixed(pos.symbol.includes('JPY') ? 3 : (pos.symbol.includes('XAU') ? 2 : (pos.symbol.includes('XAG') ? 3 : 5)))}</span>
-                            </div>
-                            <div class="pos-detail-item">
-                                <span class="detail-label">Current Live</span>
-                                <span class="detail-val" style="color: ${pnlColor}">${parseFloat(pos.currentPrice).toFixed(pos.symbol.includes('JPY') ? 3 : (pos.symbol.includes('XAU') ? 2 : (pos.symbol.includes('XAG') ? 3 : 5)))}</span>
-                            </div>
-                            <div class="pos-detail-item">
-                                <span class="detail-label">Stop Loss</span>
-                                <span class="detail-val" style="color: var(--coral)">${pos.sl}</span>
-                            </div>
-                            <div class="pos-detail-item">
-                                <span class="detail-label">Take Profit</span>
-                                <span class="detail-val" style="color: var(--emerald)">${pos.tp}</span>
-                            </div>
-                        </div>
-
-                        <div class="pos-progress-wrap">
-                            <div class="pos-progress-bar" style="width: ${progress.toFixed(1)}%; background: ${pnlColor};"></div>
-                        </div>
-
-                        <div class="pos-footer">
-                            <div class="pos-ticket">#${pos.ticket} &bull; Breakeven Active</div>
-                            <div class="pos-pnl-val" style="color: ${pnlColor}">${sign}$${Math.abs(pnl).toFixed(2)}</div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = cardsHtml;
-
-            const computedEquity = currentBalance + totalUnrealizedPnL;
-            const pnlPct = (totalUnrealizedPnL / currentBalance) * 100;
-            const pnlSign = totalUnrealizedPnL >= 0 ? '+' : '';
-            const pnlColorClass = totalUnrealizedPnL >= 0 ? 'profit' : 'loss';
-
-            document.getElementById('stat-balance').textContent = '$' + currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('stat-equity').textContent = '$' + computedEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('stat-equity').className = 'stat-value ' + pnlColorClass;
-            
-            document.getElementById('stat-equity-diff').textContent = `${pnlSign}$${totalUnrealizedPnL.toFixed(2)}`;
-            document.getElementById('stat-equity-diff').style.color = totalUnrealizedPnL >= 0 ? 'var(--emerald)' : 'var(--coral)';
-
-            document.getElementById('stat-pnl').textContent = `${pnlSign}$${totalUnrealizedPnL.toFixed(2)}`;
-            document.getElementById('stat-pnl').className = 'stat-value ' + pnlColorClass;
-
-            document.getElementById('stat-pnl-pct').textContent = `${pnlSign}${pnlPct.toFixed(2)}%`;
-            document.getElementById('stat-pnl-pct').style.color = totalUnrealizedPnL >= 0 ? 'var(--emerald)' : 'var(--coral)';
-
-            const freeMargin = computedEquity - 415.48;
-            document.getElementById('stat-margin').textContent = '$' + freeMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function renderDealsTable() {
-            const tbody = document.getElementById('deals-table-body');
-            if (!tbody || !recentDeals || recentDeals.length === 0) return;
-
-            let html = '';
-            recentDeals.forEach(deal => {
-                const isProf = deal.profit >= 0;
-                const symColor = deal.symbol.includes('XAU') ? 'var(--gold)' : (deal.symbol.includes('XAG') ? '#c0c0c0' : '#fff');
-                html += `
-                    <tr>
-                        <td>#${deal.ticket}</td>
-                        <td><strong style="color:${symColor};">${deal.symbol}</strong></td>
-                        <td><span style="color:${deal.type === 'BUY' ? 'var(--emerald)' : 'var(--coral)'};">${deal.type} (TP)</span></td>
-                        <td>${deal.volume} Lots</td>
-                        <td>${deal.price}</td>
-                        <td><strong style="color:${isProf ? 'var(--emerald)' : 'var(--coral)'};">${isProf ? '+' : ''}$${deal.profit.toFixed(2)}</strong></td>
-                        <td><span style="color:var(--emerald);">✓ Realized</span></td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        }
-
-        // Real-Time High-Frequency Live Tick Movement Engine
-        function tickEngine() {
-            livePositions.forEach(pos => {
-                const vol = pos.volatility || 0.0001;
-                const delta = (Math.random() - 0.49) * vol;
-                pos.currentPrice = parseFloat((pos.currentPrice + delta).toFixed(5));
-
-                if (marketQuotes[pos.symbol]) {
-                    marketQuotes[pos.symbol].price = pos.currentPrice;
-                }
-            });
-
-            renderPositions();
-            renderTicker();
-        }
-
-        function renderTicker() {
-            const ticker = document.getElementById('live-ticker');
-            let html = '';
-            for (const [sym, data] of Object.entries(marketQuotes)) {
-                const isUp = data.change.startsWith('+');
-                const cls = isUp ? 'up' : 'down';
-                const arrow = isUp ? '▲' : '▼';
-                html += `
-                    <div class="ticker-item" onclick="selectSymbolFromTicker('${sym}')">
-                        <span class="ticker-sym">${sym}</span>
-                        <span class="${cls}">${arrow} ${data.price}</span>
-                        <span style="font-size:0.75rem; color:var(--text-dim);">${data.change}</span>
-                    </div>
-                `;
-            }
-            ticker.innerHTML = html + html;
-        }
-
         window.selectSymbolFromTicker = function(sym) {
             let tvSym = "FX:" + sym;
             if (sym === 'XAUUSD' || sym === 'XAGUSD') tvSym = "OANDA:" + sym;
-            
+
             document.querySelectorAll('.sym-btn').forEach(btn => {
                 if (btn.getAttribute('data-name') === sym) btn.classList.add('active');
                 else btn.classList.remove('active');
@@ -1252,15 +1284,37 @@
             mountTradingViewChart(tvSym, currentInterval);
         };
 
-        renderPositions();
-        renderDealsTable();
-        renderTicker();
-        
-        // Continuously tick live prices every 800ms
-        setInterval(tickEngine, 800);
+        // Mount initial chart
+        mountTradingViewChart("FX:EURUSD", "1");
 
         // ==========================================
-        // 4. THREE.JS 3D SPATIAL MARKET TENSOR
+        // 4. INITIAL FETCH + AUTO-REFRESH LOOP
+        // ==========================================
+        // Show loading state
+        document.getElementById('stat-balance').textContent = 'Loading...';
+        document.getElementById('stat-equity').textContent = 'Loading...';
+        document.getElementById('stat-pnl').textContent = 'Loading...';
+        document.getElementById('stat-margin').textContent = 'Loading...';
+
+        // Fetch immediately on page load
+        fetchLiveState();
+
+        // Then auto-refresh every FETCH_INTERVAL_MS
+        setInterval(fetchLiveState, FETCH_INTERVAL_MS);
+
+        // Update the "Xs ago" display every second
+        setInterval(() => {
+            if (lastFetchTime) {
+                const ago = Math.round((Date.now() - lastFetchTime.getTime()) / 1000);
+                const footerLat = document.getElementById('footer-lat');
+                if (footerLat) {
+                    footerLat.textContent = ago + 's ago • Auto-refresh every ' + (FETCH_INTERVAL_MS / 1000) + 's';
+                }
+            }
+        }, 1000);
+
+        // ==========================================
+        // 5. THREE.JS 3D SPATIAL MARKET TENSOR
         // ==========================================
         function init3DGalaxy() {
             const container = document.getElementById('three-viewport');
@@ -1303,7 +1357,7 @@
             for (let i = 0; i < 12; i++) {
                 const isBull = i % 3 !== 0;
                 const mesh = new THREE.Mesh(sphereGeo, isBull ? bullMat : bearMat);
-                
+
                 const theta = (i / 12) * Math.PI * 2;
                 const phi = Math.acos((Math.random() * 1.6) - 0.8);
                 const r = 5.2 + Math.random() * 1.2;
