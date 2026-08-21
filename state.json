@@ -1,12 +1,12 @@
 {
-  "timestamp": 1787318102,
-  "last_updated_utc": "2026-08-21 13:15:02 UTC",
+  "timestamp": 1787318118,
+  "last_updated_utc": "2026-08-21 13:15:18 UTC",
   "account": {
     "balance": 10243.36,
-    "equity": 10322.45,
-    "profit": 79.09,
+    "equity": 10327.58,
+    "profit": 84.22,
     "margin": 806.93,
-    "margin_free": 9515.52,
+    "margin_free": 9520.65,
     "leverage": 100,
     "server": "MetaQuotes-Demo",
     "login": 111431681
@@ -18,10 +18,10 @@
       "type": "SHORT",
       "lots": 0.33,
       "openPrice": 0.59782,
-      "currentPrice": 0.59809,
+      "currentPrice": 0.59806,
       "sl": 0.60229,
       "tp": 0.58884,
-      "profit": -8.91,
+      "profit": -7.92,
       "time": 1787312728,
       "comment": "AEGIS_SELL"
     },
@@ -44,10 +44,10 @@
       "type": "LONG",
       "lots": 0.01,
       "openPrice": 216.557,
-      "currentPrice": 216.553,
+      "currentPrice": 216.561,
       "sl": 214.922,
       "tp": 219.794,
-      "profit": -0.03,
+      "profit": 0.03,
       "time": 1787326758,
       "comment": "AEGIS_BUY"
     },
@@ -70,10 +70,10 @@
       "type": "LONG",
       "lots": 0.04,
       "openPrice": 4580.33,
-      "currentPrice": 4585.95,
+      "currentPrice": 4586.97,
       "sl": 4545.62,
       "tp": 4648.67,
-      "profit": 22.48,
+      "profit": 26.56,
       "time": 1787328277,
       "comment": "AEGIS_BUY"
     }
