@@ -1,12 +1,12 @@
 {
-  "timestamp": 1787332609,
-  "last_updated_utc": "2026-08-21 17:16:49 UTC",
+  "timestamp": 1787332714,
+  "last_updated_utc": "2026-08-21 17:18:34 UTC",
   "account": {
     "balance": 10322.73,
-    "equity": 10286.99,
-    "profit": -35.74,
+    "equity": 10292.49,
+    "profit": -30.24,
     "margin": 382.5,
-    "margin_free": 9904.49,
+    "margin_free": 9909.99,
     "leverage": 100,
     "server": "MetaQuotes-Demo",
     "login": 111431681,
@@ -19,10 +19,10 @@
       "type": "SHORT",
       "lots": 0.33,
       "openPrice": 0.59782,
-      "currentPrice": 0.598,
+      "currentPrice": 0.5981,
       "sl": 0.60229,
       "tp": 0.58884,
-      "profit": -5.9399999999999995,
+      "profit": -9.24,
       "swap": 0.0,
       "time": 1787312728,
       "comment": "AEGIS_SELL"
@@ -33,10 +33,10 @@
       "type": "LONG",
       "lots": 0.04,
       "openPrice": 4630.39,
-      "currentPrice": 4622.94,
+      "currentPrice": 4625.14,
       "sl": 4595.4,
       "tp": 4699.58,
-      "profit": -29.8,
+      "profit": -21.0,
       "swap": 0.0,
       "time": 1787343096,
       "comment": "AEGIS_BUY"
@@ -52,7 +52,8 @@
       "price": 1.16729,
       "profit": -0.01,
       "commission": 0.0,
-      "time": 1787260863
+      "time": 1787260863,
+      "comment": "AEGIS_CLOSE"
     },
     {
       "ticket": 9846264411,
@@ -63,7 +64,8 @@
       "price": 0.7161,
       "profit": 2.24,
       "commission": 0.0,
-      "time": 1787313574
+      "time": 1787313574,
+      "comment": "[sl 0.71610]"
     },
     {
       "ticket": 9847463710,
@@ -74,7 +76,8 @@
       "price": 69.477,
       "profit": 95.7,
       "commission": 0.0,
-      "time": 1787316497
+      "time": 1787316497,
+      "comment": ""
     },
     {
       "ticket": 9850904069,
@@ -85,7 +88,8 @@
       "price": 1.16928,
       "profit": 19.55,
       "commission": 0.0,
-      "time": 1787326307
+      "time": 1787326307,
+      "comment": "AEGIS Close"
     },
     {
       "ticket": 9850905868,
@@ -96,7 +100,8 @@
       "price": 158.746,
       "profit": 1.01,
       "commission": 0.0,
-      "time": 1787326311
+      "time": 1787326311,
+      "comment": "AEGIS Close"
     },
     {
       "ticket": 9850939462,
@@ -107,7 +112,8 @@
       "price": 4579.29,
       "profit": 12.4,
       "commission": 0.0,
-      "time": 1787326372
+      "time": 1787326372,
+      "comment": "AEGIS Close"
     },
     {
       "ticket": 9851098543,
@@ -118,7 +124,8 @@
       "price": 1.36417,
       "profit": 20.55,
       "commission": 0.0,
-      "time": 1787326631
+      "time": 1787326631,
+      "comment": "AEGIS Close"
     },
     {
       "ticket": 9851652332,
@@ -129,7 +136,8 @@
       "price": 69.463,
       "profit": 52.8,
       "commission": 0.0,
-      "time": 1787327720
+      "time": 1787327720,
+      "comment": ""
     },
     {
       "ticket": 9851652465,
@@ -140,7 +148,8 @@
       "price": 4580.68,
       "profit": 39.12,
       "commission": 0.0,
-      "time": 1787327721
+      "time": 1787327721,
+      "comment": ""
     },
     {
       "ticket": 9852160240,
@@ -151,7 +160,8 @@
       "price": 69.588,
       "profit": 52.8,
       "commission": 0.0,
-      "time": 1787328975
+      "time": 1787328975,
+      "comment": ""
     },
     {
       "ticket": 9852163036,
@@ -162,7 +172,8 @@
       "price": 4585.08,
       "profit": 19.0,
       "commission": 0.0,
-      "time": 1787328982
+      "time": 1787328982,
+      "comment": ""
     },
     {
       "ticket": 9857920197,
@@ -173,7 +184,8 @@
       "price": 1.36413,
       "profit": 5.7,
       "commission": 0.0,
-      "time": 1787342044
+      "time": 1787342044,
+      "comment": ""
     },
     {
       "ticket": 9858025948,
@@ -184,83 +196,96 @@
       "price": 216.854,
       "profit": 1.87,
       "commission": 0.0,
-      "time": 1787342341
+      "time": 1787342341,
+      "comment": ""
     }
   ],
   "total_deals_count": 13,
   "total_realized_profit": 322.73,
   "live_ticks": {
     "EURUSD": {
-      "bid": 1.16782,
-      "ask": 1.16783,
+      "bid": 1.16794,
+      "ask": 1.16795,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 1.16795,
+      "time": 1787343515
     },
     "GBPUSD": {
-      "bid": 1.36406,
-      "ask": 1.36406,
+      "bid": 1.36428,
+      "ask": 1.36428,
       "last": 0.0,
-      "time": 1787343411
+      "mid": 1.36428,
+      "time": 1787343514
     },
     "USDJPY": {
-      "bid": 159.036,
-      "ask": 159.038,
+      "bid": 159.015,
+      "ask": 159.017,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 159.016,
+      "time": 1787343516
     },
     "XAUUSD": {
-      "bid": 4622.94,
-      "ask": 4623.2,
+      "bid": 4625.14,
+      "ask": 4625.55,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 4625.345,
+      "time": 1787343516
     },
     "XAGUSD": {
-      "bid": 69.688,
-      "ask": 69.707,
+      "bid": 69.697,
+      "ask": 69.716,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 69.7065,
+      "time": 1787343516
     },
     "AUDUSD": {
-      "bid": 0.71739,
-      "ask": 0.7174,
+      "bid": 0.71753,
+      "ask": 0.71754,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 0.71754,
+      "time": 1787343509
     },
     "USDCAD": {
-      "bid": 1.37642,
-      "ask": 1.37642,
+      "bid": 1.37618,
+      "ask": 1.37618,
       "last": 0.0,
-      "time": 1787343406
+      "mid": 1.37618,
+      "time": 1787343516
     },
     "USDCHF": {
-      "bid": 0.8014,
-      "ask": 0.80141,
+      "bid": 0.80126,
+      "ask": 0.80126,
       "last": 0.0,
-      "time": 1787343411
+      "mid": 0.80126,
+      "time": 1787343516
     },
     "NZDUSD": {
-      "bid": 0.598,
-      "ask": 0.598,
+      "bid": 0.5981,
+      "ask": 0.5981,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 0.5981,
+      "time": 1787343512
     },
     "EURGBP": {
-      "bid": 0.85614,
-      "ask": 0.85616,
+      "bid": 0.8561,
+      "ask": 0.85611,
       "last": 0.0,
-      "time": 1787343412
+      "mid": 0.85611,
+      "time": 1787343514
     },
     "EURJPY": {
-      "bid": 185.728,
-      "ask": 185.731,
+      "bid": 185.722,
+      "ask": 185.725,
       "last": 0.0,
-      "time": 1787343411
+      "mid": 185.7235,
+      "time": 1787343516
     },
     "GBPJPY": {
-      "bid": 216.931,
-      "ask": 216.939,
+      "bid": 216.934,
+      "ask": 216.943,
       "last": 0.0,
-      "time": 1787343411
+      "mid": 216.9385,
+      "time": 1787343514
     }
   }
 }
