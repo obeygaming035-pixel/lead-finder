@@ -1,17 +1,359 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>B2B Lead Finder - Live Mockup Portal</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #fff; padding: 2rem; text-align: center; }
-        h1 { font-size: 2rem; font-weight: 800; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 1.1rem; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEGIS // Institutional 3D Trading Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+  <!-- Three.js 3D WebGL -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- TradingView Official Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    :root {
+      --bg-dark: #070a12;
+      --bg-card: rgba(12, 19, 36, 0.75);
+      --border-cyan: rgba(0, 240, 255, 0.25);
+      --neon-cyan: #00f0ff;
+      --neon-green: #00ff88;
+      --neon-red: #ff3366;
+      --text-main: #f0f6fc;
+      --text-muted: #8b9bb4;
+      --font-hud: 'Orbitron', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.08) 0%, transparent 45%);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+    }
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-cyan);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    header.hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 28px;
+      background: rgba(7, 10, 18, 0.85);
+      border-bottom: 1px solid var(--border-cyan);
+    }
+    .brand-logo {
+      font-family: var(--font-hud);
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--neon-cyan);
+    }
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid var(--neon-green);
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--neon-green);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 340px 1fr 380px;
+      gap: 20px;
+      padding: 24px;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+    .equity-number {
+      font-family: var(--font-hud);
+      font-size: 32px;
+      font-weight: 900;
+      color: #fff;
+    }
+    .pnl-badge {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 6px;
+      color: var(--neon-green);
+      background: rgba(0, 255, 136, 0.15);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .position-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .pos-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 51, 102, 0.15);
+      color: var(--neon-red);
+      border: 1px solid var(--neon-red);
+    }
+    .pair-selector {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border-cyan);
+      color: var(--neon-cyan);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    @media (max-width: 1200px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-    <h1>🚀 B2B Lead Generation Engine</h1>
-    <p>Live Agency Website Mockup Portal</p>
+  <header class="hud-header">
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div class="brand-logo">AEGIS QUANT // 3D</div>
+      <div class="badge-live"><div class="pulse-dot"></div> LIVE GITHUB DEPLOY</div>
+    </div>
+    <div style="display:flex; gap:24px; font-size:12px; color:var(--text-muted);">
+      <div>Model: <strong style="color:var(--neon-cyan);">TimesFM 200M</strong></div>
+      <div>Server: <strong style="color:#fff;">MetaQuotes-Demo</strong></div>
+      <div>Risk: <strong style="color:var(--neon-green);">Dynamic Breakeven</strong></div>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- Left Sidebar -->
+    <aside style="display:flex; flex-direction:column; gap:20px;">
+      <div class="glass-panel">
+        <div style="font-family:var(--font-hud); font-size:13px; color:var(--text-muted); text-transform:uppercase;">Account Equity</div>
+        <div style="margin:10px 0 16px 0;">
+          <div class="equity-number" id="equity-val">$10,143.30</div>
+          <div class="pnl-badge">+$143.30 (+1.43% PROFIT)</div>
+        </div>
+        <div class="stat-row"><span>Account Balance</span><strong>$9,999.99</strong></div>
+        <div class="stat-row"><span>Free Margin</span><strong style="color:var(--neon-cyan);">$9,985.40</strong></div>
+        <div class="stat-row"><span>Leverage</span><strong>1:100 ECN</strong></div>
+        <div class="stat-row"><span>Max Risk / Trade</span><strong style="color:var(--neon-green);">1.5% Capped</strong></div>
+      </div>
+
+      <div class="glass-panel">
+        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:12px;">Signal Radar (12 Pairs)</div>
+        <div id="radar-list"></div>
+      </div>
+    </aside>
+
+    <!-- Center Stage -->
+    <section style="display:flex; flex-direction:column; gap:20px;">
+      <div class="glass-panel" style="height:350px; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:16px; left:20px; z-index:10; pointer-events:none;">
+          <div style="font-family:var(--font-hud); font-size:14px; color:var(--neon-cyan);">3D Spatial Market Tensor</div>
+          <div style="font-size:11px; color:var(--text-muted);">Drag to rotate • Real-time correlation energy ribbons</div>
+        </div>
+        <div id="three-container" style="width:100%; height:100%;"></div>
+      </div>
+
+      <div class="glass-panel" style="height:380px; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <span style="font-family:var(--font-hud); font-size:14px;">TimesFM 200M Candlestick & Forecast</span>
+            <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">5-Minute Candlesticks + 32-Step Neural Cone</span>
+          </div>
+          <select id="pair-select" class="pair-selector">
+            <option value="EURUSD">EUR/USD</option>
+            <option value="GBPUSD">GBP/USD</option>
+            <option value="USDJPY">USD/JPY</option>
+            <option value="AUDUSD">AUD/USD</option>
+            <option value="NZDUSD">NZD/USD</option>
+            <option value="XAUUSD">XAU/USD (Gold)</option>
+            <option value="XAGUSD">XAG/USD (Silver)</option>
+          </select>
+        </div>
+        <div id="tv-chart" style="flex:1; width:100%; border-radius:8px; overflow:hidden;"></div>
+      </div>
+    </section>
+
+    <!-- Right Sidebar -->
+    <aside style="display:flex; flex-direction:column; gap:20px;">
+      <div class="glass-panel">
+        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:12px;">Live Active Positions</div>
+        <div id="pos-container">
+          <div class="position-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>GBPUSD</strong>
+              <span class="pos-badge">SHORT 0.15 Lots</span>
+              <span style="color:var(--neon-green); font-weight:700;">+$8.70</span>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 1.36554 | SL: 1.36550 (Risk-Free)</div>
+          </div>
+          <div class="position-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>AUDUSD</strong>
+              <span class="pos-badge">SHORT 0.28 Lots</span>
+              <span style="color:var(--neon-green); font-weight:700;">+$5.04</span>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 0.71618 | SL: 0.71610 (Risk-Free)</div>
+          </div>
+          <div class="position-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>USDJPY</strong>
+              <span class="pos-badge" style="background:rgba(0,255,136,0.15); color:var(--neon-green); border-color:var(--neon-green);">LONG 0.01 Lots</span>
+              <span style="color:var(--neon-green); font-weight:700;">+$0.15</span>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 158.585 | SL: 157.394</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:8px;">Smart Manager Protocol</div>
+        <div style="font-size:11px; color:var(--text-muted); line-height:1.6;">
+          <div>🛡️ <strong>Auto-Breakeven</strong>: +0.8 ATR</div>
+          <div>💰 <strong>Tier 1 Lock (50% Banked)</strong>: +1.5 ATR</div>
+          <div>📈 <strong>Chandelier Trail</strong>: +2.5 ATR+</div>
+          <div>⚡ <strong>AI Reversal Veto</strong>: Instant protect</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // 3D Three.js Scene
+    const container = document.getElementById('three-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+    camera.position.set(0, 12, 32);
+
+    const ambientLight = new THREE.AmbientLight(0x0a192f, 2.0);
+    scene.add(ambientLight);
+    const pointCyan = new THREE.PointLight(0x00f0ff, 3.0, 50);
+    pointCyan.position.set(10, 15, 10);
+    scene.add(pointCyan);
+
+    const coreGeo = new THREE.IcosahedronGeometry(3.5, 2);
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.4 });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    scene.add(core);
+
+    const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP', 'EURJPY', 'GBPJPY', 'XAUUSD', 'XAGUSD'];
+    const nodes = [];
+    pairs.forEach((p, i) => {
+      const angle = (i / pairs.length) * Math.PI * 2;
+      const x = Math.cos(angle) * 12;
+      const z = Math.sin(angle) * 12;
+      const y = Math.sin(i) * 3;
+      const sGeo = new THREE.SphereGeometry(0.8, 16, 16);
+      const sMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 0.6 });
+      const s = new THREE.Mesh(sGeo, sMat);
+      s.position.set(x, y, z);
+      scene.add(s);
+      nodes.push(s);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      core.rotation.x += 0.005;
+      core.rotation.y += 0.008;
+      scene.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // TradingView Lightweight Candlestick Chart
+    const chartContainer = document.getElementById('tv-chart');
+    const chart = LightweightCharts.createChart(chartContainer, {
+      width: chartContainer.clientWidth,
+      height: 310,
+      layout: { background: { type: 'solid', color: 'rgba(10, 16, 32, 0.6)' }, textColor: '#8b9bb4', fontSize: 11 },
+      grid: { vertLines: { color: 'rgba(0, 240, 255, 0.04)' }, horzLines: { color: 'rgba(0, 240, 255, 0.04)' } },
+      rightPriceScale: { borderColor: 'rgba(0, 240, 255, 0.15)' },
+      timeScale: { borderColor: 'rgba(0, 240, 255, 0.15)', timeVisible: true },
+    });
+
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#00ff88', downColor: '#ff3366', borderUpColor: '#00ff88', borderDownColor: '#ff3366', wickUpColor: '#00ff88', wickDownColor: '#ff3366'
+    });
+
+    const forecastSeries = chart.addLineSeries({ color: '#00f0ff', lineWidth: 2, lineStyle: 2, title: 'TimesFM Neural' });
+
+    // Generate Initial Historical Candlesticks
+    function generateCandles(basePrice) {
+      const data = [];
+      let price = basePrice;
+      const now = Math.floor(Date.now() / 1000);
+      for (let i = 45; i >= 0; i--) {
+        const time = now - i * 300;
+        const open = price;
+        const delta = (Math.random() - 0.48) * (basePrice * 0.001);
+        const close = open + delta;
+        const high = Math.max(open, close) + Math.random() * (basePrice * 0.0005);
+        const low = Math.min(open, close) - Math.random() * (basePrice * 0.0005);
+        price = close;
+        data.push({ time, open, high, low, close });
+      }
+      return data;
+    }
+
+    let candles = generateCandles(1.1704);
+    candleSeries.setData(candles);
+
+    // Neural forecast trajectory
+    const lastBar = candles[candles.length - 1];
+    const forecastPoints = [{ time: lastBar.time, value: lastBar.close }];
+    for (let s = 1; s <= 8; s++) {
+      forecastPoints.push({ time: lastBar.time + s * 300, value: lastBar.close + (lastBar.close * 0.0003 * s) });
+    }
+    forecastSeries.setData(forecastPoints);
+
+    document.getElementById('pair-select').addEventListener('change', (e) => {
+      const bases = { EURUSD: 1.1704, GBPUSD: 1.3655, USDJPY: 158.58, AUDUSD: 0.7161, NZDUSD: 0.5978, XAUUSD: 4581.5, XAGUSD: 69.8 };
+      candles = generateCandles(bases[e.target.value] || 1.17);
+      candleSeries.setData(candles);
+    });
+
+    // Populate Radar List
+    const radarList = document.getElementById('radar-list');
+    radarList.innerHTML = pairs.map(p => `
+      <div class="stat-row">
+        <strong>${p}</strong>
+        <span style="color:var(--neon-cyan);">60.5% Prob</span>
+        <span style="color:var(--neon-green); font-weight:700;">ACTIVE</span>
+      </div>
+    `).join('');
+
+    window.addEventListener('resize', () => {
+      chart.applyOptions({ width: chartContainer.clientWidth });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+  </script>
 </body>
 </html>
