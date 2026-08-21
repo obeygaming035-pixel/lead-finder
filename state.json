@@ -1,12 +1,12 @@
 {
-  "timestamp": 1787318486,
-  "last_updated_utc": "2026-08-21 13:21:26 UTC",
+  "timestamp": 1787332048,
+  "last_updated_utc": "2026-08-21 17:07:28 UTC",
   "account": {
-    "balance": 10315.16,
-    "equity": 10314.59,
-    "profit": -0.57,
-    "margin": 415.48,
-    "margin_free": 9899.11,
+    "balance": 10322.73,
+    "equity": 10318.11,
+    "profit": -4.62,
+    "margin": 197.28,
+    "margin_free": 10120.83,
     "leverage": 100,
     "server": "MetaQuotes-Demo",
     "login": 111431681
@@ -18,63 +18,15 @@
       "type": "SHORT",
       "lots": 0.33,
       "openPrice": 0.59782,
-      "currentPrice": 0.59787,
+      "currentPrice": 0.59796,
       "sl": 0.60229,
       "tp": 0.58884,
-      "profit": -1.65,
+      "profit": -4.62,
       "time": 1787312728,
       "comment": "AEGIS_SELL"
-    },
-    {
-      "ticket": 10145278552,
-      "symbol": "GBPUSD",
-      "type": "LONG",
-      "lots": 0.15,
-      "openPrice": 1.36375,
-      "currentPrice": 1.3638,
-      "sl": 1.35354,
-      "tp": 1.38423,
-      "profit": 0.75,
-      "time": 1787326731,
-      "comment": "AEGIS_BUY"
-    },
-    {
-      "ticket": 10145301161,
-      "symbol": "GBPJPY",
-      "type": "LONG",
-      "lots": 0.01,
-      "openPrice": 216.557,
-      "currentPrice": 216.609,
-      "sl": 214.922,
-      "tp": 219.794,
-      "profit": 0.33,
-      "time": 1787326758,
-      "comment": "AEGIS_BUY"
     }
   ],
   "recent_deals": [
-    {
-      "ticket": 9846264411,
-      "order": 10140676651,
-      "symbol": "AUDUSD",
-      "type": "BUY",
-      "volume": 0.28,
-      "price": 0.7161,
-      "profit": 2.24,
-      "commission": 0.0,
-      "time": 1787313574
-    },
-    {
-      "ticket": 9847463710,
-      "order": 10141808865,
-      "symbol": "XAGUSD",
-      "type": "BUY",
-      "volume": 0.06,
-      "price": 69.477,
-      "profit": 95.7,
-      "commission": 0.0,
-      "time": 1787316497
-    },
     {
       "ticket": 9850904069,
       "order": 10145052895,
@@ -162,7 +114,29 @@
       "profit": 19.0,
       "commission": 0.0,
       "time": 1787328982
+    },
+    {
+      "ticket": 9857920197,
+      "order": 10151677141,
+      "symbol": "GBPUSD",
+      "type": "SELL",
+      "volume": 0.15,
+      "price": 1.36413,
+      "profit": 5.7,
+      "commission": 0.0,
+      "time": 1787342044
+    },
+    {
+      "ticket": 9858025948,
+      "order": 10151776757,
+      "symbol": "GBPJPY",
+      "type": "SELL",
+      "volume": 0.01,
+      "price": 216.854,
+      "profit": 1.87,
+      "commission": 0.0,
+      "time": 1787342341
     }
   ],
-  "total_deals_count": 11
+  "total_deals_count": 13
 }
