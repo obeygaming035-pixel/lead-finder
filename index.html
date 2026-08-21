@@ -927,8 +927,9 @@
         // ==========================================
         // 1. LIVE STATE FROM GITHUB (auto-updated by MT5 engine)
         // ==========================================
-        const STATE_URL = 'https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/state.json';
-        const FETCH_INTERVAL_MS = 10000; // Fetch every 10 seconds
+        const API_STATE_URL = 'https://api.github.com/repos/obeygaming035-pixel/lead-finder/contents/state.json';
+        const RAW_STATE_URL = 'https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/state.json';
+        const FETCH_INTERVAL_MS = 3000; // Fetch every 3 seconds for zero latency
 
         // Current state - will be populated from state.json
         let currentState = null;
@@ -936,23 +937,50 @@
         let fetchErrors = 0;
 
         async function fetchLiveState() {
+            const cacheBuster = Date.now();
+            let data = null;
+
+            // Strategy 1: Fast GitHub Contents API (0-second cache)
             try {
-                const cacheBuster = Date.now();
-                const resp = await fetch(STATE_URL + '?t=' + cacheBuster, {
+                const resp = await fetch(API_STATE_URL + '?ref=main&_t=' + cacheBuster, {
                     cache: 'no-store',
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
                 });
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
+                if (resp.ok) {
+                    const jsonRes = await resp.json();
+                    if (jsonRes.content) {
+                        const decoded = decodeURIComponent(escape(atob(jsonRes.content.replace(/\s/g, ''))));
+                        data = JSON.parse(decoded);
+                    }
+                }
+            } catch (e) {
+                // Ignore API error and proceed to fallback
+            }
+
+            // Strategy 2: Raw GitHub UserContent Fallback
+            if (!data) {
+                try {
+                    const resp = await fetch(RAW_STATE_URL + '?_t=' + cacheBuster, {
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (resp.ok) {
+                        data = await resp.json();
+                    }
+                } catch (e) {
+                    // Fallback failed
+                }
+            }
+
+            if (data && data.account) {
                 currentState = data;
                 lastFetchTime = new Date();
                 fetchErrors = 0;
                 renderAllFromState();
                 updateSyncStatus(true);
-            } catch (e) {
+            } else {
                 fetchErrors++;
-                console.warn('[LiveSync] Fetch error:', e.message, '(attempt ' + fetchErrors + ')');
-                updateSyncStatus(false);
+                if (fetchErrors > 3) updateSyncStatus(false);
             }
         }
 
