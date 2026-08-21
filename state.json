@@ -1,0 +1,183 @@
+{
+  "timestamp": 1787317986,
+  "last_updated_utc": "2026-08-21 13:13:06 UTC",
+  "account": {
+    "balance": 10243.36,
+    "equity": 10329.73,
+    "profit": 86.37,
+    "margin": 806.93,
+    "margin_free": 9522.8,
+    "leverage": 100,
+    "server": "MetaQuotes-Demo",
+    "login": 111431681
+  },
+  "positions": [
+    {
+      "ticket": 10140465437,
+      "symbol": "NZDUSD",
+      "type": "SHORT",
+      "lots": 0.33,
+      "openPrice": 0.59782,
+      "currentPrice": 0.59796,
+      "sl": 0.60229,
+      "tp": 0.58884,
+      "profit": -4.62,
+      "time": 1787312728,
+      "comment": "AEGIS_SELL"
+    },
+    {
+      "ticket": 10145278552,
+      "symbol": "GBPUSD",
+      "type": "LONG",
+      "lots": 0.15,
+      "openPrice": 1.36375,
+      "currentPrice": 1.36377,
+      "sl": 1.35354,
+      "tp": 1.38423,
+      "profit": 0.3,
+      "time": 1787326731,
+      "comment": "AEGIS_BUY"
+    },
+    {
+      "ticket": 10145301161,
+      "symbol": "GBPJPY",
+      "type": "LONG",
+      "lots": 0.01,
+      "openPrice": 216.557,
+      "currentPrice": 216.537,
+      "sl": 214.922,
+      "tp": 219.794,
+      "profit": -0.13,
+      "time": 1787326758,
+      "comment": "AEGIS_BUY"
+    },
+    {
+      "ticket": 10145950755,
+      "symbol": "XAGUSD",
+      "type": "LONG",
+      "lots": 0.06,
+      "openPrice": 69.412,
+      "currentPrice": 69.641,
+      "sl": 68.906,
+      "tp": 70.468,
+      "profit": 68.7,
+      "time": 1787328227,
+      "comment": "AEGIS_BUY"
+    },
+    {
+      "ticket": 10145970300,
+      "symbol": "XAUUSD",
+      "type": "LONG",
+      "lots": 0.04,
+      "openPrice": 4580.33,
+      "currentPrice": 4585.86,
+      "sl": 4545.62,
+      "tp": 4648.67,
+      "profit": 22.12,
+      "time": 1787328277,
+      "comment": "AEGIS_BUY"
+    }
+  ],
+  "recent_deals": [
+    {
+      "ticket": 9836675874,
+      "order": 10131402303,
+      "symbol": "EURUSD",
+      "type": "SELL",
+      "volume": 0.01,
+      "price": 1.16729,
+      "profit": -0.01,
+      "commission": 0.0,
+      "time": 1787260863
+    },
+    {
+      "ticket": 9846264411,
+      "order": 10140676651,
+      "symbol": "AUDUSD",
+      "type": "BUY",
+      "volume": 0.28,
+      "price": 0.7161,
+      "profit": 2.24,
+      "commission": 0.0,
+      "time": 1787313574
+    },
+    {
+      "ticket": 9847463710,
+      "order": 10141808865,
+      "symbol": "XAGUSD",
+      "type": "BUY",
+      "volume": 0.06,
+      "price": 69.477,
+      "profit": 95.7,
+      "commission": 0.0,
+      "time": 1787316497
+    },
+    {
+      "ticket": 9850904069,
+      "order": 10145052895,
+      "symbol": "EURUSD",
+      "type": "BUY",
+      "volume": 0.17,
+      "price": 1.16928,
+      "profit": 19.55,
+      "commission": 0.0,
+      "time": 1787326307
+    },
+    {
+      "ticket": 9850905868,
+      "order": 10145054647,
+      "symbol": "USDJPY",
+      "type": "SELL",
+      "volume": 0.01,
+      "price": 158.746,
+      "profit": 1.01,
+      "commission": 0.0,
+      "time": 1787326311
+    },
+    {
+      "ticket": 9850939462,
+      "order": 10145085558,
+      "symbol": "XAUUSD",
+      "type": "BUY",
+      "volume": 0.04,
+      "price": 4579.29,
+      "profit": 12.4,
+      "commission": 0.0,
+      "time": 1787326372
+    },
+    {
+      "ticket": 9851098543,
+      "order": 10145234650,
+      "symbol": "GBPUSD",
+      "type": "BUY",
+      "volume": 0.15,
+      "price": 1.36417,
+      "profit": 20.55,
+      "commission": 0.0,
+      "time": 1787326631
+    },
+    {
+      "ticket": 9851652332,
+      "order": 10145754337,
+      "symbol": "XAGUSD",
+      "type": "SELL",
+      "volume": 0.06,
+      "price": 69.463,
+      "profit": 52.8,
+      "commission": 0.0,
+      "time": 1787327720
+    },
+    {
+      "ticket": 9851652465,
+      "order": 10145754462,
+      "symbol": "XAUUSD",
+      "type": "SELL",
+      "volume": 0.04,
+      "price": 4580.68,
+      "profit": 39.12,
+      "commission": 0.0,
+      "time": 1787327721
+    }
+  ],
+  "total_deals_count": 9
+}
