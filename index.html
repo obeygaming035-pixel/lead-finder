@@ -1,359 +1,832 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AEGIS // Institutional 3D Trading Command Center</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
-  <!-- Three.js 3D WebGL -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- TradingView Official Lightweight Charts -->
-  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
-  <style>
-    :root {
-      --bg-dark: #070a12;
-      --bg-card: rgba(12, 19, 36, 0.75);
-      --border-cyan: rgba(0, 240, 255, 0.25);
-      --neon-cyan: #00f0ff;
-      --neon-green: #00ff88;
-      --neon-red: #ff3366;
-      --text-main: #f0f6fc;
-      --text-muted: #8b9bb4;
-      --font-hud: 'Orbitron', sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
-        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.08) 0%, transparent 45%);
-      color: var(--text-main);
-      font-family: var(--font-mono);
-      min-height: 100vh;
-    }
-    .glass-panel {
-      background: var(--bg-card);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--border-cyan);
-      border-radius: 12px;
-      padding: 20px;
-    }
-    header.hud-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 28px;
-      background: rgba(7, 10, 18, 0.85);
-      border-bottom: 1px solid var(--border-cyan);
-    }
-    .brand-logo {
-      font-family: var(--font-hud);
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: 2px;
-      color: var(--neon-cyan);
-    }
-    .badge-live {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      background: rgba(0, 255, 136, 0.15);
-      border: 1px solid var(--neon-green);
-      border-radius: 20px;
-      font-size: 11px;
-      color: var(--neon-green);
-    }
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background: var(--neon-green);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--neon-green);
-    }
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 340px 1fr 380px;
-      gap: 20px;
-      padding: 24px;
-      max-width: 1920px;
-      margin: 0 auto;
-    }
-    .equity-number {
-      font-family: var(--font-hud);
-      font-size: 32px;
-      font-weight: 900;
-      color: #fff;
-    }
-    .pnl-badge {
-      font-size: 13px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
-      display: inline-block;
-      margin-top: 6px;
-      color: var(--neon-green);
-      background: rgba(0, 255, 136, 0.15);
-      border: 1px solid rgba(0, 255, 136, 0.3);
-    }
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      padding: 6px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .position-card {
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-    .pos-badge {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255, 51, 102, 0.15);
-      color: var(--neon-red);
-      border: 1px solid var(--neon-red);
-    }
-    .pair-selector {
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid var(--border-cyan);
-      color: var(--neon-cyan);
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-    }
-    @media (max-width: 1200px) {
-      .dashboard-grid { grid-template-columns: 1fr; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEGIS | Quantitative Trading System</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        :root {
+            --bg-color: #070a12;
+            --panel-bg: rgba(13, 20, 36, 0.4);
+            --panel-border: rgba(0, 240, 255, 0.1);
+            --cyan: #00f0ff;
+            --emerald: #00ff88;
+            --coral: #ff3366;
+            --text-main: #e0e6ed;
+            --text-dim: #8a9bb3;
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-emerald: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-coral: 0 0 10px rgba(255, 51, 102, 0.5);
+            --font-head: 'Orbitron', sans-serif;
+            --font-data: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-data);
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Animated Background Particles CSS */
+        .bg-particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(0, 240, 255, 0.2);
+            animation: float 15s infinite linear;
+        }
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100px) scale(1); opacity: 0; }
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .glass::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.03), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.5s ease;
+        }
+        .glass:hover::before {
+            left: 150%;
+        }
+        .glass:hover {
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(0, 240, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 1rem;
+        }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logo-text {
+            font-family: var(--font-head);
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, var(--cyan), var(--emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--emerald);
+            background: rgba(0, 255, 136, 0.1);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--emerald);
+            border-radius: 50%;
+            box-shadow: var(--glow-emerald);
+            animation: pulse-anim 1.5s infinite;
+        }
+        @keyframes pulse-anim {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+
+        /* Ticker */
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background: rgba(0,0,0,0.5);
+            border-top: 1px solid var(--panel-border);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0.5rem 0;
+            margin-bottom: -1rem;
+        }
+        .ticker {
+            display: inline-flex;
+            white-space: nowrap;
+            animation: ticker 30s linear infinite;
+        }
+        .ticker-item {
+            margin-right: 3rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+        .up { color: var(--emerald); }
+        .down { color: var(--coral); }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
+        }
+
+        /* Hero Stats */
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .stat-card {
+            text-align: center;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+        .stat-value {
+            font-family: var(--font-head);
+            font-size: 2rem;
+            color: var(--cyan);
+            text-shadow: var(--glow-cyan);
+        }
+        .stat-value.profit { color: var(--emerald); text-shadow: var(--glow-emerald); }
+
+        /* Main Dashboard Area */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1.5rem;
+            height: 500px;
+        }
+        @media (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: 1fr; height: auto; }
+        }
+        
+        #three-container {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        .chart-section {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 400px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+        select {
+            background: var(--bg-color);
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: var(--font-data);
+            outline: none;
+            cursor: pointer;
+        }
+        #tv-chart {
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        /* Positions */
+        .positions-title {
+            font-family: var(--font-head);
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .positions-title::before {
+            content: ''; width: 4px; height: 1.5rem; background: var(--cyan); border-radius: 2px;
+            box-shadow: var(--glow-cyan);
+        }
+        .positions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        .pos-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .pos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pos-pair {
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        .pos-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .badge-long { background: rgba(0,255,136,0.1); color: var(--emerald); border: 1px solid var(--emerald); }
+        .badge-short { background: rgba(255,51,102,0.1); color: var(--coral); border: 1px solid var(--coral); }
+        
+        .pos-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .pos-pnl {
+            font-family: var(--font-head);
+            font-size: 1.2rem;
+            text-align: right;
+        }
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease-in-out;
+            position: absolute;
+            left: 0;
+        }
+
+        /* Bottom Panels */
+        .bottom-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+        .ai-panel ul { list-style: none; }
+        .ai-panel li {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .ai-icon {
+            font-size: 1.5rem;
+            background: rgba(0, 240, 255, 0.1);
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            color: var(--cyan);
+            border: 1px solid rgba(0,240,255,0.3);
+        }
+        
+        /* Radial Chart */
+        .radial-chart {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(var(--emerald) 78.3%, var(--panel-bg) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+        .radial-inner {
+            width: 100px; height: 100px;
+            background: var(--bg-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-head);
+            font-size: 1.5rem;
+            color: var(--emerald);
+            text-shadow: var(--glow-emerald);
+        }
+        
+        .perf-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            text-align: center;
+            gap: 1rem;
+        }
+        
+        footer {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--panel-border);
+            margin-top: 2rem;
+        }
+
+        /* Animations */
+        .fade-in { opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease, transform 0.8s ease; }
+        .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    </style>
 </head>
 <body>
-  <header class="hud-header">
-    <div style="display:flex; align-items:center; gap:16px;">
-      <div class="brand-logo">AEGIS QUANT // 3D</div>
-      <div class="badge-live"><div class="pulse-dot"></div> LIVE GITHUB DEPLOY</div>
+
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="ticker-wrap">
+        <div class="ticker">
+            <span class="ticker-item">EURUSD <span class="up">▲ 1.17053</span></span>
+            <span class="ticker-item">GBPUSD <span class="up">▲ 1.36453</span></span>
+            <span class="ticker-item">USDJPY <span class="down">▼ 109.45</span></span>
+            <span class="ticker-item">XAUUSD <span class="up">▲ 4575.64</span></span>
+            <span class="ticker-item">XAGUSD <span class="up">▲ 69.392</span></span>
+            <span class="ticker-item">GBPJPY <span class="up">▲ 216.626</span></span>
+            <span class="ticker-item">NZDUSD <span class="down">▼ 0.59833</span></span>
+            <span class="ticker-item">USDCAD <span class="up">▲ 1.2530</span></span>
+            <!-- Duplicate for infinite scroll -->
+            <span class="ticker-item">EURUSD <span class="up">▲ 1.17053</span></span>
+            <span class="ticker-item">GBPUSD <span class="up">▲ 1.36453</span></span>
+            <span class="ticker-item">USDJPY <span class="down">▼ 109.45</span></span>
+            <span class="ticker-item">XAUUSD <span class="up">▲ 4575.64</span></span>
+            <span class="ticker-item">XAGUSD <span class="up">▲ 69.392</span></span>
+            <span class="ticker-item">GBPJPY <span class="up">▲ 216.626</span></span>
+            <span class="ticker-item">NZDUSD <span class="down">▼ 0.59833</span></span>
+            <span class="ticker-item">USDCAD <span class="up">▲ 1.2530</span></span>
+        </div>
     </div>
-    <div style="display:flex; gap:24px; font-size:12px; color:var(--text-muted);">
-      <div>Model: <strong style="color:var(--neon-cyan);">TimesFM 200M</strong></div>
-      <div>Server: <strong style="color:#fff;">MetaQuotes-Demo</strong></div>
-      <div>Risk: <strong style="color:var(--neon-green);">Dynamic Breakeven</strong></div>
+
+    <div class="container">
+        
+        <header class="fade-in">
+            <div class="logo-container">
+                <div class="logo-text">AEGIS // AI</div>
+            </div>
+            <div class="status-badge">
+                <div class="pulse"></div>
+                SYSTEM LIVE | Acct #111431681
+            </div>
+        </header>
+
+        <section class="hero-stats fade-in">
+            <div class="glass stat-card">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value" data-target="10151.44">$0.00</div>
+            </div>
+            <div class="glass stat-card">
+                <div class="stat-label">Equity</div>
+                <div class="stat-value" data-target="10197.20">$0.00</div>
+            </div>
+            <div class="glass stat-card">
+                <div class="stat-label">Floating P&L</div>
+                <div class="stat-value profit" data-target="45.76">+$0.00</div>
+            </div>
+            <div class="glass stat-card">
+                <div class="stat-label">Free Margin</div>
+                <div class="stat-value" data-target="9391.02">$0.00</div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid fade-in">
+            <div class="glass" id="three-container">
+                <!-- ThreeJS injected here -->
+            </div>
+            
+            <div class="glass chart-section">
+                <div class="chart-header">
+                    <h3 style="font-family: var(--font-head); color: var(--cyan); text-shadow: var(--glow-cyan);">Market Data Stream</h3>
+                    <select id="pair-select">
+                        <option value="EURUSD">EURUSD (M5)</option>
+                        <option value="XAUUSD">XAUUSD (M5)</option>
+                    </select>
+                </div>
+                <div id="tv-chart"></div>
+            </div>
+        </section>
+
+        <section class="fade-in">
+            <h2 class="positions-title">Active Positions</h2>
+            <div class="positions-grid" id="positions-container">
+                <!-- Injected via JS -->
+            </div>
+        </section>
+
+        <section class="bottom-panels fade-in">
+            <div class="glass ai-panel">
+                <h3 style="font-family: var(--font-head); margin-bottom: 1.5rem; color: var(--cyan);">Core Infrastructure</h3>
+                <ul>
+                    <li>
+                        <div class="ai-icon">🧠</div>
+                        <div>
+                            <div style="font-weight: bold; color: #fff;">Google TimesFM 200M</div>
+                            <div style="font-size: 0.8rem; color: var(--text-dim);">PyTorch / Zero-shot Time Series Forecaster</div>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="ai-icon">📊</div>
+                        <div>
+                            <div style="font-weight: bold; color: #fff;">GMM Classifier</div>
+                            <div style="font-size: 0.8rem; color: var(--text-dim);">Gaussian Mixture Market Regime Detection</div>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="ai-icon">🛡️</div>
+                        <div>
+                            <div style="font-weight: bold; color: #fff;">Risk Policy Matrix</div>
+                            <div style="font-size: 0.8rem; color: var(--text-dim);">Dynamic Breakeven + Chandelier Trail</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="glass">
+                <h3 style="font-family: var(--font-head); margin-bottom: 1.5rem; color: var(--emerald); text-align: center;">Performance Analytics</h3>
+                <div class="radial-chart">
+                    <div class="radial-inner">78.3%</div>
+                </div>
+                <div style="text-align: center; color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Win Rate (30 Days)</div>
+                
+                <div class="perf-metrics">
+                    <div>
+                        <div style="font-size: 1.5rem; color: #fff; font-family: var(--font-head);">23</div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">Total Trades</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; color: #fff; font-family: var(--font-head);">3.42</div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">Sharpe Ratio</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; color: var(--coral); font-family: var(--font-head);">4.1%</div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">Max Drawdown</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.5rem; color: #fff; font-family: var(--font-head);">1:100</div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">ECN Leverage</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            AEGIS QUANTITATIVE TRADING SYSTEM v2.4.1 | SERVER: MetaQuotes-Demo | LATENCY: 12ms <br>
+            UNAUTHORIZED ACCESS IS STRICTLY PROHIBITED
+        </footer>
     </div>
-  </header>
 
-  <main class="dashboard-grid">
-    <!-- Left Sidebar -->
-    <aside style="display:flex; flex-direction:column; gap:20px;">
-      <div class="glass-panel">
-        <div style="font-family:var(--font-hud); font-size:13px; color:var(--text-muted); text-transform:uppercase;">Account Equity</div>
-        <div style="margin:10px 0 16px 0;">
-          <div class="equity-number" id="equity-val">$10,143.30</div>
-          <div class="pnl-badge">+$143.30 (+1.43% PROFIT)</div>
-        </div>
-        <div class="stat-row"><span>Account Balance</span><strong>$9,999.99</strong></div>
-        <div class="stat-row"><span>Free Margin</span><strong style="color:var(--neon-cyan);">$9,985.40</strong></div>
-        <div class="stat-row"><span>Leverage</span><strong>1:100 ECN</strong></div>
-        <div class="stat-row"><span>Max Risk / Trade</span><strong style="color:var(--neon-green);">1.5% Capped</strong></div>
-      </div>
+    <script>
+        // --- Data ---
+        const positions = [
+            { pair: 'GBPUSD', type: 'LONG', lots: 0.15, entry: 1.36375, current: 1.36453, pnl: 11.70, sl: 1.35354, tp: 1.38423 },
+            { pair: 'XAUUSD', type: 'LONG', lots: 0.04, entry: 4570.90, current: 4575.64, pnl: 18.96, sl: 4536.44, tp: 4639.28 },
+            { pair: 'XAGUSD', type: 'LONG', lots: 0.06, entry: 69.287, current: 69.392, pnl: 31.50, sl: 68.749, tp: 70.308 },
+            { pair: 'GBPJPY', type: 'LONG', lots: 0.01, entry: 216.557, current: 216.626, pnl: 0.43, sl: 214.922, tp: 219.794 },
+            { pair: 'NZDUSD', type: 'SHORT', lots: 0.33, entry: 0.59782, current: 0.59833, pnl: -16.83, sl: 0.60229, tp: 0.58884 }
+        ];
 
-      <div class="glass-panel">
-        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:12px;">Signal Radar (12 Pairs)</div>
-        <div id="radar-list"></div>
-      </div>
-    </aside>
+        const eurusdData = [{"t":1787312400,"o":1.17055,"h":1.17093,"l":1.17043,"c":1.17053},{"t":1787312700,"o":1.17053,"h":1.17056,"l":1.16993,"c":1.17003},{"t":1787313000,"o":1.17003,"h":1.17029,"l":1.16984,"c":1.17004},{"t":1787313300,"o":1.17004,"h":1.17063,"l":1.16995,"c":1.17056},{"t":1787313600,"o":1.17056,"h":1.17064,"l":1.17026,"c":1.17049},{"t":1787313900,"o":1.17049,"h":1.17118,"l":1.17044,"c":1.17108},{"t":1787314200,"o":1.17108,"h":1.17118,"l":1.17073,"c":1.17089},{"t":1787314500,"o":1.17089,"h":1.17104,"l":1.17046,"c":1.17052},{"t":1787314800,"o":1.17052,"h":1.17057,"l":1.16998,"c":1.17003},{"t":1787315100,"o":1.17003,"h":1.17008,"l":1.16952,"c":1.16961},{"t":1787315400,"o":1.16961,"h":1.16985,"l":1.16955,"c":1.16976},{"t":1787315700,"o":1.16976,"h":1.17011,"l":1.16972,"c":1.17006},{"t":1787316000,"o":1.17006,"h":1.17017,"l":1.16967,"c":1.16979},{"t":1787316300,"o":1.16979,"h":1.16991,"l":1.16966,"c":1.16972},{"t":1787316600,"o":1.16972,"h":1.17008,"l":1.16965,"c":1.16996},{"t":1787316900,"o":1.16996,"h":1.17018,"l":1.16983,"c":1.17005},{"t":1787317200,"o":1.17005,"h":1.17049,"l":1.17005,"c":1.17034},{"t":1787317500,"o":1.17034,"h":1.17047,"l":1.17002,"c":1.1702},{"t":1787317800,"o":1.1702,"h":1.17029,"l":1.16966,"c":1.16971},{"t":1787318100,"o":1.16971,"h":1.17021,"l":1.16963,"c":1.16993},{"t":1787318400,"o":1.16993,"h":1.17007,"l":1.16978,"c":1.17007},{"t":1787318700,"o":1.17007,"h":1.17018,"l":1.16969,"c":1.16976},{"t":1787319000,"o":1.16976,"h":1.16993,"l":1.16963,"c":1.16977},{"t":1787319300,"o":1.16977,"h":1.17009,"l":1.16971,"c":1.16996},{"t":1787319600,"o":1.16996,"h":1.17023,"l":1.16987,"c":1.17005},{"t":1787319900,"o":1.17005,"h":1.17012,"l":1.16986,"c":1.16998},{"t":1787320200,"o":1.16998,"h":1.17025,"l":1.16972,"c":1.16976},{"t":1787320500,"o":1.16976,"h":1.16989,"l":1.16927,"c":1.16936},{"t":1787320800,"o":1.16936,"h":1.1699,"l":1.16935,"c":1.16961},{"t":1787321100,"o":1.16961,"h":1.16982,"l":1.16944,"c":1.16955},{"t":1787321400,"o":1.16955,"h":1.16967,"l":1.16942,"c":1.16963},{"t":1787321700,"o":1.16963,"h":1.1699,"l":1.16959,"c":1.16979},{"t":1787322000,"o":1.16979,"h":1.17017,"l":1.16963,"c":1.16992},{"t":1787322300,"o":1.16992,"h":1.17003,"l":1.16962,"c":1.16976},{"t":1787322600,"o":1.16976,"h":1.16996,"l":1.16927,"c":1.16937},{"t":1787322900,"o":1.16937,"h":1.16986,"l":1.16929,"c":1.1695},{"t":1787323200,"o":1.1695,"h":1.16964,"l":1.16932,"c":1.16954},{"t":1787323500,"o":1.16954,"h":1.16967,"l":1.16919,"c":1.16926},{"t":1787323800,"o":1.16926,"h":1.16962,"l":1.16916,"c":1.16958},{"t":1787324100,"o":1.16958,"h":1.16975,"l":1.16938,"c":1.16967},{"t":1787324400,"o":1.16967,"h":1.16977,"l":1.1693,"c":1.16932},{"t":1787324700,"o":1.16932,"h":1.16943,"l":1.16903,"c":1.16906},{"t":1787325000,"o":1.16906,"h":1.16919,"l":1.16856,"c":1.16884},{"t":1787325300,"o":1.16884,"h":1.16916,"l":1.16837,"c":1.16869},{"t":1787325600,"o":1.16869,"h":1.16902,"l":1.16849,"c":1.16871},{"t":1787325900,"o":1.16871,"h":1.16886,"l":1.16855,"c":1.16864},{"t":1787326200,"o":1.16864,"h":1.16895,"l":1.16858,"c":1.16891},{"t":1787326500,"o":1.16891,"h":1.16899,"l":1.16861,"c":1.16886},{"t":1787326800,"o":1.16886,"h":1.16926,"l":1.16884,"c":1.16917},{"t":1787327100,"o":1.16917,"h":1.16927,"l":1.16896,"c":1.16896}];
 
-    <!-- Center Stage -->
-    <section style="display:flex; flex-direction:column; gap:20px;">
-      <div class="glass-panel" style="height:350px; position:relative; overflow:hidden;">
-        <div style="position:absolute; top:16px; left:20px; z-index:10; pointer-events:none;">
-          <div style="font-family:var(--font-hud); font-size:14px; color:var(--neon-cyan);">3D Spatial Market Tensor</div>
-          <div style="font-size:11px; color:var(--text-muted);">Drag to rotate • Real-time correlation energy ribbons</div>
-        </div>
-        <div id="three-container" style="width:100%; height:100%;"></div>
-      </div>
+        const xauusdData = [{"t":1787321400,"o":4592.23,"h":4593.26,"l":4588.42,"c":4590.57},{"t":1787321700,"o":4590.59,"h":4597.67,"l":4590.59,"c":4595.97},{"t":1787322000,"o":4595.99,"h":4601.11,"l":4595.81,"c":4598.02},{"t":1787322300,"o":4598.02,"h":4600.11,"l":4595.67,"c":4598.34},{"t":1787322600,"o":4598.41,"h":4598.76,"l":4593.32,"c":4594.93},{"t":1787322900,"o":4595.02,"h":4604.57,"l":4594.99,"c":4597.13},{"t":1787323200,"o":4597.13,"h":4597.74,"l":4593.28,"c":4596.82},{"t":1787323500,"o":4596.82,"h":4600.4,"l":4596.41,"c":4599.69},{"t":1787323800,"o":4599.71,"h":4600.2,"l":4595.68,"c":4597.73},{"t":1787324100,"o":4597.75,"h":4598.69,"l":4596.07,"c":4597.06},{"t":1787324400,"o":4597.05,"h":4601.54,"l":4593.7,"c":4595.54},{"t":1787324700,"o":4595.65,"h":4600.12,"l":4592.02,"c":4593.64},{"t":1787325000,"o":4593.62,"h":4593.99,"l":4589.21,"c":4592.78},{"t":1787325300,"o":4592.73,"h":4595.83,"l":4586.01,"c":4587.84},{"t":1787325600,"o":4587.86,"h":4589.04,"l":4581.94,"c":4585.59},{"t":1787325900,"o":4585.59,"h":4586.66,"l":4583.75,"c":4584.65},{"t":1787326200,"o":4584.65,"h":4584.67,"l":4576.59,"c":4577.78},{"t":1787326500,"o":4577.8,"h":4578.11,"l":4564.17,"c":4564.45},{"t":1787326800,"o":4564.53,"h":4575.73,"l":4563.36,"c":4573.33},{"t":1787327100,"o":4573.35,"h":4575.68,"l":4573.05,"c":4575.46}];
 
-      <div class="glass-panel" style="height:380px; display:flex; flex-direction:column;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div>
-            <span style="font-family:var(--font-hud); font-size:14px;">TimesFM 200M Candlestick & Forecast</span>
-            <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">5-Minute Candlesticks + 32-Step Neural Cone</span>
-          </div>
-          <select id="pair-select" class="pair-selector">
-            <option value="EURUSD">EUR/USD</option>
-            <option value="GBPUSD">GBP/USD</option>
-            <option value="USDJPY">USD/JPY</option>
-            <option value="AUDUSD">AUD/USD</option>
-            <option value="NZDUSD">NZD/USD</option>
-            <option value="XAUUSD">XAU/USD (Gold)</option>
-            <option value="XAGUSD">XAG/USD (Silver)</option>
-          </select>
-        </div>
-        <div id="tv-chart" style="flex:1; width:100%; border-radius:8px; overflow:hidden;"></div>
-      </div>
-    </section>
+        const mappedEurusd = eurusdData.map(d => ({time: d.t, open: d.o, high: d.h, low: d.l, close: d.c}));
+        const mappedXauusd = xauusdData.map(d => ({time: d.t, open: d.o, high: d.h, low: d.l, close: d.c}));
 
-    <!-- Right Sidebar -->
-    <aside style="display:flex; flex-direction:column; gap:20px;">
-      <div class="glass-panel">
-        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:12px;">Live Active Positions</div>
-        <div id="pos-container">
-          <div class="position-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong>GBPUSD</strong>
-              <span class="pos-badge">SHORT 0.15 Lots</span>
-              <span style="color:var(--neon-green); font-weight:700;">+$8.70</span>
-            </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 1.36554 | SL: 1.36550 (Risk-Free)</div>
-          </div>
-          <div class="position-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong>AUDUSD</strong>
-              <span class="pos-badge">SHORT 0.28 Lots</span>
-              <span style="color:var(--neon-green); font-weight:700;">+$5.04</span>
-            </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 0.71618 | SL: 0.71610 (Risk-Free)</div>
-          </div>
-          <div class="position-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong>USDJPY</strong>
-              <span class="pos-badge" style="background:rgba(0,255,136,0.15); color:var(--neon-green); border-color:var(--neon-green);">LONG 0.01 Lots</span>
-              <span style="color:var(--neon-green); font-weight:700;">+$0.15</span>
-            </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Entry: 158.585 | SL: 157.394</div>
-          </div>
-        </div>
-      </div>
+        // --- Init Background Particles ---
+        const particleContainer = document.getElementById('particles');
+        for(let i=0; i<30; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 4 + 1;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+            p.style.animationDelay = (Math.random() * 10) + 's';
+            particleContainer.appendChild(p);
+        }
 
-      <div class="glass-panel">
-        <div style="font-family:var(--font-hud); font-size:13px; margin-bottom:8px;">Smart Manager Protocol</div>
-        <div style="font-size:11px; color:var(--text-muted); line-height:1.6;">
-          <div>🛡️ <strong>Auto-Breakeven</strong>: +0.8 ATR</div>
-          <div>💰 <strong>Tier 1 Lock (50% Banked)</strong>: +1.5 ATR</div>
-          <div>📈 <strong>Chandelier Trail</strong>: +2.5 ATR+</div>
-          <div>⚡ <strong>AI Reversal Veto</strong>: Instant protect</div>
-        </div>
-      </div>
-    </aside>
-  </main>
+        // --- Render Positions ---
+        const posContainer = document.getElementById('positions-container');
+        positions.forEach(pos => {
+            const isProfit = pos.pnl > 0;
+            const pnlColor = isProfit ? 'var(--emerald)' : 'var(--coral)';
+            const pnlSign = isProfit ? '+' : '';
+            
+            // Calc progress (simplistic calculation based on current price relative to entry/tp)
+            let progress = 0;
+            if (pos.type === 'LONG') {
+                progress = Math.max(0, Math.min(100, ((pos.current - pos.entry) / (pos.tp - pos.entry)) * 100));
+                if(pos.current < pos.entry) progress = 0; // rough representation
+            } else {
+                progress = Math.max(0, Math.min(100, ((pos.entry - pos.current) / (pos.entry - pos.tp)) * 100));
+                if(pos.current > pos.entry) progress = 0;
+            }
 
-  <script>
-    // 3D Three.js Scene
-    const container = document.getElementById('three-container');
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-    camera.position.set(0, 12, 32);
+            const html = `
+                <div class="glass pos-card">
+                    <div class="pos-header">
+                        <div class="pos-pair">${pos.pair} <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-dim);">${pos.lots} lots</span></div>
+                        <div class="pos-badge ${pos.type === 'LONG' ? 'badge-long' : 'badge-short'}">${pos.type}</div>
+                    </div>
+                    <div class="pos-details">
+                        <div>Entry: <span style="color:#fff;">${pos.entry}</span></div>
+                        <div>Cur: <span style="color:#fff;">${pos.current}</span></div>
+                        <div>SL: <span style="color:var(--text-dim);">${pos.sl}</span></div>
+                        <div>TP: <span style="color:var(--text-dim);">${pos.tp}</span></div>
+                    </div>
+                    <div class="pos-pnl" style="color: ${pnlColor}; text-shadow: 0 0 10px ${isProfit ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'}">
+                        ${pnlSign}$${Math.abs(pos.pnl).toFixed(2)}
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: 0%; background: ${pnlColor}" data-width="${progress}%"></div>
+                    </div>
+                </div>
+            `;
+            posContainer.insertAdjacentHTML('beforeend', html);
+        });
 
-    const ambientLight = new THREE.AmbientLight(0x0a192f, 2.0);
-    scene.add(ambientLight);
-    const pointCyan = new THREE.PointLight(0x00f0ff, 3.0, 50);
-    pointCyan.position.set(10, 15, 10);
-    scene.add(pointCyan);
+        // --- Animations ---
+        // Observer for fade-in
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    // Animate numbers if any
+                    const counters = entry.target.querySelectorAll('.stat-value');
+                    counters.forEach(counter => {
+                        const target = +counter.getAttribute('data-target');
+                        if(!counter.hasAttribute('data-animated')) {
+                            counter.setAttribute('data-animated', 'true');
+                            animateValue(counter, 0, target, 2000);
+                        }
+                    });
+                    // Animate progress bars
+                    const bars = entry.target.querySelectorAll('.progress-bar');
+                    bars.forEach(bar => {
+                        bar.style.width = bar.getAttribute('data-width');
+                    });
+                }
+            });
+        }, { threshold: 0.1 });
 
-    const coreGeo = new THREE.IcosahedronGeometry(3.5, 2);
-    const coreMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.4 });
-    const core = new THREE.Mesh(coreGeo, coreMat);
-    scene.add(core);
+        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
-    const pairs = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP', 'EURJPY', 'GBPJPY', 'XAUUSD', 'XAGUSD'];
-    const nodes = [];
-    pairs.forEach((p, i) => {
-      const angle = (i / pairs.length) * Math.PI * 2;
-      const x = Math.cos(angle) * 12;
-      const z = Math.sin(angle) * 12;
-      const y = Math.sin(i) * 3;
-      const sGeo = new THREE.SphereGeometry(0.8, 16, 16);
-      const sMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00f0ff, emissiveIntensity: 0.6 });
-      const s = new THREE.Mesh(sGeo, sMat);
-      s.position.set(x, y, z);
-      scene.add(s);
-      nodes.push(s);
-    });
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                // ease out quad
+                const ease = 1 - (1 - progress) * (1 - progress);
+                const current = start + ease * (end - start);
+                
+                let prefix = obj.classList.contains('profit') ? '+$' : '$';
+                if(end === 45.76 && obj.classList.contains('profit')) {} else if(obj.classList.contains('profit')) { prefix = ''; }
+                
+                obj.innerHTML = prefix + current.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
 
-    function animate() {
-      requestAnimationFrame(animate);
-      core.rotation.x += 0.005;
-      core.rotation.y += 0.008;
-      scene.rotation.y += 0.002;
-      renderer.render(scene, camera);
-    }
-    animate();
+        // --- TradingView Chart ---
+        const chartProperties = {
+            layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#8a9bb3', fontFamily: "'JetBrains Mono', monospace" },
+            grid: { vertLines: { color: 'rgba(255, 255, 255, 0.05)' }, horzLines: { color: 'rgba(255, 255, 255, 0.05)' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+            timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true }
+        };
 
-    // TradingView Lightweight Candlestick Chart
-    const chartContainer = document.getElementById('tv-chart');
-    const chart = LightweightCharts.createChart(chartContainer, {
-      width: chartContainer.clientWidth,
-      height: 310,
-      layout: { background: { type: 'solid', color: 'rgba(10, 16, 32, 0.6)' }, textColor: '#8b9bb4', fontSize: 11 },
-      grid: { vertLines: { color: 'rgba(0, 240, 255, 0.04)' }, horzLines: { color: 'rgba(0, 240, 255, 0.04)' } },
-      rightPriceScale: { borderColor: 'rgba(0, 240, 255, 0.15)' },
-      timeScale: { borderColor: 'rgba(0, 240, 255, 0.15)', timeVisible: true },
-    });
+        const chartContainer = document.getElementById('tv-chart');
+        const chart = LightweightCharts.createChart(chartContainer, chartProperties);
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#00ff88', downColor: '#ff3366',
+            borderDownColor: '#ff3366', borderUpColor: '#00ff88',
+            wickDownColor: '#ff3366', wickUpColor: '#00ff88'
+        });
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#00ff88', downColor: '#ff3366', borderUpColor: '#00ff88', borderDownColor: '#ff3366', wickUpColor: '#00ff88', wickDownColor: '#ff3366'
-    });
+        candleSeries.setData(mappedEurusd);
+        chart.timeScale().fitContent();
 
-    const forecastSeries = chart.addLineSeries({ color: '#00f0ff', lineWidth: 2, lineStyle: 2, title: 'TimesFM Neural' });
+        // Resize handler
+        new ResizeObserver(entries => {
+            if (entries.length === 0 || entries[0].target !== chartContainer) { return; }
+            const newRect = entries[0].contentRect;
+            chart.applyOptions({ height: newRect.height, width: newRect.width });
+        }).observe(chartContainer);
 
-    // Generate Initial Historical Candlesticks
-    function generateCandles(basePrice) {
-      const data = [];
-      let price = basePrice;
-      const now = Math.floor(Date.now() / 1000);
-      for (let i = 45; i >= 0; i--) {
-        const time = now - i * 300;
-        const open = price;
-        const delta = (Math.random() - 0.48) * (basePrice * 0.001);
-        const close = open + delta;
-        const high = Math.max(open, close) + Math.random() * (basePrice * 0.0005);
-        const low = Math.min(open, close) - Math.random() * (basePrice * 0.0005);
-        price = close;
-        data.push({ time, open, high, low, close });
-      }
-      return data;
-    }
+        document.getElementById('pair-select').addEventListener('change', (e) => {
+            if(e.target.value === 'EURUSD') {
+                candleSeries.setData(mappedEurusd);
+            } else {
+                candleSeries.setData(mappedXauusd);
+            }
+            chart.timeScale().fitContent();
+        });
 
-    let candles = generateCandles(1.1704);
-    candleSeries.setData(candles);
 
-    // Neural forecast trajectory
-    const lastBar = candles[candles.length - 1];
-    const forecastPoints = [{ time: lastBar.time, value: lastBar.close }];
-    for (let s = 1; s <= 8; s++) {
-      forecastPoints.push({ time: lastBar.time + s * 300, value: lastBar.close + (lastBar.close * 0.0003 * s) });
-    }
-    forecastSeries.setData(forecastPoints);
+        // --- Three.js 3D Market Globe ---
+        const threeContainer = document.getElementById('three-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, threeContainer.clientWidth / threeContainer.clientHeight, 0.1, 1000);
+        camera.position.z = 15;
 
-    document.getElementById('pair-select').addEventListener('change', (e) => {
-      const bases = { EURUSD: 1.1704, GBPUSD: 1.3655, USDJPY: 158.58, AUDUSD: 0.7161, NZDUSD: 0.5978, XAUUSD: 4581.5, XAGUSD: 69.8 };
-      candles = generateCandles(bases[e.target.value] || 1.17);
-      candleSeries.setData(candles);
-    });
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(threeContainer.clientWidth, threeContainer.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        threeContainer.appendChild(renderer.domElement);
 
-    // Populate Radar List
-    const radarList = document.getElementById('radar-list');
-    radarList.innerHTML = pairs.map(p => `
-      <div class="stat-row">
-        <strong>${p}</strong>
-        <span style="color:var(--neon-cyan);">60.5% Prob</span>
-        <span style="color:var(--neon-green); font-weight:700;">ACTIVE</span>
-      </div>
-    `).join('');
+        // Core Icosahedron
+        const coreGeo = new THREE.IcosahedronGeometry(2, 1);
+        const coreMat = new THREE.MeshPhongMaterial({
+            color: 0x00f0ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        scene.add(core);
 
-    window.addEventListener('resize', () => {
-      chart.applyOptions({ width: chartContainer.clientWidth });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    });
-  </script>
+        // Inner solid core
+        const innerGeo = new THREE.IcosahedronGeometry(1.8, 0);
+        const innerMat = new THREE.MeshPhongMaterial({
+            color: 0x070a12,
+            emissive: 0x004050,
+            flatShading: true
+        });
+        const innerCore = new THREE.Mesh(innerGeo, innerMat);
+        core.add(innerCore);
+
+        // Orbiting Nodes (Assets)
+        const nodes = new THREE.Group();
+        scene.add(nodes);
+        
+        const nodeMatBull = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+        const nodeMatBear = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+        const nodeGeo = new THREE.SphereGeometry(0.2, 16, 16);
+
+        for (let i = 0; i < 12; i++) {
+            const isBull = Math.random() > 0.5;
+            const node = new THREE.Mesh(nodeGeo, isBull ? nodeMatBull : nodeMatBear);
+            
+            // Random spherical coordinates
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            const r = 4 + Math.random() * 2;
+            
+            node.position.x = r * Math.sin(phi) * Math.cos(theta);
+            node.position.y = r * Math.sin(phi) * Math.sin(theta);
+            node.position.z = r * Math.cos(phi);
+            
+            // Custom orbital data
+            node.userData = {
+                angle: Math.random() * Math.PI * 2,
+                speed: 0.005 + Math.random() * 0.01,
+                radius: r,
+                axis: new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize()
+            };
+            
+            // Connecting line to core
+            const lineMat = new THREE.LineBasicMaterial({ color: isBull ? 0x00ff88 : 0xff3366, transparent: true, opacity: 0.2 });
+            const points = [new THREE.Vector3(0,0,0), node.position];
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(lineGeo, lineMat);
+            node.userData.line = line;
+            scene.add(line);
+            
+            nodes.add(node);
+        }
+
+        // Ambient Particles
+        const partGeo = new THREE.BufferGeometry();
+        const partCount = 500;
+        const posArray = new Float32Array(partCount * 3);
+        for(let i=0; i<partCount*3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 20;
+        }
+        partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const partMat = new THREE.PointsMaterial({ size: 0.05, color: 0x00f0ff, transparent: true, opacity: 0.5 });
+        const particleMesh = new THREE.Points(partGeo, partMat);
+        scene.add(particleMesh);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0x00f0ff, 2, 50);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        // Mouse interaction
+        let mouseX = 0;
+        let mouseY = 0;
+        let targetX = 0;
+        let targetY = 0;
+        const windowHalfX = threeContainer.clientWidth / 2;
+        const windowHalfY = threeContainer.clientHeight / 2;
+
+        threeContainer.addEventListener('mousemove', (e) => {
+            const rect = threeContainer.getBoundingClientRect();
+            mouseX = (e.clientX - rect.left) - windowHalfX;
+            mouseY = (e.clientY - rect.top) - windowHalfY;
+        });
+
+        window.addEventListener('resize', () => {
+            const width = threeContainer.clientWidth;
+            const height = threeContainer.clientHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+
+        // Animation Loop
+        function animateThree() {
+            requestAnimationFrame(animateThree);
+            
+            targetX = mouseX * 0.001;
+            targetY = mouseY * 0.001;
+            
+            core.rotation.y += 0.002;
+            core.rotation.x += 0.001;
+            
+            scene.rotation.x += 0.05 * (targetY - scene.rotation.x);
+            scene.rotation.y += 0.05 * (targetX - scene.rotation.y);
+
+            nodes.children.forEach(node => {
+                // Orbital rotation using quaternions
+                node.position.applyAxisAngle(node.userData.axis, node.userData.speed);
+                // Update connecting line
+                const positions = node.userData.line.geometry.attributes.position.array;
+                positions[3] = node.position.x;
+                positions[4] = node.position.y;
+                positions[5] = node.position.z;
+                node.userData.line.geometry.attributes.position.needsUpdate = true;
+            });
+            
+            particleMesh.rotation.y -= 0.001;
+
+            renderer.render(scene, camera);
+        }
+        animateThree();
+
+    </script>
 </body>
 </html>
