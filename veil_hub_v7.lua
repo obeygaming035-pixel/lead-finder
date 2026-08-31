@@ -322,17 +322,32 @@ local function findByPriority(mode, questMob)
 end
 
 -- === SECTION 8: COMBAT CONTROLLER ===
+
+-- Discover the game's combat remotes at runtime
+-- Blox Fruits uses ReplicatedStorage.Remotes.CommF_ (RemoteFunction)
+-- and ReplicatedStorage.Remotes.CommE (RemoteEvent) for actions
+local _CommF = nil
+local _CommE = nil
+local _Remotes = nil
+
+pcall(function()
+    _Remotes = RS:FindFirstChild("Remotes")
+    if _Remotes then
+        _CommF = _Remotes:FindFirstChild("CommF_")
+        _CommE = _Remotes:FindFirstChild("CommE")
+    end
+end)
+
 local function equipWeapon()
-    -- Make sure a weapon tool is equipped on the character
     pcall(function()
         local char = LP.Character
         if not char then return end
-        if char:FindFirstChildOfClass("Tool") then return end -- already equipped
+        if char:FindFirstChildOfClass("Tool") then return end
         local bp = LP:FindFirstChild("Backpack")
         if not bp then return end
         for _, t in pairs(bp:GetChildren()) do
             if t:IsA("Tool") then
-                t.Parent = char -- equip it
+                t.Parent = char
                 return
             end
         end
@@ -345,13 +360,24 @@ local function attackMob(mob)
     local mhrp = mob:FindFirstChild("HumanoidRootPart")
     if not mhum or not mhrp or mhum.Health <= 0 then return end
     
-    -- Face the mob
     pcall(function() face(mhrp.Position) end)
-    
-    -- Auto-equip weapon
     equipWeapon()
     
-    -- Method 1: firetouchinterest (MOST RELIABLE for BF melee damage)
+    -- METHOD 1: Game remote (CommF_ RemoteFunction) — how real BF hubs work
+    pcall(function()
+        if _CommF and _CommF:IsA("RemoteFunction") then
+            _CommF:InvokeServer("MeleeAttack")
+        end
+    end)
+    
+    -- METHOD 2: Game event (CommE RemoteEvent)
+    pcall(function()
+        if _CommE and _CommE:IsA("RemoteEvent") then
+            _CommE:FireServer("MeleeAttack")
+        end
+    end)
+    
+    -- METHOD 3: firetouchinterest
     pcall(function()
         if _firetouchinterest then
             local char = LP.Character
@@ -360,28 +386,26 @@ local function attackMob(mob)
             if tool then
                 local handle = tool:FindFirstChild("Handle")
                 if handle then
-                    _firetouchinterest(handle, mhrp, 0) -- touch begin
-                    twait()                              -- MUST wait between begin/end
-                    _firetouchinterest(handle, mhrp, 1) -- touch end
+                    _firetouchinterest(handle, mhrp, 0)
+                    twait()
+                    _firetouchinterest(handle, mhrp, 1)
                 end
             end
         end
     end)
     
-    -- Method 2: VIM click at SCREEN CENTER (not 0,0 which does nothing)
+    -- METHOD 4: VIM click at screen center
     pcall(function()
         local cam = WS.CurrentCamera
         if cam then
             local vpSize = cam.ViewportSize
-            local cx = vpSize.X / 2
-            local cy = vpSize.Y / 2
-            VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+            VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, true, game, 1)
             twait()
-            VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+            VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, false, game, 1)
         end
     end)
     
-    -- Method 3: Tool activate
+    -- METHOD 5: Tool activate
     pcall(function()
         local char = LP.Character
         if char then
@@ -486,8 +510,8 @@ local function autoFarmLoop()
                     if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
                         local mhrp = mob:FindFirstChild("HumanoidRootPart")
                         if mhrp then
-                            -- Teleport to above mob
-                            local offset = mhrp.CFrame * CFrame.new(0, S.farmDist, 0)
+                            -- Position BEHIND the mob (within melee range), NOT above it
+                            local offset = mhrp.CFrame * CFrame.new(0, 0, S.farmDist)
                             teleportTo(offset)
                             S.farmState = "ATTACKING"
                         else
@@ -501,8 +525,8 @@ local function autoFarmLoop()
                 elseif S.farmState == "ATTACKING" then
                     local mob = S.currentTarget
                     if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        -- Inner loop: hold position above mob + attack every frame
-                        -- This is how real BF scripts work — you MUST hold CFrame every frame
+                        -- Inner loop: hold position NEXT TO mob + attack every frame
+                        -- Real BF scripts snap you next to the mob, not above it
                         local attackTimer = tick()
                         while S.autoFarm and not S.emergencyStop do
                             local mhum = mob:FindFirstChild("Humanoid")
@@ -510,10 +534,10 @@ local function autoFarmLoop()
                             if not mob.Parent or not mhum or not mhrp or mhum.Health <= 0 then
                                 break -- mob dead, exit inner loop
                             end
-                            -- Hold position above mob EVERY FRAME
+                            -- Hold position BEHIND mob EVERY FRAME (within melee range)
                             local myhrp = getHRP()
                             if not myhrp then break end
-                            myhrp.CFrame = mhrp.CFrame * CFrame.new(0, S.farmDist, 0)
+                            myhrp.CFrame = mhrp.CFrame * CFrame.new(0, 0, S.farmDist)
                             myhrp.Velocity = Vector3.new(0, 0, 0)
                             -- Attack at configured interval
                             if tick() - attackTimer >= S.attackSpeed then
