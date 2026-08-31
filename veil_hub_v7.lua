@@ -206,31 +206,38 @@ local function getHRP()
 end
 
 -- === SECTION 6: MOVEMENT CONTROLLER ===
-local activeTween = nil
-local function tweenTo(targetCF, speed)
-    speed = speed or S.tweenSpeed
+-- TweenService DOES NOT WORK for BF teleport — server rejects it and snaps you back.
+-- Direct CFrame setting held over multiple frames is the working method.
+
+local function teleportTo(targetCF)
     local hrp = getHRP()
     if not hrp then return end
-    
-    local dist = (hrp.Position - targetCF.Position).Magnitude
-    local time = dist / speed
-    if time > 5 then time = 5 end
-    if time < 0.1 then time = 0.1 end
-    
-    local tInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    if activeTween then activeTween:Cancel() end
-    
-    -- Using TweenService, no anchoring to prevent death
-    activeTween = TS:Create(hrp, tInfo, {CFrame = targetCF})
-    activeTween:Play()
-    activeTween.Completed:Wait()
-    activeTween = nil
+    -- Hold position for 30 frames (~0.5s) so the server accepts it
+    for i = 1, 30 do
+        hrp = getHRP()
+        if not hrp then break end
+        hrp.CFrame = targetCF
+        hrp.Velocity = Vector3.new(0, 0, 0)
+        if hrp:FindFirstChildOfClass("BodyVelocity") then
+            hrp:FindFirstChildOfClass("BodyVelocity"):Destroy()
+        end
+        RunS.Heartbeat:Wait()
+    end
+end
+
+-- Alias for compatibility
+local function tweenTo(targetCF, _speed)
+    teleportTo(targetCF)
 end
 
 local function instantTP(targetCF)
-    local hrp = getHRP()
-    if hrp then
+    -- Same as teleportTo but fewer frames (for in-combat repositioning)
+    for i = 1, 5 do
+        local hrp = getHRP()
+        if not hrp then break end
         hrp.CFrame = targetCF
+        hrp.Velocity = Vector3.new(0, 0, 0)
+        RunS.Heartbeat:Wait()
     end
 end
 
@@ -315,41 +322,71 @@ local function findByPriority(mode, questMob)
 end
 
 -- === SECTION 8: COMBAT CONTROLLER ===
+local function equipWeapon()
+    -- Make sure a weapon tool is equipped on the character
+    pcall(function()
+        local char = LP.Character
+        if not char then return end
+        if char:FindFirstChildOfClass("Tool") then return end -- already equipped
+        local bp = LP:FindFirstChild("Backpack")
+        if not bp then return end
+        for _, t in pairs(bp:GetChildren()) do
+            if t:IsA("Tool") then
+                t.Parent = char -- equip it
+                return
+            end
+        end
+    end)
+end
+
 local function attackMob(mob)
-    if not mob or not mob:FindFirstChild("HumanoidRootPart") or not mob:FindFirstChild("Humanoid") then return end
-    if mob.Humanoid.Health <= 0 then return end
+    if not mob or not mob.Parent then return end
+    local mhum = mob:FindFirstChild("Humanoid")
+    local mhrp = mob:FindFirstChild("HumanoidRootPart")
+    if not mhum or not mhrp or mhum.Health <= 0 then return end
     
-    face(mob.HumanoidRootPart.Position)
+    -- Face the mob
+    pcall(function() face(mhrp.Position) end)
     
+    -- Auto-equip weapon
+    equipWeapon()
+    
+    -- Method 1: firetouchinterest (MOST RELIABLE for BF melee damage)
     pcall(function()
-        -- 1. VirtualInputManager for mouse clicks
-        VIM:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        VIM:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    end)
-    
-    pcall(function()
-        -- 2. Equip tool and activate
-        local tool = LP.Character:FindFirstChildOfClass("Tool")
-        if not tool and S.autoEquip then
-            local bpTool = LP.Backpack:FindFirstChildOfClass("Tool")
-            if bpTool then
-                getHum():EquipTool(bpTool)
-                tool = bpTool
-            end
-        end
-        if tool then
-            tool:Activate()
-        end
-    end)
-    
-    pcall(function()
-        -- 3. firetouchinterest if available
         if _firetouchinterest then
-            local tool = LP.Character:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("Handle") then
-                _firetouchinterest(tool.Handle, mob.HumanoidRootPart, 0)
-                _firetouchinterest(tool.Handle, mob.HumanoidRootPart, 1)
+            local char = LP.Character
+            if not char then return end
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                local handle = tool:FindFirstChild("Handle")
+                if handle then
+                    _firetouchinterest(handle, mhrp, 0) -- touch begin
+                    twait()                              -- MUST wait between begin/end
+                    _firetouchinterest(handle, mhrp, 1) -- touch end
+                end
             end
+        end
+    end)
+    
+    -- Method 2: VIM click at SCREEN CENTER (not 0,0 which does nothing)
+    pcall(function()
+        local cam = WS.CurrentCamera
+        if cam then
+            local vpSize = cam.ViewportSize
+            local cx = vpSize.X / 2
+            local cy = vpSize.Y / 2
+            VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+            twait()
+            VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+        end
+    end)
+    
+    -- Method 3: Tool activate
+    pcall(function()
+        local char = LP.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
         end
     end)
 end
@@ -364,12 +401,15 @@ local function kaStart()
             if S.emergencyStop then S.killAura = false; break end
             local hrp = getHRP()
             if hrp then
+                -- Ensure weapon equipped for combat to work
+                equipWeapon()
                 local mobs = getMobs()
                 for _, mob in ipairs(mobs) do
+                    if not S.killAura or S.emergencyStop then break end
                     local mhrp = mob:FindFirstChild("HumanoidRootPart")
                     if mhrp then
                         local dist = (hrp.Position - mhrp.Position).Magnitude
-                        -- IMPORTANT: NEVER teleport for Kill Aura, only check distance
+                        -- IMPORTANT: NEVER teleport for Kill Aura, only attack in range
                         if dist <= S.auraRange then
                             attackMob(mob)
                         end
@@ -446,26 +486,47 @@ local function autoFarmLoop()
                     if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
                         local mhrp = mob:FindFirstChild("HumanoidRootPart")
                         if mhrp then
+                            -- Teleport to above mob
                             local offset = mhrp.CFrame * CFrame.new(0, S.farmDist, 0)
-                            tweenTo(offset, S.tweenSpeed)
+                            teleportTo(offset)
                             S.farmState = "ATTACKING"
                         else
                             S.farmState = "FINDING_MOB"
                         end
                     else
+                        S.currentTarget = nil
                         S.farmState = "FINDING_MOB"
                     end
                     
                 elseif S.farmState == "ATTACKING" then
                     local mob = S.currentTarget
                     if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        local mhrp = mob:FindFirstChild("HumanoidRootPart")
-                        if mhrp then
-                            local offset = mhrp.CFrame * CFrame.new(0, S.farmDist, 0)
-                            instantTP(offset)
-                            attackMob(mob)
+                        -- Inner loop: hold position above mob + attack every frame
+                        -- This is how real BF scripts work — you MUST hold CFrame every frame
+                        local attackTimer = tick()
+                        while S.autoFarm and not S.emergencyStop do
+                            local mhum = mob:FindFirstChild("Humanoid")
+                            local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                            if not mob.Parent or not mhum or not mhrp or mhum.Health <= 0 then
+                                break -- mob dead, exit inner loop
+                            end
+                            -- Hold position above mob EVERY FRAME
+                            local myhrp = getHRP()
+                            if not myhrp then break end
+                            myhrp.CFrame = mhrp.CFrame * CFrame.new(0, S.farmDist, 0)
+                            myhrp.Velocity = Vector3.new(0, 0, 0)
+                            -- Attack at configured interval
+                            if tick() - attackTimer >= S.attackSpeed then
+                                attackMob(mob)
+                                attackTimer = tick()
+                            end
+                            RunS.Heartbeat:Wait()
                         end
+                        -- Mob died or farm stopped
+                        S.currentTarget = nil
+                        S.farmState = "FINDING_MOB"
                     else
+                        S.currentTarget = nil
                         S.farmState = "FINDING_MOB"
                     end
                     
@@ -692,8 +753,8 @@ local function triggerEmergencyStop()
         end
     end
     flyOff()
-    if activeTween then activeTween:Cancel(); activeTween = nil end
     S.farmState = "IDLE"
+    S.currentTarget = nil
     notify("EMERGENCY STOP", "All tasks stopped.")
     twait(1)
     S.emergencyStop = false
