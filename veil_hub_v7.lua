@@ -323,13 +323,8 @@ end
 
 -- === SECTION 8: COMBAT CONTROLLER ===
 
--- Discover the game's combat remotes at runtime
--- Blox Fruits uses ReplicatedStorage.Remotes.CommF_ (RemoteFunction)
--- and ReplicatedStorage.Remotes.CommE (RemoteEvent) for actions
-local _CommF = nil
-local _CommE = nil
-local _Remotes = nil
-
+-- Discover game remotes (used as one of many attack vectors)
+local _CommF, _CommE, _Remotes = nil, nil, nil
 pcall(function()
     _Remotes = RS:FindFirstChild("Remotes")
     if _Remotes then
@@ -354,64 +349,87 @@ local function equipWeapon()
     end)
 end
 
+-- Get the weapon handle (or any BasePart from the tool)
+local function getHandle()
+    local char = LP.Character
+    if not char then return nil end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then return nil end
+    -- Try "Handle" first (standard Roblox tool structure)
+    local h = tool:FindFirstChild("Handle")
+    if h and h:IsA("BasePart") then return h end
+    -- Fallback: find any BasePart in the tool
+    for _, p in pairs(tool:GetDescendants()) do
+        if p:IsA("BasePart") then return p end
+    end
+    return nil
+end
+
+-- ========== THE CORE EXPLOIT ATTACK ==========
+-- firetouchinterest IGNORES DISTANCE. It simulates a physics touch
+-- between two parts no matter where they are in the world.
+-- THIS is the "range hack" — you don't need to be near the mob.
+-- =============================================
+
 local function attackMob(mob)
     if not mob or not mob.Parent then return end
     local mhum = mob:FindFirstChild("Humanoid")
-    local mhrp = mob:FindFirstChild("HumanoidRootPart")
-    if not mhum or not mhrp or mhum.Health <= 0 then return end
+    if not mhum or mhum.Health <= 0 then return end
     
-    pcall(function() face(mhrp.Position) end)
     equipWeapon()
     
-    -- METHOD 1: Game remote (CommF_ RemoteFunction) — how real BF hubs work
+    -- EXPLOIT METHOD 1: firetouchinterest — HIT FROM ANY DISTANCE
+    -- This touches the weapon handle against EVERY part of the mob
+    -- Distance does NOT matter — that's what makes it an exploit
     pcall(function()
-        if _CommF and _CommF:IsA("RemoteFunction") then
-            _CommF:InvokeServer("MeleeAttack")
-        end
-    end)
-    
-    -- METHOD 2: Game event (CommE RemoteEvent)
-    pcall(function()
-        if _CommE and _CommE:IsA("RemoteEvent") then
-            _CommE:FireServer("MeleeAttack")
-        end
-    end)
-    
-    -- METHOD 3: firetouchinterest
-    pcall(function()
-        if _firetouchinterest then
-            local char = LP.Character
-            if not char then return end
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool then
-                local handle = tool:FindFirstChild("Handle")
-                if handle then
-                    _firetouchinterest(handle, mhrp, 0)
-                    twait()
-                    _firetouchinterest(handle, mhrp, 1)
-                end
+        if not _firetouchinterest then return end
+        local handle = getHandle()
+        if not handle then return end
+        -- Touch all BaseParts on the mob for maximum hit registration
+        for _, part in pairs(mob:GetChildren()) do
+            if part:IsA("BasePart") then
+                _firetouchinterest(handle, part, 0) -- touch begin
+                _firetouchinterest(handle, part, 1) -- touch end
             end
         end
     end)
     
-    -- METHOD 4: VIM click at screen center
+    -- EXPLOIT METHOD 2: Bring mob TO player temporarily
+    -- Teleport the mob's HRP to right in front of us, click, server resets mob
+    pcall(function()
+        local hrp = getHRP()
+        local mhrp = mob:FindFirstChild("HumanoidRootPart")
+        if not hrp or not mhrp then return end
+        -- Snap mob in front of player
+        mhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+        mhrp.Velocity = Vector3.new(0, 0, 0)
+    end)
+    
+    -- METHOD 3: VIM click (mob is now in front of us from method 2)
     pcall(function()
         local cam = WS.CurrentCamera
         if cam then
             local vpSize = cam.ViewportSize
             VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, true, game, 1)
-            twait()
             VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, false, game, 1)
         end
     end)
     
-    -- METHOD 5: Tool activate
+    -- METHOD 4: Tool activate
     pcall(function()
         local char = LP.Character
         if char then
             local tool = char:FindFirstChildOfClass("Tool")
             if tool then tool:Activate() end
         end
+    end)
+    
+    -- METHOD 5: Game remotes (extra vector)
+    pcall(function()
+        if _CommF then _CommF:InvokeServer("MeleeAttack") end
+    end)
+    pcall(function()
+        if _CommE then _CommE:FireServer("MeleeAttack") end
     end)
 end
 
@@ -425,15 +443,16 @@ local function kaStart()
             if S.emergencyStop then S.killAura = false; break end
             local hrp = getHRP()
             if hrp then
-                -- Ensure weapon equipped for combat to work
                 equipWeapon()
                 local mobs = getMobs()
                 for _, mob in ipairs(mobs) do
                     if not S.killAura or S.emergencyStop then break end
-                    local mhrp = mob:FindFirstChild("HumanoidRootPart")
-                    if mhrp then
-                        local dist = (hrp.Position - mhrp.Position).Magnitude
-                        -- IMPORTANT: NEVER teleport for Kill Aura, only attack in range
+                    local mhum = mob:FindFirstChild("Humanoid")
+                    if mhum and mhum.Health > 0 then
+                        local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                        local dist = mhrp and (hrp.Position - mhrp.Position).Magnitude or 9999
+                        -- auraRange limits how many mobs we target (performance)
+                        -- but firetouchinterest hits from ANY distance (the exploit)
                         if dist <= S.auraRange then
                             attackMob(mob)
                         end
@@ -499,54 +518,49 @@ local function autoFarmLoop()
                     local mob = findByPriority(S.targetMode)
                     if mob then
                         S.currentTarget = mob
-                        S.farmState = "POSITIONING"
+                        S.farmState = "ATTACKING"
                     else
+                        -- No mobs found — maybe we're on the wrong island
+                        -- Teleport to the correct island if autoLevel is on
+                        if S.autoLevel and S.farmIsland ~= "None" then
+                            for _, isl in ipairs(Islands) do
+                                if isl.name == S.farmIsland then
+                                    local myhrp = getHRP()
+                                    if myhrp then
+                                        local dist = (myhrp.Position - isl.cframe.Position).Magnitude
+                                        if dist > 500 then
+                                            notify("Farm", "Traveling to " .. isl.name)
+                                            S.farmState = "TRAVELING"
+                                            teleportTo(isl.cframe)
+                                            S.farmState = "FINDING_MOB"
+                                        end
+                                    end
+                                    break
+                                end
+                            end
+                        end
                         S.farmState = "CHECKING_LEVEL"
                         twait(1)
-                    end
-                    
-                elseif S.farmState == "POSITIONING" then
-                    local mob = S.currentTarget
-                    if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        local mhrp = mob:FindFirstChild("HumanoidRootPart")
-                        if mhrp then
-                            -- Position BEHIND the mob (within melee range), NOT above it
-                            local offset = mhrp.CFrame * CFrame.new(0, 0, S.farmDist)
-                            teleportTo(offset)
-                            S.farmState = "ATTACKING"
-                        else
-                            S.farmState = "FINDING_MOB"
-                        end
-                    else
-                        S.currentTarget = nil
-                        S.farmState = "FINDING_MOB"
                     end
                     
                 elseif S.farmState == "ATTACKING" then
                     local mob = S.currentTarget
                     if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        -- Inner loop: hold position NEXT TO mob + attack every frame
-                        -- Real BF scripts snap you next to the mob, not above it
+                        -- EXPLOIT FARM: Attack from distance, do NOT teleport to mob
+                        -- firetouchinterest + bring-mob handle the range
                         local attackTimer = tick()
                         while S.autoFarm and not S.emergencyStop do
                             local mhum = mob:FindFirstChild("Humanoid")
-                            local mhrp = mob:FindFirstChild("HumanoidRootPart")
-                            if not mob.Parent or not mhum or not mhrp or mhum.Health <= 0 then
-                                break -- mob dead, exit inner loop
+                            if not mob.Parent or not mhum or mhum.Health <= 0 then
+                                break -- mob dead
                             end
-                            -- Hold position BEHIND mob EVERY FRAME (within melee range)
-                            local myhrp = getHRP()
-                            if not myhrp then break end
-                            myhrp.CFrame = mhrp.CFrame * CFrame.new(0, 0, S.farmDist)
-                            myhrp.Velocity = Vector3.new(0, 0, 0)
-                            -- Attack at configured interval
+                            -- Attack at configured interval — NO TELEPORTING
                             if tick() - attackTimer >= S.attackSpeed then
                                 attackMob(mob)
                                 attackTimer = tick()
                             end
                             RunS.Heartbeat:Wait()
                         end
-                        -- Mob died or farm stopped
                         S.currentTarget = nil
                         S.farmState = "FINDING_MOB"
                     else
