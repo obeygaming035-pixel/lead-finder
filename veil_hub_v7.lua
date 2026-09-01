@@ -1,7 +1,3 @@
--- VEIL HUB v7
--- A complete Blox Fruits automation script
-
--- === SECTION 2: SERVICES & GLOBALS ===
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local RunS = game:GetService("RunService")
@@ -10,454 +6,233 @@ local UIS = game:GetService("UserInputService")
 local LT = game:GetService("Lighting")
 local WS = game:GetService("Workspace")
 local SG = game:GetService("StarterGui")
-local VIM = game:GetService("VirtualInputManager")
-
+local TP = game:GetService("TeleportService")
 local LP = Players.LocalPlayer
 local twait = (task and task.wait) or wait
 local tspawn = (task and task.spawn) or spawn
 
-local _firetouchinterest = nil; pcall(function() _firetouchinterest = firetouchinterest end)
-local _fireproximityprompt = nil; pcall(function() _fireproximityprompt = fireproximityprompt end)
-local _fireclickdetector = nil; pcall(function() _fireclickdetector = fireclickdetector end)
+-- Executor compatibility
+local _firetouchinterest = nil
+pcall(function() _firetouchinterest = firetouchinterest end)
+local _fireproximityprompt = nil
+pcall(function() _fireproximityprompt = fireproximityprompt end)
 
--- === SECTION 9: STATE TABLE ===
+-- VirtualInputManager for click simulation
+local VIM = nil
+pcall(function() VIM = game:GetService("VirtualInputManager") end)
+
+-- GUI parent
+local guiParent = nil
+pcall(function() guiParent = game:GetService("CoreGui") end)
+if not guiParent then pcall(function() guiParent = LP:WaitForChild("PlayerGui") end) end
+
+local loadHub
+
 local S = {
-    -- Main
-    autoFarm = false, autoLevel = false, autoQuest = false, autoBoss = false,
-    fruitCollect = false, chestCollect = false,
-    -- Combat  
-    autoM1 = false, killAura = false, auraRange = 60,
-    attackSpeed = 0.3, targetMode = "Nearest", bringMob = false,
-    -- Teleport
-    selectedIsland = "None",
-    -- Player
-    fly = false, flySpeed = 80, noclip = false, godMode = false,
-    noKB = false, walkSpeed = 16, jumpPower = 50, infJump = false,
-    -- Items
-    autoEquip = false, fruitESP = false,
-    -- Settings
-    fpsBst = false, debugPanel = false, notifications = true,
-    farmDist = 5, tweenSpeed = 200,
-    -- Internal
-    farmState = "IDLE", farmMob = "Bandit [Lv. 5]", farmIsland = "None",
-    currentTarget = nil, currentQuest = nil,
+    autoFarm = false, autoLevel = false,
+    killAura = false, auraRange = 200,
+    bringMob = false, bringRange = 200,
+    autoM1 = false, attackSpeed = 0.2,
+    targetMode = "Nearest",
+    fly = false, flySpeed = 80,
+    noclip = false, godMode = false, noKB = false,
+    walkSpeed = 16, jumpPower = 50, infJump = false,
+    mobESP = false, fruitESP = false,
+    fpsBst = false, antiAFK = true,
+    notifications = true, debugPanel = false,
+    farmMob = "Any", farmIsland = "None",
+    farmState = "IDLE", currentTarget = nil,
     emergencyStop = false,
+    selectedIsland = "None",
 }
 
--- === SECTION 3: NOTIFICATION SYSTEM ===
 local function notify(title, text)
     if not S.notifications then return end
     pcall(function()
-        SG:SetCore("SendNotification", {
-            Title = title,
-            Text = text,
-            Duration = 3
-        })
+        SG:SetCore("SendNotification", {Title=title, Text=text, Duration=3})
     end)
 end
 
--- === SECTION 1: HEADER & KEY SYSTEM ===
-local coreGui = game:GetService("CoreGui") or LP:WaitForChild("PlayerGui")
-local keyUI = Instance.new("ScreenGui")
-keyUI.Name = "VeilKeyUI"
-keyUI.Parent = coreGui
-keyUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local keyFrame = Instance.new("Frame")
-keyFrame.Size = UDim2.new(0, 300, 0, 150)
-keyFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
-keyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-keyFrame.Parent = keyUI
-
-local keyCorner = Instance.new("UICorner")
-keyCorner.CornerRadius = UDim.new(0, 8)
-keyCorner.Parent = keyFrame
-
-local keyTitle = Instance.new("TextLabel")
-keyTitle.Size = UDim2.new(1, 0, 0, 40)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Text = "VEIL HUB - KEY SYSTEM"
-keyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-keyTitle.Font = Enum.Font.GothamBold
-keyTitle.TextSize = 18
-keyTitle.Parent = keyFrame
-
-local keyInput = Instance.new("TextBox")
-keyInput.Size = UDim2.new(0.8, 0, 0, 35)
-keyInput.Position = UDim2.new(0.1, 0, 0.4, 0)
-keyInput.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-keyInput.PlaceholderText = "Enter Key here..."
-keyInput.Font = Enum.Font.Gotham
-keyInput.TextSize = 14
-keyInput.Parent = keyFrame
-
-local keyInputCorner = Instance.new("UICorner")
-keyInputCorner.CornerRadius = UDim.new(0, 4)
-keyInputCorner.Parent = keyInput
-
-local keyBtn = Instance.new("TextButton")
-keyBtn.Size = UDim2.new(0.6, 0, 0, 35)
-keyBtn.Position = UDim2.new(0.2, 0, 0.7, 0)
-keyBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
-keyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-keyBtn.Text = "SUBMIT"
-keyBtn.Font = Enum.Font.GothamBold
-keyBtn.TextSize = 14
-keyBtn.Parent = keyFrame
-
-local keyBtnCorner = Instance.new("UICorner")
-keyBtnCorner.CornerRadius = UDim.new(0, 4)
-keyBtnCorner.Parent = keyBtn
-
-local loadHub -- forward declaration
-
-keyBtn.MouseButton1Click:Connect(function()
-    if keyInput.Text == "patrick jain" then
-        keyUI:Destroy()
-        loadHub()
-    else
-        keyInput.Text = ""
-        keyInput.PlaceholderText = "Invalid Key!"
-    end
-end)
-
-
--- === SECTION 4: GAME DATABASE ===
 local Islands = {
-    -- Sea 1
-    {name = "Pirate Starter Island", sea = 1, level_min = 1, level_max = 15, cframe = CFrame.new(-1137, 15, 3830), mobs = {"Bandit [Lv. 5]"}},
-    {name = "Marine Starter", sea = 1, level_min = 1, level_max = 15, cframe = CFrame.new(-2550, 73, -2360), mobs = {"Trainee [Lv. 5]"}},
-    {name = "Jungle", sea = 1, level_min = 15, level_max = 30, cframe = CFrame.new(-1180, 16, 3600), mobs = {"Monkey [Lv. 14]", "Gorilla [Lv. 20]"}},
-    {name = "Pirate Village", sea = 1, level_min = 30, level_max = 60, cframe = CFrame.new(1045, 15, 1585), mobs = {"Pirate [Lv. 35]", "Brute [Lv. 45]"}},
-    {name = "Desert", sea = 1, level_min = 60, level_max = 90, cframe = CFrame.new(917, 6.5, 4439), mobs = {"Desert Bandit [Lv. 60]", "Desert Officer [Lv. 70]"}},
-    {name = "Frozen Village", sea = 1, level_min = 90, level_max = 120, cframe = CFrame.new(1200, 12, -1500), mobs = {"Snow Bandit [Lv. 90]", "Snowman [Lv. 100]"}},
-    {name = "Marine Fortress", sea = 1, level_min = 120, level_max = 150, cframe = CFrame.new(-4914, 73, 4324), mobs = {"Chief Petty Officer [Lv. 120]", "Vice Admiral [Lv. 130]"}},
-    {name = "Skylands", sea = 1, level_min = 150, level_max = 200, cframe = CFrame.new(-4900, 790, -2600), mobs = {"Sky Bandit [Lv. 150]", "Dark Master [Lv. 175]"}},
-    {name = "Prison", sea = 1, level_min = 190, level_max = 250, cframe = CFrame.new(4850, 5, 740), mobs = {"Prisoner [Lv. 190]", "Dangerous Prisoner [Lv. 210]"}},
-    {name = "Colosseum", sea = 1, level_min = 225, level_max = 300, cframe = CFrame.new(-1450, 45, -600), mobs = {"Toga Warrior [Lv. 225]", "Gladiator [Lv. 250]"}},
-    {name = "Magma Village", sea = 1, level_min = 300, level_max = 375, cframe = CFrame.new(-5500, 60, 600), mobs = {"Military Soldier [Lv. 300]", "Military Spy [Lv. 330]"}},
-    {name = "Underwater City", sea = 1, level_min = 375, level_max = 450, cframe = CFrame.new(3650, 5, 1250), mobs = {"Fishman Warrior [Lv. 375]", "Fishman Commando [Lv. 400]"}},
-    {name = "Fountain City", sea = 1, level_min = 625, level_max = 700, cframe = CFrame.new(5132, 4, 4037), mobs = {"Galley Pirate [Lv. 625]"}},
-    
-    -- Sea 2
-    {name = "Kingdom of Rose", sea = 2, level_min = 700, level_max = 850, cframe = CFrame.new(2175, 28, 6767), mobs = {}},
-    {name = "Green Zone", sea = 2, level_min = 875, level_max = 975, cframe = CFrame.new(-2400, 10, -3100), mobs = {}},
-    {name = "Graveyard", sea = 2, level_min = 950, level_max = 1100, cframe = CFrame.new(-5200, 200, -700), mobs = {}},
-    {name = "Snow Mountain", sea = 2, level_min = 1000, level_max = 1100, cframe = CFrame.new(600, 400, -5400), mobs = {}},
-    {name = "Hot & Cold", sea = 2, level_min = 1050, level_max = 1200, cframe = CFrame.new(-5700, 16, -1000), mobs = {}},
-    {name = "Cursed Ship", sea = 2, level_min = 1000, level_max = 1325, cframe = CFrame.new(900, 125, 33000), mobs = {}},
-    {name = "Ice Castle", sea = 2, level_min = 1350, level_max = 1425, cframe = CFrame.new(-6100, 15, -5100), mobs = {}},
-    {name = "Forgotten Island", sea = 2, level_min = 1425, level_max = 1500, cframe = CFrame.new(-3000, 15, -10000), mobs = {}},
-    
-    -- Sea 3
-    {name = "Port Town", sea = 3, level_min = 1500, level_max = 1575, cframe = CFrame.new(-290, 10, 5320), mobs = {}},
-    {name = "Hydra Island", sea = 3, level_min = 1575, level_max = 1700, cframe = CFrame.new(5230, 15, 250), mobs = {}},
-    {name = "Great Tree", sea = 3, level_min = 1700, level_max = 1825, cframe = CFrame.new(2200, 15, -7100), mobs = {}},
-    {name = "Castle on the Sea", sea = 3, level_min = 1825, level_max = 1975, cframe = CFrame.new(-5050, 300, -3000), mobs = {}},
-    {name = "Tiki Outpost", sea = 3, level_min = 1975, level_max = 2075, cframe = CFrame.new(-1800, 10, -10200), mobs = {}},
+    {name = "Starter Island", level = 1, mob = "Bandit", cframe = CFrame.new(1059, 16, 1549)},
+    {name = "Jungle", level = 15, mob = "Monkey", cframe = CFrame.new(-1612, 36, 149)},
+    {name = "Pirate Village", level = 30, mob = "Pirate", cframe = CFrame.new(-1140, 4, 3828)},
+    {name = "Desert", level = 60, mob = "Desert Bandit", cframe = CFrame.new(896, 6, 4388)},
+    {name = "Middle Town", level = 100, mob = "None", cframe = CFrame.new(-690, 7, 1523)},
+    {name = "Frozen Village", level = 90, mob = "Snow Bandit", cframe = CFrame.new(1185, 27, -1218)},
+    {name = "Marine Fortress", level = 120, mob = "Chief Petty Officer", cframe = CFrame.new(-4806, 20, 4360)},
+    {name = "Skylands", level = 150, mob = "Sky Bandit", cframe = CFrame.new(-4867, 717, -2625)},
+    {name = "Prison", level = 190, mob = "Prisoner", cframe = CFrame.new(4875, 5, 734)},
+    {name = "Colosseum", level = 225, mob = "Toga Warrior", cframe = CFrame.new(-1390, 7, -2763)},
+    {name = "Magma Village", level = 300, mob = "Military Soldier", cframe = CFrame.new(-5312, 12, 8515)},
+    {name = "Underwater City", level = 375, mob = "Fishman Warrior", cframe = CFrame.new(61163, 11, 1569)},
+    {name = "Fountain City", level = 625, mob = "Galley Pirate", cframe = CFrame.new(5257, 38, 4050)}
 }
-
-local function getLevel()
-    local lvl = 1
-    pcall(function()
-        if LP:FindFirstChild("Data") and LP.Data:FindFirstChild("Level") then
-            lvl = LP.Data.Level.Value
-        elseif LP:FindFirstChild("leaderstats") and LP.leaderstats:FindFirstChild("Level") then
-            lvl = LP.leaderstats.Level.Value
-        end
-    end)
-    return lvl
-end
 
 local function IslandByLevel(lvl)
     local best = Islands[1]
-    for _, is in ipairs(Islands) do
-        if lvl >= is.level_min and lvl <= is.level_max then
-            best = is
-        elseif lvl > is.level_max then
-            best = is
+    for _, isl in ipairs(Islands) do
+        if lvl >= isl.level and isl.level > best.level then
+            best = isl
         end
     end
     return best
 end
 
 local function GetMobForLevel(lvl)
-    local island = IslandByLevel(lvl)
-    if island and #island.mobs > 0 then
-        return island.mobs[1]
-    end
-    return "Bandit [Lv. 5]"
-end
-
--- === SECTION 5: UTILITY FUNCTIONS ===
-local function getHum()
-    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
-        return LP.Character.Humanoid
-    end
-    return nil
+    return IslandByLevel(lvl).mob
 end
 
 local function getHRP()
-    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        return LP.Character.HumanoidRootPart
-    end
-    return nil
+    local c = LP.Character
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+local function getHum()
+    local c = LP.Character
+    return c and c:FindFirstChild("Humanoid")
+end
+local function getLevel()
+    local lvl = 1
+    pcall(function()
+        if LP:FindFirstChild("Data") and LP.Data:FindFirstChild("Level") then lvl = LP.Data.Level.Value
+        elseif LP:FindFirstChild("leaderstats") and LP.leaderstats:FindFirstChild("Level") then lvl = LP.leaderstats.Level.Value end
+    end)
+    return lvl
 end
 
--- === SECTION 6: MOVEMENT CONTROLLER ===
--- TweenService DOES NOT WORK for BF teleport — server rejects it and snaps you back.
--- Direct CFrame setting held over multiple frames is the working method.
+print("[VEIL] firetouchinterest: " .. tostring(_firetouchinterest ~= nil))
+print("[VEIL] VirtualInputManager: " .. tostring(VIM ~= nil))
 
-local function teleportTo(targetCF)
-    local hrp = getHRP()
-    if not hrp then return end
-    -- Hold position for 30 frames (~0.5s) so the server accepts it
-    for i = 1, 30 do
-        hrp = getHRP()
-        if not hrp then break end
-        hrp.CFrame = targetCF
-        hrp.Velocity = Vector3.new(0, 0, 0)
-        if hrp:FindFirstChildOfClass("BodyVelocity") then
-            hrp:FindFirstChildOfClass("BodyVelocity"):Destroy()
-        end
-        RunS.Heartbeat:Wait()
-    end
-end
-
--- Alias for compatibility
-local function tweenTo(targetCF, _speed)
-    teleportTo(targetCF)
-end
-
-local function instantTP(targetCF)
-    -- Same as teleportTo but fewer frames (for in-combat repositioning)
-    for i = 1, 5 do
-        local hrp = getHRP()
-        if not hrp then break end
-        hrp.CFrame = targetCF
-        hrp.Velocity = Vector3.new(0, 0, 0)
-        RunS.Heartbeat:Wait()
-    end
-end
-
-local function face(pos)
-    local hrp = getHRP()
-    if hrp then
-        hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(pos.X, hrp.Position.Y, pos.Z))
-    end
-end
-
--- === SECTION 7: MOB DISCOVERY & TARGET MANAGER ===
 local function getMobs()
     local mobs = {}
     local searched = {}
-    local function scan(folder)
-        if not folder then return end
-        for _, v in ipairs(folder:GetChildren()) do
-            if v:IsA("Model") and v ~= LP.Character then
-                if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-                    if v.Humanoid.Health > 0 and not searched[v] then
-                        searched[v] = true
-                        table.insert(mobs, v)
-                    end
+    local function scan(f)
+        if not f then return end
+        for _, v in ipairs(f:GetChildren()) do
+            if v:IsA("Model") and v ~= LP.Character and not searched[v] then
+                local h = v:FindFirstChild("Humanoid")
+                local r = v:FindFirstChild("HumanoidRootPart")
+                if h and r and h.Health > 0 then
+                    searched[v] = true
+                    table.insert(mobs, v)
                 end
             end
         end
     end
-    
     scan(WS:FindFirstChild("Enemies"))
     scan(WS:FindFirstChild("Enemy"))
     scan(WS:FindFirstChild("Mobs"))
     scan(WS:FindFirstChild("NPCs"))
     scan(WS)
-    
     return mobs
 end
 
-local function findNearest(mobName)
+local function findNearest(name)
     local hrp = getHRP()
     if not hrp then return nil end
-    local closest = nil
-    local minDist = math.huge
-    for _, mob in ipairs(getMobs()) do
-        if mob.Name == mobName or mobName == "Any" then
-            local mhrp = mob:FindFirstChild("HumanoidRootPart")
-            if mhrp then
-                local d = (hrp.Position - mhrp.Position).Magnitude
-                if d < minDist then
-                    minDist = d
-                    closest = mob
-                end
+    local best, dist = nil, math.huge
+    for _, m in ipairs(getMobs()) do
+        if name == "Any" or m.Name == name then
+            local mr = m:FindFirstChild("HumanoidRootPart")
+            if mr then
+                local d = (hrp.Position - mr.Position).Magnitude
+                if d < dist then dist = d; best = m end
             end
         end
     end
-    return closest
+    return best
 end
 
-local function findNearestAny()
-    return findNearest("Any")
-end
-
-local function findByPriority(mode, questMob)
-    if mode == "Nearest" then
-        return findNearest(S.farmMob)
-    elseif mode == "Quest Mob" then
-        return findNearest(questMob or S.farmMob)
-    elseif mode == "Lowest HP" then
-        local mobs = getMobs()
-        local best = nil
-        local hp = math.huge
-        for _, m in ipairs(mobs) do
-            if m.Name == S.farmMob then
-                if m.Humanoid.Health < hp then
-                    hp = m.Humanoid.Health
-                    best = m
-                end
-            end
-        end
-        return best
+local function teleportTo(cf)
+    for i = 1, 30 do
+        local hrp = getHRP()
+        if not hrp then break end
+        hrp.CFrame = cf
+        hrp.Velocity = Vector3.new(0,0,0)
+        RunS.Heartbeat:Wait()
     end
-    return findNearestAny()
 end
-
--- === SECTION 8: COMBAT CONTROLLER ===
-
--- Discover game remotes (used as one of many attack vectors)
-local _CommF, _CommE, _Remotes = nil, nil, nil
-pcall(function()
-    _Remotes = RS:FindFirstChild("Remotes")
-    if _Remotes then
-        _CommF = _Remotes:FindFirstChild("CommF_")
-        _CommE = _Remotes:FindFirstChild("CommE")
-    end
-end)
 
 local function equipWeapon()
     pcall(function()
-        local char = LP.Character
-        if not char then return end
-        if char:FindFirstChildOfClass("Tool") then return end
+        local c = LP.Character
+        if not c or c:FindFirstChildOfClass("Tool") then return end
         local bp = LP:FindFirstChild("Backpack")
-        if not bp then return end
-        for _, t in pairs(bp:GetChildren()) do
-            if t:IsA("Tool") then
-                t.Parent = char
-                return
+        if bp then
+            for _, t in pairs(bp:GetChildren()) do
+                if t:IsA("Tool") then t.Parent = c; return end
             end
         end
     end)
 end
 
--- Get the weapon handle (or any BasePart from the tool)
-local function getHandle()
-    local char = LP.Character
-    if not char then return nil end
-    local tool = char:FindFirstChildOfClass("Tool")
-    if not tool then return nil end
-    -- Try "Handle" first (standard Roblox tool structure)
-    local h = tool:FindFirstChild("Handle")
-    if h and h:IsA("BasePart") then return h end
-    -- Fallback: find any BasePart in the tool
-    for _, p in pairs(tool:GetDescendants()) do
-        if p:IsA("BasePart") then return p end
-    end
-    return nil
+local function doAttack()
+    pcall(function()
+        if VIM then
+            local vp = WS.CurrentCamera.ViewportSize
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 1)
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 1)
+        end
+    end)
+    pcall(function()
+        local c = LP.Character
+        if c then
+            local t = c:FindFirstChildOfClass("Tool")
+            if t then t:Activate() end
+        end
+    end)
 end
 
--- ========== THE CORE EXPLOIT ATTACK ==========
--- firetouchinterest IGNORES DISTANCE. It simulates a physics touch
--- between two parts no matter where they are in the world.
--- THIS is the "range hack" — you don't need to be near the mob.
--- =============================================
-
-local function attackMob(mob)
-    if not mob or not mob.Parent then return end
-    local mhum = mob:FindFirstChild("Humanoid")
-    if not mhum or mhum.Health <= 0 then return end
-    
-    equipWeapon()
-    
-    -- EXPLOIT METHOD 1: firetouchinterest — HIT FROM ANY DISTANCE
-    -- This touches the weapon handle against EVERY part of the mob
-    -- Distance does NOT matter — that's what makes it an exploit
+local function touchAttack(mob)
     pcall(function()
         if not _firetouchinterest then return end
-        local handle = getHandle()
+        local c = LP.Character
+        if not c then return end
+        local tool = c:FindFirstChildOfClass("Tool")
+        if not tool then return end
+        local handle = tool:FindFirstChild("Handle")
+        if not handle then
+            for _, p in pairs(tool:GetDescendants()) do
+                if p:IsA("BasePart") then handle = p; break end
+            end
+        end
         if not handle then return end
-        -- Touch all BaseParts on the mob for maximum hit registration
         for _, part in pairs(mob:GetChildren()) do
             if part:IsA("BasePart") then
-                _firetouchinterest(handle, part, 0) -- touch begin
-                _firetouchinterest(handle, part, 1) -- touch end
+                _firetouchinterest(handle, part, 0)
+                _firetouchinterest(handle, part, 1)
             end
         end
     end)
-    
-    -- EXPLOIT METHOD 2: Bring mob TO player temporarily
-    -- Teleport the mob's HRP to right in front of us, click, server resets mob
-    pcall(function()
-        local hrp = getHRP()
-        local mhrp = mob:FindFirstChild("HumanoidRootPart")
-        if not hrp or not mhrp then return end
-        -- Snap mob in front of player
-        mhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
-        mhrp.Velocity = Vector3.new(0, 0, 0)
-    end)
-    
-    -- METHOD 3: VIM click (mob is now in front of us from method 2)
-    pcall(function()
-        local cam = WS.CurrentCamera
-        if cam then
-            local vpSize = cam.ViewportSize
-            VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, true, game, 1)
-            VIM:SendMouseButtonEvent(vpSize.X/2, vpSize.Y/2, 0, false, game, 1)
-        end
-    end)
-    
-    -- METHOD 4: Tool activate
-    pcall(function()
-        local char = LP.Character
-        if char then
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool then tool:Activate() end
-        end
-    end)
-    
-    -- METHOD 5: Game remotes (extra vector)
-    pcall(function()
-        if _CommF then _CommF:InvokeServer("MeleeAttack") end
-    end)
-    pcall(function()
-        if _CommE then _CommE:FireServer("MeleeAttack") end
-    end)
 end
 
--- === SECTION 10: KILL AURA ===
 local kaActive = false
 local function kaStart()
     if kaActive then return end
     kaActive = true
     tspawn(function()
         while S.killAura do
-            if S.emergencyStop then S.killAura = false; break end
+            if S.emergencyStop then break end
             local hrp = getHRP()
-            if hrp then
+            if hrp and getHum() and getHum().Health > 0 then
                 equipWeapon()
+                local savedCF = hrp.CFrame
                 local mobs = getMobs()
                 for _, mob in ipairs(mobs) do
                     if not S.killAura or S.emergencyStop then break end
                     local mhum = mob:FindFirstChild("Humanoid")
-                    if mhum and mhum.Health > 0 then
-                        local mhrp = mob:FindFirstChild("HumanoidRootPart")
-                        local dist = mhrp and (hrp.Position - mhrp.Position).Magnitude or 9999
-                        -- auraRange limits how many mobs we target (performance)
-                        -- but firetouchinterest hits from ANY distance (the exploit)
+                    local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                    if mhum and mhrp and mhum.Health > 0 then
+                        local dist = (savedCF.Position - mhrp.Position).Magnitude
                         if dist <= S.auraRange then
-                            attackMob(mob)
+                            hrp.CFrame = mhrp.CFrame * CFrame.new(0, 0, 3)
+                            doAttack()
+                            touchAttack(mob)
                         end
                     end
                 end
+                hrp = getHRP()
+                if hrp then hrp.CFrame = savedCF end
             end
             twait(S.attackSpeed)
         end
@@ -465,39 +240,49 @@ local function kaStart()
     end)
 end
 
--- === SECTION 11: AUTO M1 ===
-local autoM1Active = false
-local function autoM1Start()
-    if autoM1Active then return end
-    autoM1Active = true
+local bringActive = false
+local function bringStart()
+    if bringActive then return end
+    bringActive = true
     tspawn(function()
-        while S.autoM1 do
-            if S.emergencyStop then S.autoM1 = false; break end
-            if S.currentTarget and S.currentTarget.Parent then
-                attackMob(S.currentTarget)
-            else
-                local m = findNearestAny()
-                if m then attackMob(m) end
+        while S.bringMob do
+            if S.emergencyStop then break end
+            local hrp = getHRP()
+            if hrp then
+                equipWeapon()
+                local mobs = getMobs()
+                for _, mob in ipairs(mobs) do
+                    if not S.bringMob or S.emergencyStop then break end
+                    local mhum = mob:FindFirstChild("Humanoid")
+                    local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                    if mhum and mhrp and mhum.Health > 0 then
+                        local dist = (hrp.Position - mhrp.Position).Magnitude
+                        if dist <= S.bringRange then
+                            mhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+                            mhrp.Velocity = Vector3.new(0,0,0)
+                            doAttack()
+                            touchAttack(mob)
+                        end
+                    end
+                end
             end
             twait(S.attackSpeed)
         end
-        autoM1Active = false
+        bringActive = false
     end)
 end
 
--- === SECTION 12: MOB GRIND / AUTO FARM STATE MACHINE ===
 local function autoFarmLoop()
     tspawn(function()
         while S.autoFarm do
-            if S.emergencyStop then S.autoFarm = false; break end
-            
+            if S.emergencyStop then break end
             local ok, err = pcall(function()
                 local hrp = getHRP()
                 local hum = getHum()
-                
                 if not hrp or not hum or hum.Health <= 0 then
                     S.farmState = "RECOVERING"
-                    twait(2)
+                    twait(3)
+                    S.farmState = "IDLE"
                     return
                 end
                 
@@ -508,203 +293,189 @@ local function autoFarmLoop()
                     if S.autoLevel then
                         local lvl = getLevel()
                         local isl = IslandByLevel(lvl)
-                        local mob = GetMobForLevel(lvl)
                         S.farmIsland = isl.name
-                        S.farmMob = mob
+                        S.farmMob = isl.mob
                     end
-                    S.farmState = "FINDING_MOB"
-                    
-                elseif S.farmState == "FINDING_MOB" then
-                    local mob = findByPriority(S.targetMode)
-                    if mob then
-                        S.currentTarget = mob
-                        S.farmState = "ATTACKING"
-                    else
-                        -- No mobs found — maybe we're on the wrong island
-                        -- Teleport to the correct island if autoLevel is on
-                        if S.autoLevel and S.farmIsland ~= "None" then
-                            for _, isl in ipairs(Islands) do
-                                if isl.name == S.farmIsland then
-                                    local myhrp = getHRP()
-                                    if myhrp then
-                                        local dist = (myhrp.Position - isl.cframe.Position).Magnitude
-                                        if dist > 500 then
-                                            notify("Farm", "Traveling to " .. isl.name)
-                                            S.farmState = "TRAVELING"
-                                            teleportTo(isl.cframe)
-                                            S.farmState = "FINDING_MOB"
-                                        end
-                                    end
-                                    break
+                    if S.farmIsland ~= "None" then
+                        for _, isl in ipairs(Islands) do
+                            if isl.name == S.farmIsland then
+                                local d = (hrp.Position - isl.cframe.Position).Magnitude
+                                if d > 500 then
+                                    S.farmState = "TRAVELING"
+                                    notify("Farm", "Traveling to " .. isl.name)
+                                    teleportTo(isl.cframe)
                                 end
+                                break
                             end
                         end
+                    end
+                    S.farmState = "FARMING"
+                    
+                elseif S.farmState == "FARMING" then
+                    equipWeapon()
+                    local mob = findNearest(S.farmMob)
+                    if mob then
+                        S.currentTarget = mob
+                        local mhrp = mob:FindFirstChild("HumanoidRootPart")
+                        local mhum = mob:FindFirstChild("Humanoid")
+                        if mhrp and mhum and mhum.Health > 0 then
+                            mhrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -5)
+                            mhrp.Velocity = Vector3.new(0,0,0)
+                            doAttack()
+                            touchAttack(mob)
+                        end
+                    else
                         S.farmState = "CHECKING_LEVEL"
                         twait(1)
                     end
                     
-                elseif S.farmState == "ATTACKING" then
-                    local mob = S.currentTarget
-                    if mob and mob.Parent and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                        -- EXPLOIT FARM: Attack from distance, do NOT teleport to mob
-                        -- firetouchinterest + bring-mob handle the range
-                        local attackTimer = tick()
-                        while S.autoFarm and not S.emergencyStop do
-                            local mhum = mob:FindFirstChild("Humanoid")
-                            if not mob.Parent or not mhum or mhum.Health <= 0 then
-                                break -- mob dead
-                            end
-                            -- Attack at configured interval — NO TELEPORTING
-                            if tick() - attackTimer >= S.attackSpeed then
-                                attackMob(mob)
-                                attackTimer = tick()
-                            end
-                            RunS.Heartbeat:Wait()
-                        end
-                        S.currentTarget = nil
-                        S.farmState = "FINDING_MOB"
-                    else
-                        S.currentTarget = nil
-                        S.farmState = "FINDING_MOB"
-                    end
-                    
                 elseif S.farmState == "RECOVERING" then
                     S.currentTarget = nil
-                    twait(2)
+                    twait(3)
                     S.farmState = "IDLE"
                 end
             end)
-            
             if not ok then
                 S.farmState = "RECOVERING"
-                notify("Auto Farm Error", tostring(err))
             end
-            
-            twait(0.1)
+            twait(S.attackSpeed)
         end
         S.farmState = "IDLE"
     end)
 end
 
--- === SECTION 13: AUTO LEVEL ===
--- Covered in state machine CHECKING_LEVEL state
-
--- === SECTION 14: BOSS FARM ===
-local function bossFarmLoop()
-    tspawn(function()
-        while S.autoBoss do
-            if S.emergencyStop then S.autoBoss = false; break end
-            -- boss logic similar to autofarm but specific boss search
-            twait(1)
-        end
-    end)
-end
-
--- === SECTION 15: FRUIT/ITEM COLLECTOR ===
 tspawn(function()
     while true do
-        twait(2)
-        if S.emergencyStop then break end
-        if S.fruitCollect then
-            pcall(function()
-                for _, v in ipairs(WS:GetChildren()) do
-                    if v:IsA("Tool") and string.find(string.lower(v.Name), "fruit") then
-                        if v:FindFirstChild("Handle") then
-                            local hrp = getHRP()
-                            if hrp then
-                                hrp.CFrame = v.Handle.CFrame
-                                twait(0.5)
-                                if _fireproximityprompt then
-                                    local pp = v:FindFirstChildOfClass("ProximityPrompt", true)
-                                    if pp then _fireproximityprompt(pp) end
-                                end
-                                if _fireclickdetector then
-                                    local cd = v:FindFirstChildOfClass("ClickDetector", true)
-                                    if cd then _fireclickdetector(cd) end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
+        if S.autoM1 and not S.emergencyStop then
+            doAttack()
         end
+        twait(S.attackSpeed)
     end
 end)
 
-local fruitESPFolder = Instance.new("Folder")
-fruitESPFolder.Name = "FruitESP"
-fruitESPFolder.Parent = coreGui
+local espFolder = Instance.new("Folder")
+espFolder.Name = "VeilESP"
+espFolder.Parent = guiParent
 
-RunS.Heartbeat:Connect(function()
-    if S.fruitESP then
-        for _, v in ipairs(WS:GetChildren()) do
-            if v:IsA("Tool") and string.find(string.lower(v.Name), "fruit") and v:FindFirstChild("Handle") then
-                if not fruitESPFolder:FindFirstChild(v.Name) then
-                    local bg = Instance.new("BillboardGui")
-                    bg.Name = v.Name
-                    bg.Adornee = v.Handle
-                    bg.Size = UDim2.new(0, 100, 0, 50)
-                    bg.AlwaysOnTop = true
-                    local tl = Instance.new("TextLabel")
-                    tl.Size = UDim2.new(1, 0, 1, 0)
-                    tl.BackgroundTransparency = 1
-                    tl.Text = v.Name
-                    tl.TextColor3 = Color3.fromRGB(255, 100, 100)
-                    tl.Font = Enum.Font.GothamBold
-                    tl.TextSize = 14
-                    tl.Parent = bg
-                    bg.Parent = fruitESPFolder
-                end
+local function updateESP()
+    if not S.mobESP then
+        espFolder:ClearAllChildren()
+        return
+    end
+    
+    local mobs = getMobs()
+    local existing = {}
+    
+    for _, mob in ipairs(mobs) do
+        local mhum = mob:FindFirstChild("Humanoid")
+        local head = mob:FindFirstChild("Head") or mob:FindFirstChild("HumanoidRootPart")
+        if mhum and head and mhum.Health > 0 then
+            local id = mob.Name .. "_" .. tostring(mob:GetDebugId())
+            existing[id] = true
+            
+            local bg = espFolder:FindFirstChild(id)
+            if not bg then
+                bg = Instance.new("BillboardGui")
+                bg.Name = id
+                bg.Adornee = head
+                bg.Size = UDim2.new(0, 120, 0, 40)
+                bg.StudsOffset = Vector3.new(0, 3, 0)
+                bg.AlwaysOnTop = true
+                bg.Parent = espFolder
+                
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Name = "NameLabel"
+                nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = mob.Name
+                nameLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+                nameLabel.Font = Enum.Font.GothamBold
+                nameLabel.TextSize = 12
+                nameLabel.TextStrokeTransparency = 0.5
+                nameLabel.Parent = bg
+                
+                local hpBg = Instance.new("Frame")
+                hpBg.Name = "HPBg"
+                hpBg.Size = UDim2.new(0.8, 0, 0.2, 0)
+                hpBg.Position = UDim2.new(0.1, 0, 0.55, 0)
+                hpBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                hpBg.Parent = bg
+                Instance.new("UICorner", hpBg).CornerRadius = UDim.new(1, 0)
+                
+                local hpFill = Instance.new("Frame")
+                hpFill.Name = "HPFill"
+                hpFill.Size = UDim2.new(1, 0, 1, 0)
+                hpFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                hpFill.Parent = hpBg
+                Instance.new("UICorner", hpFill).CornerRadius = UDim.new(1, 0)
+                
+                local hpText = Instance.new("TextLabel")
+                hpText.Name = "HPText"
+                hpText.Size = UDim2.new(1, 0, 0.3, 0)
+                hpText.Position = UDim2.new(0, 0, 0.7, 0)
+                hpText.BackgroundTransparency = 1
+                hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                hpText.Font = Enum.Font.Gotham
+                hpText.TextSize = 10
+                hpText.TextStrokeTransparency = 0.5
+                hpText.Parent = bg
+            end
+            
+            local pct = mhum.Health / mhum.MaxHealth
+            local hpFill = bg:FindFirstChild("HPBg") and bg.HPBg:FindFirstChild("HPFill")
+            if hpFill then
+                hpFill.Size = UDim2.new(math.clamp(pct, 0, 1), 0, 1, 0)
+                hpFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - pct), 255 * pct, 0)
+            end
+            local hpText = bg:FindFirstChild("HPText")
+            if hpText then
+                hpText.Text = math.floor(mhum.Health) .. " / " .. math.floor(mhum.MaxHealth)
             end
         end
-    else
-        fruitESPFolder:ClearAllChildren()
     end
+    
+    for _, bg in pairs(espFolder:GetChildren()) do
+        if not existing[bg.Name] then bg:Destroy() end
+    end
+end
+
+RunS.Heartbeat:Connect(function()
+    if S.mobESP then updateESP()
+    else espFolder:ClearAllChildren() end
 end)
 
-
--- === SECTION 16: WEAPON MANAGER ===
--- Simplified auto equip in attackMob
-
--- === SECTION 17: RECOVERY CONTROLLER ===
--- Implemented in state machine
-
--- === SECTION 18: PLAYER UTILITIES ===
-local flyOff; local flyActive = false
-local bv, bg = nil, nil
+local flyOff
+local flyActive = false
+local bv, bg_fly = nil, nil
 
 local function flyOn()
     if flyActive then return end
     flyActive = true
     local hrp = getHRP()
-    if not hrp then flyActive = false return end
-    
+    if not hrp then flyActive = false; return end
     bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.Velocity = Vector3.zero
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bv.Parent = hrp
-    
-    bg = Instance.new("BodyGyro")
-    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bg.D = 100
-    bg.P = 10000
-    bg.CFrame = hrp.CFrame
-    bg.Parent = hrp
-    
+    bg_fly = Instance.new("BodyGyro")
+    bg_fly.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bg_fly.D = 100; bg_fly.P = 10000
+    bg_fly.CFrame = hrp.CFrame
+    bg_fly.Parent = hrp
     tspawn(function()
         while S.fly and flyActive do
             if S.emergencyStop then flyOff(); break end
             local cam = WS.CurrentCamera
-            if hrp and bv and bg then
-                bg.CFrame = cam.CoordinateFrame
-                local moveDir = Vector3.new(0,0,0)
-                if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CoordinateFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CoordinateFrame.LookVector end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CoordinateFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CoordinateFrame.RightVector end
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0,1,0) end
-                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0,1,0) end
-                bv.Velocity = moveDir * S.flySpeed
+            if hrp and bv and bg_fly then
+                bg_fly.CFrame = cam.CoordinateFrame
+                local dir = Vector3.zero
+                if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CoordinateFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CoordinateFrame.LookVector end
+                if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CoordinateFrame.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CoordinateFrame.RightVector end
+                if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+                if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
+                bv.Velocity = dir * S.flySpeed
             end
             twait(0.05)
         end
@@ -715,570 +486,442 @@ end
 flyOff = function()
     flyActive = false
     if bv then bv:Destroy(); bv = nil end
-    if bg then bg:Destroy(); bg = nil end
+    if bg_fly then bg_fly:Destroy(); bg_fly = nil end
 end
 
 RunS.Stepped:Connect(function()
-    if S.noclip then
-        pcall(function()
-            if LP.Character then
-                for _, p in ipairs(LP.Character:GetDescendants()) do
-                    if p:IsA("BasePart") then
-                        p.CanCollide = false
-                    end
-                end
-            end
-        end)
+    if S.noclip and LP.Character then
+        for _, p in pairs(LP.Character:GetChildren()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
     end
 end)
 
 RunS.Heartbeat:Connect(function()
-    local hum = getHum()
-    local hrp = getHRP()
-    
-    if S.godMode and hum then
-        pcall(function() hum.Health = hum.MaxHealth end)
+    local c = LP.Character
+    local h = c and c:FindFirstChild("Humanoid")
+    local hrp = c and c:FindFirstChild("HumanoidRootPart")
+    if h then
+        if S.godMode then pcall(function() h.Health = h.MaxHealth end) end
+        if S.walkSpeed ~= 16 then h.WalkSpeed = S.walkSpeed end
+        if S.jumpPower ~= 50 then h.JumpPower = S.jumpPower end
     end
-    
-    if S.noKB and hrp then
-        pcall(function() 
+    if hrp and S.noKB then
+        pcall(function()
             hrp.Velocity = Vector3.new(0, hrp.Velocity.Y, 0)
-            hrp.RotVelocity = Vector3.new(0,0,0)
+            hrp.RotVelocity = Vector3.zero
         end)
-    end
-    
-    if hum then
-        if S.walkSpeed ~= 16 then hum.WalkSpeed = S.walkSpeed end
-        if S.jumpPower ~= 50 then 
-            hum.UseJumpPower = true
-            hum.JumpPower = S.jumpPower 
-        end
     end
 end)
 
 UIS.JumpRequest:Connect(function()
     if S.infJump then
-        local hum = getHum()
-        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+        local h = getHum()
+        if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
     end
 end)
 
-
--- === SECTION 19: FPS BOOST & ANTI-AFK ===
-local function fpsBoost()
-    if S.fpsBst then
-        LT.GlobalShadows = false
-        for _, v in ipairs(WS:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-                v.Enabled = false
-            end
-        end
-    end
-end
-
-LP.Idled:Connect(function()
-    VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-    twait(0.1)
-    VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-end)
-
--- === SECTION 24: EMERGENCY STOP ===
 local function triggerEmergencyStop()
     S.emergencyStop = true
     for k, v in pairs(S) do
-        if type(v) == "boolean" and k ~= "emergencyStop" and k ~= "notifications" and k ~= "debugPanel" then
+        if type(v) == "boolean" and k ~= "emergencyStop" and k ~= "notifications" and k ~= "antiAFK" then
             S[k] = false
         end
     end
     flyOff()
     S.farmState = "IDLE"
     S.currentTarget = nil
-    notify("EMERGENCY STOP", "All tasks stopped.")
+    espFolder:ClearAllChildren()
+    notify("EMERGENCY STOP", "All features stopped")
     twait(1)
     S.emergencyStop = false
 end
 
--- MAIN HUB LOAD FUNCTION
-loadHub = function()
-    -- === SECTION 20: GUI FRAMEWORK ===
-    local ui = Instance.new("ScreenGui")
-    ui.Name = "VeilHubMain"
-    ui.Parent = coreGui
-    ui.ResetOnSpawn = false
-    
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 450, 0, 500)
-    mainFrame.Position = UDim2.new(0.5, -225, 0.5, -250)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    mainFrame.Parent = ui
-    mainFrame.Active = true
-    mainFrame.Draggable = true -- simple dragging
-    
-    local mfCorner = Instance.new("UICorner")
-    mfCorner.CornerRadius = UDim.new(0, 8)
-    mfCorner.Parent = mainFrame
-    
-    local uiStroke = Instance.new("UIStroke")
-    uiStroke.Color = Color3.fromRGB(60, 120, 200)
-    uiStroke.Thickness = 2
-    uiStroke.Parent = mainFrame
-    
-    local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 30)
-    titleBar.BackgroundTransparency = 1
-    titleBar.Parent = mainFrame
-    
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(0.5, 0, 1, 0)
-    titleLabel.Position = UDim2.new(0, 10, 0, 0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "VEIL HUB v7"
-    titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 16
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.Parent = titleBar
-    
-    local minBtn = Instance.new("TextButton")
-    minBtn.Size = UDim2.new(0, 30, 0, 30)
-    minBtn.Position = UDim2.new(1, -60, 0, 0)
-    minBtn.BackgroundTransparency = 1
-    minBtn.Text = "-"
-    minBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    minBtn.Font = Enum.Font.GothamBold
-    minBtn.TextSize = 18
-    minBtn.Parent = titleBar
-    
-    local minimized = false
-    minBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        if minimized then
-            mainFrame.Size = UDim2.new(0, 450, 0, 30)
-            mainFrame.ClipsDescendants = true
-        else
-            mainFrame.Size = UDim2.new(0, 450, 0, 500)
-            mainFrame.ClipsDescendants = false
+-- Anti-AFK
+pcall(function()
+    LP.Idled:Connect(function()
+        if VIM then
+            VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+            twait(0.1)
+            VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
         end
     end)
+end)
+
+-- FPS Boost
+local function applyFPSBoost()
+    if not S.fpsBst then return end
+    pcall(function()
+        LT.GlobalShadows = false
+        for _, v in pairs(WS:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                v.Enabled = false
+            end
+        end
+    end)
+end
+
+-- Key System UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "VeilKeySystem"
+screenGui.Parent = guiParent
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 150)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+title.Text = " VEIL HUB - Key System"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = mainFrame
+
+local keyInput = Instance.new("TextBox")
+keyInput.Size = UDim2.new(0.8, 0, 0, 35)
+keyInput.Position = UDim2.new(0.1, 0, 0.4, 0)
+keyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+keyInput.TextColor3 = Color3.new(1, 1, 1)
+keyInput.PlaceholderText = "Enter Key..."
+keyInput.Text = ""
+keyInput.Font = Enum.Font.Gotham
+keyInput.TextSize = 14
+keyInput.Parent = mainFrame
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.8, 0, 0, 30)
+submitBtn.Position = UDim2.new(0.1, 0, 0.7, 0)
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+submitBtn.TextColor3 = Color3.new(1, 1, 1)
+submitBtn.Text = "Submit"
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSize = 14
+submitBtn.Parent = mainFrame
+
+submitBtn.MouseButton1Click:Connect(function()
+    if keyInput.Text == "patrick jain" then
+        screenGui:Destroy()
+        loadHub()
+    else
+        keyInput.Text = ""
+        keyInput.PlaceholderText = "Invalid Key!"
+    end
+end)
+
+loadHub = function()
+    local ui = Instance.new("ScreenGui")
+    ui.Name = "VeilHub"
+    ui.Parent = guiParent
+    
+    local hubFrame = Instance.new("Frame")
+    hubFrame.Size = UDim2.new(0, 450, 0, 500)
+    hubFrame.Position = UDim2.new(0.5, -225, 0.5, -250)
+    hubFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    hubFrame.Active = true
+    hubFrame.Draggable = true
+    hubFrame.Parent = ui
+    
+    local topBar = Instance.new("Frame")
+    topBar.Size = UDim2.new(1, 0, 0, 30)
+    topBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    topBar.Parent = hubFrame
+    
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -60, 1, 0)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = " VEIL HUB v7"
+    titleLbl.TextColor3 = Color3.new(1, 1, 1)
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 14
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = topBar
+    
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 1, 0)
+    closeBtn.Position = UDim2.new(1, -30, 0, 0)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "X"
+    closeBtn.TextColor3 = Color3.new(1, 0, 0)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 14
+    closeBtn.Parent = topBar
+    closeBtn.MouseButton1Click:Connect(function() ui:Destroy() end)
     
     local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, -20, 0, 35)
-    tabContainer.Position = UDim2.new(0, 10, 0, 40)
-    tabContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    tabContainer.Parent = mainFrame
+    tabContainer.Size = UDim2.new(1, 0, 1, -30)
+    tabContainer.Position = UDim2.new(0, 0, 0, 30)
+    tabContainer.BackgroundTransparency = 1
+    tabContainer.Parent = hubFrame
     
-    local tcCorner = Instance.new("UICorner")
-    tcCorner.CornerRadius = UDim.new(0, 6)
-    tcCorner.Parent = tabContainer
+    local tabBar = Instance.new("ScrollingFrame")
+    tabBar.Size = UDim2.new(1, 0, 0, 35)
+    tabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    tabBar.CanvasSize = UDim2.new(0, 600, 0, 0)
+    tabBar.ScrollBarThickness = 0
+    tabBar.Parent = tabContainer
     
-    local tcLayout = Instance.new("UIListLayout")
-    tcLayout.FillDirection = Enum.FillDirection.Horizontal
-    tcLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tcLayout.Parent = tabContainer
+    local tabListLayout = Instance.new("UIListLayout")
+    tabListLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabListLayout.Parent = tabBar
     
-    local pageContainer = Instance.new("Frame")
-    pageContainer.Size = UDim2.new(1, -20, 1, -95)
-    pageContainer.Position = UDim2.new(0, 10, 0, 85)
-    pageContainer.BackgroundTransparency = 1
-    pageContainer.Parent = mainFrame
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Size = UDim2.new(1, 0, 1, -35)
+    contentContainer.Position = UDim2.new(0, 0, 0, 35)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.Parent = tabContainer
     
     local tabs = {}
-    local pages = {}
-    
-    local function createTab(name, order)
-        local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(1/6, 0, 1, 0)
-        tabBtn.BackgroundTransparency = 1
-        tabBtn.Text = name
-        tabBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-        tabBtn.Font = Enum.Font.GothamSemibold
-        tabBtn.TextSize = 12
-        tabBtn.LayoutOrder = order
-        tabBtn.Parent = tabContainer
+    local function makeTab(name)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 100, 1, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        btn.Text = name
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 12
+        btn.Parent = tabBar
         
         local page = Instance.new("ScrollingFrame")
         page.Size = UDim2.new(1, 0, 1, 0)
         page.BackgroundTransparency = 1
-        page.BorderSizePixel = 0
+        page.CanvasSize = UDim2.new(0, 0, 0, 0)
         page.ScrollBarThickness = 4
         page.Visible = false
-        page.Parent = pageContainer
+        page.Parent = contentContainer
         
-        local pLayout = Instance.new("UIListLayout")
-        pLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        pLayout.Padding = UDim.new(0, 5)
-        pLayout.Parent = page
+        local pageLayout = Instance.new("UIListLayout")
+        pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        pageLayout.Padding = UDim.new(0, 5)
+        pageLayout.Parent = page
         
-        pLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            page.CanvasSize = UDim2.new(0, 0, 0, pLayout.AbsoluteContentSize.Y)
-        end)
-        
-        tabBtn.MouseButton1Click:Connect(function()
-            for _, p in pairs(pages) do p.Visible = false end
-            for _, t in pairs(tabs) do t.TextColor3 = Color3.fromRGB(150, 150, 150) end
+        btn.MouseButton1Click:Connect(function()
+            for _, t in pairs(tabs) do
+                t.page.Visible = false
+                t.btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            end
             page.Visible = true
-            tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         end)
         
-        table.insert(tabs, tabBtn)
-        table.insert(pages, page)
+        table.insert(tabs, {btn=btn, page=page})
         return page
     end
     
-    local mainPage = createTab("Main", 1)
-    local combatPage = createTab("Combat", 2)
-    local tpPage = createTab("Teleport", 3)
-    local plrPage = createTab("Player", 4)
-    local itemPage = createTab("Items", 5)
-    local setPage = createTab("Settings", 6)
-    
-    tabs[1].TextColor3 = Color3.fromRGB(255, 255, 255)
-    pages[1].Visible = true
-    
-    -- === SECTION 21: UI BUILDERS ===
-    local layoutOrder = 0
-    local function getOrder() layoutOrder = layoutOrder + 1; return layoutOrder end
-    
-    local function makeSection(parent, titleText)
+    local function makeSection(parent, title)
         local lbl = Instance.new("TextLabel")
         lbl.Size = UDim2.new(1, 0, 0, 25)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = "  " .. titleText
-        lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+        lbl.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        lbl.Text = "  " .. title
+        lbl.TextColor3 = Color3.new(0.8, 0.8, 0.8)
         lbl.Font = Enum.Font.GothamBold
-        lbl.TextSize = 14
+        lbl.TextSize = 12
         lbl.TextXAlignment = Enum.TextXAlignment.Left
-        lbl.LayoutOrder = getOrder()
         lbl.Parent = parent
     end
     
-    local function makeToggle(parent, labelText, default, callback)
+    local function makeToggle(parent, label, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 35)
-        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        frame.LayoutOrder = getOrder()
+        frame.Size = UDim2.new(1, 0, 0, 30)
+        frame.BackgroundTransparency = 1
         frame.Parent = parent
-        local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,6); corner.Parent = frame
         
         local lbl = Instance.new("TextLabel")
-        lbl.Size = UDim2.new(0.7, 0, 1, 0)
-        lbl.Position = UDim2.new(0, 10, 0, 0)
+        lbl.Size = UDim2.new(0.8, 0, 1, 0)
         lbl.BackgroundTransparency = 1
-        lbl.Text = labelText
-        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lbl.Text = "  " .. label
+        lbl.TextColor3 = Color3.new(1, 1, 1)
         lbl.Font = Enum.Font.Gotham
-        lbl.TextSize = 14
+        lbl.TextSize = 12
         lbl.TextXAlignment = Enum.TextXAlignment.Left
         lbl.Parent = frame
         
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, 40, 0, 20)
         btn.Position = UDim2.new(1, -50, 0.5, -10)
-        btn.BackgroundColor3 = default and Color3.fromRGB(60, 120, 200) or Color3.fromRGB(60, 60, 60)
+        btn.BackgroundColor3 = default and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
         btn.Text = ""
         btn.Parent = frame
-        local bCorner = Instance.new("UICorner"); bCorner.CornerRadius = UDim.new(1,0); bCorner.Parent = btn
-        
-        local dot = Instance.new("Frame")
-        dot.Size = UDim2.new(0, 16, 0, 16)
-        dot.Position = default and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-        dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        dot.Parent = btn
-        local dCorner = Instance.new("UICorner"); dCorner.CornerRadius = UDim.new(1,0); dCorner.Parent = dot
         
         local state = default
         btn.MouseButton1Click:Connect(function()
             state = not state
-            TS:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = state and Color3.fromRGB(60, 120, 200) or Color3.fromRGB(60, 60, 60)}):Play()
-            TS:Create(dot, TweenInfo.new(0.2), {Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
+            btn.BackgroundColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
             callback(state)
         end)
     end
     
-    local function makeSlider(parent, labelText, min, max, default, callback)
+    local function makeSlider(parent, label, min, max, default, callback)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 45)
-        frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        frame.LayoutOrder = getOrder()
+        frame.Size = UDim2.new(1, 0, 0, 40)
+        frame.BackgroundTransparency = 1
         frame.Parent = parent
-        local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,6); corner.Parent = frame
         
         local lbl = Instance.new("TextLabel")
-        lbl.Size = UDim2.new(0.7, 0, 0, 25)
-        lbl.Position = UDim2.new(0, 10, 0, 0)
+        lbl.Size = UDim2.new(1, 0, 0, 20)
         lbl.BackgroundTransparency = 1
-        lbl.Text = labelText .. ": " .. tostring(default)
-        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lbl.Text = "  " .. label .. ": " .. default
+        lbl.TextColor3 = Color3.new(1, 1, 1)
         lbl.Font = Enum.Font.Gotham
-        lbl.TextSize = 14
+        lbl.TextSize = 12
         lbl.TextXAlignment = Enum.TextXAlignment.Left
         lbl.Parent = frame
         
-        local sliderBg = Instance.new("TextButton")
-        sliderBg.Size = UDim2.new(1, -20, 0, 8)
-        sliderBg.Position = UDim2.new(0, 10, 0, 28)
-        sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        sliderBg.Text = ""
-        sliderBg.Parent = frame
-        local sbCorner = Instance.new("UICorner"); sbCorner.CornerRadius = UDim.new(1,0); sbCorner.Parent = sliderBg
+        local bg = Instance.new("TextButton")
+        bg.Size = UDim2.new(1, -20, 0, 10)
+        bg.Position = UDim2.new(0, 10, 0, 25)
+        bg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        bg.Text = ""
+        bg.Parent = frame
         
-        local sliderFill = Instance.new("Frame")
-        local pct = (default - min) / (max - min)
-        sliderFill.Size = UDim2.new(pct, 0, 1, 0)
-        sliderFill.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
-        sliderFill.Parent = sliderBg
-        local sfCorner = Instance.new("UICorner"); sfCorner.CornerRadius = UDim.new(1,0); sfCorner.Parent = sliderFill
-        
-        local function update(input)
-            local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
-            local val = math.floor(min + ((max - min) * pos))
-            sliderFill.Size = UDim2.new(pos, 0, 1, 0)
-            lbl.Text = labelText .. ": " .. tostring(val)
-            callback(val)
-        end
+        local fill = Instance.new("Frame")
+        fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        fill.Parent = bg
         
         local dragging = false
-        sliderBg.InputBegan:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; update(inp)
-            end
+        bg.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
         end)
-        UIS.InputEnded:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
+        UIS.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
         end)
-        UIS.InputChanged:Connect(function(inp)
-            if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
-                update(inp)
+        UIS.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local pct = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
+                fill.Size = UDim2.new(pct, 0, 1, 0)
+                local val = math.floor(min + pct * (max - min))
+                lbl.Text = "  " .. label .. ": " .. val
+                callback(val)
             end
         end)
     end
     
-    local function makeButton(parent, text, callback)
+    local function makeButton(parent, label, callback)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 35)
-        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 14
-        btn.Text = text
-        btn.LayoutOrder = getOrder()
+        btn.Size = UDim2.new(1, -20, 0, 30)
+        btn.Position = UDim2.new(0, 10, 0, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        btn.Text = label
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 12
         btn.Parent = parent
-        local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0,6); corner.Parent = btn
-        
         btn.MouseButton1Click:Connect(callback)
     end
     
-    -- === SECTION 22: TAB POPULATION ===
+    local pageMain = makeTab("Main")
+    local pageCombat = makeTab("Combat")
+    local pageTeleport = makeTab("Teleport")
+    local pagePlayer = makeTab("Player")
+    local pageESP = makeTab("ESP")
+    local pageSettings = makeTab("Settings")
     
-    -- MAIN TAB
-    makeSection(mainPage, "Auto Farm")
-    makeToggle(mainPage, "Auto Farm", false, function(v) 
-        S.autoFarm = v
-        if v then autoFarmLoop() end
-    end)
-    makeToggle(mainPage, "Auto Level", false, function(v) S.autoLevel = v end)
-    makeSlider(mainPage, "Farm Distance", 3, 20, 5, function(v) S.farmDist = v end)
-    makeSlider(mainPage, "Tween Speed", 50, 500, 200, function(v) S.tweenSpeed = v end)
-    makeSection(mainPage, "Collection")
-    makeToggle(mainPage, "Fruit Collector", false, function(v) S.fruitCollect = v end)
+    tabs[1].btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    tabs[1].page.Visible = true
     
-    -- COMBAT TAB
-    makeSection(combatPage, "Attack")
-    makeToggle(combatPage, "Auto M1", false, function(v)
-        S.autoM1 = v
-        if v then autoM1Start() end
-    end)
-    makeToggle(combatPage, "Kill Aura", false, function(v)
-        S.killAura = v
-        if v then kaStart() end
-    end)
-    makeSlider(combatPage, "Aura Range", 10, 200, 60, function(v) S.auraRange = v end)
-    makeSlider(combatPage, "Attack Speed (x100)", 10, 100, 30, function(v) S.attackSpeed = v/100 end)
+    -- MAIN
+    makeSection(pageMain, "Auto Farm")
+    makeToggle(pageMain, "Auto Farm", S.autoFarm, function(v) S.autoFarm = v if v then autoFarmLoop() end end)
+    makeToggle(pageMain, "Auto Level", S.autoLevel, function(v) S.autoLevel = v end)
+    makeSlider(pageMain, "Attack Speed", 10, 100, 20, function(v) S.attackSpeed = v/100 end)
+    makeSection(pageMain, "Collection")
+    makeToggle(pageMain, "Fruit ESP", S.fruitESP, function(v) S.fruitESP = v end)
     
-    -- TELEPORT TAB
-    makeSection(tpPage, "Island Teleport")
+    -- COMBAT
+    makeSection(pageCombat, "Kill Aura (Quick TP)")
+    makeToggle(pageCombat, "Kill Aura", S.killAura, function(v) S.killAura = v if v then kaStart() end end)
+    makeSlider(pageCombat, "Aura Range", 50, 1000, 200, function(v) S.auraRange = v end)
+    makeSection(pageCombat, "Bring Mob")
+    makeToggle(pageCombat, "Bring Mobs", S.bringMob, function(v) S.bringMob = v if v then bringStart() end end)
+    makeSlider(pageCombat, "Bring Range", 50, 1000, 200, function(v) S.bringRange = v end)
+    makeSection(pageCombat, "Auto Attack")
+    makeToggle(pageCombat, "Auto M1", S.autoM1, function(v) S.autoM1 = v end)
     
-    -- Build island name list
-    local islandNames = {"None"}
+    -- TELEPORT
+    makeSection(pageTeleport, "Island Teleport")
+    
+    local islandNames = {}
     for _, isl in ipairs(Islands) do table.insert(islandNames, isl.name) end
     
-    -- Island dropdown (manual since we don't have makeDropdown yet)
-    local tpDropFrame = Instance.new("Frame")
-    tpDropFrame.Size = UDim2.new(1, 0, 0, 35)
-    tpDropFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    tpDropFrame.LayoutOrder = getOrder()
-    tpDropFrame.Parent = tpPage
-    Instance.new("UICorner", tpDropFrame).CornerRadius = UDim.new(0, 6)
-    
-    local tpDropBtn = Instance.new("TextButton")
-    tpDropBtn.Size = UDim2.new(1, -20, 1, -6)
-    tpDropBtn.Position = UDim2.new(0, 10, 0, 3)
-    tpDropBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    tpDropBtn.Text = "Select Island: None"
-    tpDropBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tpDropBtn.Font = Enum.Font.Gotham
-    tpDropBtn.TextSize = 12
-    tpDropBtn.Parent = tpDropFrame
-    Instance.new("UICorner", tpDropBtn).CornerRadius = UDim.new(0, 4)
-    
-    local tpDropList = Instance.new("ScrollingFrame")
-    tpDropList.Size = UDim2.new(1, 0, 0, 200)
-    tpDropList.Position = UDim2.new(0, 0, 1, 2)
-    tpDropList.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    tpDropList.Visible = false
-    tpDropList.ZIndex = 50
-    tpDropList.ScrollBarThickness = 3
-    tpDropList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    tpDropList.Parent = tpDropBtn
-    Instance.new("UICorner", tpDropList).CornerRadius = UDim.new(0, 4)
-    Instance.new("UIListLayout", tpDropList).Padding = UDim.new(0, 1)
-    
-    tpDropBtn.MouseButton1Click:Connect(function()
-        tpDropList.Visible = not tpDropList.Visible
-    end)
+    local selectedLbl = Instance.new("TextLabel")
+    selectedLbl.Size = UDim2.new(1, 0, 0, 25)
+    selectedLbl.BackgroundTransparency = 1
+    selectedLbl.Text = "  Selected: None"
+    selectedLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    selectedLbl.Font = Enum.Font.Gotham
+    selectedLbl.TextSize = 12
+    selectedLbl.TextXAlignment = Enum.TextXAlignment.Left
+    selectedLbl.LayoutOrder = getOrder()
+    selectedLbl.Parent = pageTeleport
     
     for _, iName in ipairs(islandNames) do
-        local ob = Instance.new("TextButton")
-        ob.Size = UDim2.new(1, -4, 0, 22)
-        ob.Position = UDim2.new(0, 2, 0, 0)
-        ob.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        ob.Text = iName
-        ob.TextColor3 = Color3.fromRGB(220, 220, 220)
-        ob.TextSize = 11
-        ob.Font = Enum.Font.Gotham
-        ob.ZIndex = 51
-        ob.Parent = tpDropList
-        Instance.new("UICorner", ob).CornerRadius = UDim.new(0, 3)
-        ob.MouseButton1Click:Connect(function()
+        makeButton(pageTeleport, iName, function()
             S.selectedIsland = iName
-            tpDropBtn.Text = "Select Island: " .. iName
-            tpDropList.Visible = false
+            selectedLbl.Text = "  Selected: " .. iName
         end)
     end
     
-    makeButton(tpPage, "Teleport to Island", function()
-        if S.selectedIsland == "None" then notify("TP", "No island selected"); return end
+    makeButton(pageTeleport, ">> TELEPORT <<", function()
+        if S.selectedIsland == "None" then notify("TP", "Select an island first"); return end
         for _, isl in ipairs(Islands) do
             if isl.name == S.selectedIsland then
-                tweenTo(isl.cframe, S.tweenSpeed)
+                teleportTo(isl.cframe)
                 notify("TP", "Teleported to " .. isl.name)
                 break
             end
         end
     end)
     
-    makeSection(tpPage, "Quick Teleport")
-    makeButton(tpPage, "TP to Nearest Mob", function()
-        local m = findNearestAny()
+    makeSection(pageTeleport, "Quick TP")
+    makeButton(pageTeleport, "TP to Nearest Mob", function()
+        local m = findNearest("Any")
         if m and m:FindFirstChild("HumanoidRootPart") then
-            tweenTo(m.HumanoidRootPart.CFrame * CFrame.new(0, S.farmDist, 0))
+            teleportTo(m.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3))
             notify("TP", "Teleported to " .. m.Name)
         end
     end)
-    makeButton(tpPage, "Safe TP to Sky", function()
-        local hrp = getHRP()
-        if hrp then instantTP(hrp.CFrame * CFrame.new(0, 500, 0)) end
-    end)
     
-    -- PLAYER TAB
-    makeSection(plrPage, "Movement")
-    makeToggle(plrPage, "Fly", false, function(v)
-        S.fly = v
-        if v then flyOn() else flyOff() end
-    end)
-    makeSlider(plrPage, "Fly Speed", 20, 500, 80, function(v) S.flySpeed = v end)
-    makeToggle(plrPage, "Noclip", false, function(v) S.noclip = v end)
-    makeToggle(plrPage, "Infinite Jump", false, function(v) S.infJump = v end)
-    makeSlider(plrPage, "Walk Speed", 16, 200, 16, function(v) S.walkSpeed = v end)
-    makeSlider(plrPage, "Jump Power", 50, 200, 50, function(v) S.jumpPower = v end)
+    -- PLAYER
+    makeSection(pagePlayer, "Movement")
+    makeToggle(pagePlayer, "Fly", S.fly, function(v) S.fly = v if v then flyOn() else flyOff() end end)
+    makeSlider(pagePlayer, "Fly Speed", 20, 500, 80, function(v) S.flySpeed = v end)
+    makeToggle(pagePlayer, "Noclip", S.noclip, function(v) S.noclip = v end)
+    makeToggle(pagePlayer, "Infinite Jump", S.infJump, function(v) S.infJump = v end)
+    makeSlider(pagePlayer, "Walk Speed", 16, 500, 16, function(v) S.walkSpeed = v end)
+    makeSlider(pagePlayer, "Jump Power", 50, 500, 50, function(v) S.jumpPower = v end)
+    makeSection(pagePlayer, "Defense")
+    makeToggle(pagePlayer, "God Mode", S.godMode, function(v) S.godMode = v end)
+    makeToggle(pagePlayer, "No Knockback", S.noKB, function(v) S.noKB = v end)
     
-    makeSection(plrPage, "Defense")
-    makeToggle(plrPage, "God Mode", false, function(v) S.godMode = v end)
-    makeToggle(plrPage, "No Knockback", false, function(v) S.noKB = v end)
+    -- ESP
+    makeSection(pageESP, "Mob ESP")
+    makeToggle(pageESP, "Mob ESP", S.mobESP, function(v) S.mobESP = v end)
+    makeSection(pageESP, "Fruit ESP")
+    makeToggle(pageESP, "Fruit ESP", S.fruitESP, function(v) S.fruitESP = v end)
     
-    -- ITEMS TAB
-    makeSection(itemPage, "Fruits")
-    makeToggle(itemPage, "Fruit ESP", false, function(v) S.fruitESP = v end)
+    -- SETTINGS
+    makeSection(pageSettings, "Emergency")
+    makeButton(pageSettings, "EMERGENCY STOP", triggerEmergencyStop)
+    makeSection(pageSettings, "Performance")
+    makeToggle(pageSettings, "FPS Boost", S.fpsBst, function(v) S.fpsBst = v; if v then applyFPSBoost() end end)
+    makeSection(pageSettings, "Debug")
+    makeToggle(pageSettings, "Debug Panel", S.debugPanel, function(v) S.debugPanel = v end)
+    makeToggle(pageSettings, "Notifications", S.notifications, function(v) S.notifications = v end)
+    makeSection(pageSettings, "Actions")
+    makeButton(pageSettings, "Respawn", function() local h = getHum() if h then h.Health = 0 end end)
+    makeButton(pageSettings, "Rejoin", function() TP:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP) end)
     
-    -- SETTINGS TAB
-    makeSection(setPage, "Emergency")
-    local estopBtn = Instance.new("TextButton")
-    estopBtn.Size = UDim2.new(1, 0, 0, 45)
-    estopBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    estopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    estopBtn.Font = Enum.Font.GothamBold
-    estopBtn.TextSize = 16
-    estopBtn.Text = "EMERGENCY STOP"
-    estopBtn.LayoutOrder = getOrder()
-    estopBtn.Parent = setPage
-    local esCorner = Instance.new("UICorner"); esCorner.CornerRadius = UDim.new(0,6); esCorner.Parent = estopBtn
-    estopBtn.MouseButton1Click:Connect(triggerEmergencyStop)
-    
-    makeSection(setPage, "Performance & UI")
-    makeToggle(setPage, "FPS Boost", false, function(v)
-        S.fpsBst = v
-        if v then fpsBoost() end
-    end)
-    makeToggle(setPage, "Debug Panel", false, function(v) S.debugPanel = v end)
-    makeToggle(setPage, "Notifications", true, function(v) S.notifications = v end)
-    makeButton(setPage, "Respawn", function()
-        local hum = getHum()
-        if hum then hum.Health = 0 end
-    end)
-    
-    -- === SECTION 23: DEBUG PANEL ===
-    local dbgFrame = Instance.new("Frame")
-    dbgFrame.Size = UDim2.new(0, 200, 0, 100)
-    dbgFrame.Position = UDim2.new(1, -210, 1, -110)
-    dbgFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    dbgFrame.BackgroundTransparency = 0.5
-    dbgFrame.Parent = ui
-    
-    local dbgLbl = Instance.new("TextLabel")
-    dbgLbl.Size = UDim2.new(1, -10, 1, -10)
-    dbgLbl.Position = UDim2.new(0, 5, 0, 5)
-    dbgLbl.BackgroundTransparency = 1
-    dbgLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dbgLbl.Font = Enum.Font.Code
-    dbgLbl.TextSize = 12
-    dbgLbl.TextXAlignment = Enum.TextXAlignment.Left
-    dbgLbl.TextYAlignment = Enum.TextYAlignment.Top
-    dbgLbl.Parent = dbgFrame
-    
-    local frames = 0
-    RunS.RenderStepped:Connect(function() frames = frames + 1 end)
-    
-    tspawn(function()
-        while true do
-            twait(0.5)
-            dbgFrame.Visible = S.debugPanel
-            if S.debugPanel then
-                local fps = frames * 2
-                frames = 0
-                local hrp = getHRP()
-                local pos = hrp and string.format("%.1f, %.1f, %.1f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z) or "N/A"
-                local tName = (S.currentTarget and S.currentTarget.Parent) and S.currentTarget.Name or "None"
-                dbgLbl.Text = string.format("FPS: %d\nState: %s\nTarget: %s\nIsland: %s\nPos: %s", fps, S.farmState, tName, S.farmIsland, pos)
-            end
+    -- KEYBINDS & VISIBILITY
+    UIS.InputBegan:Connect(function(input, gpe)
+        if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
+            ui.Enabled = not ui.Enabled
         end
     end)
     
-    -- === SECTION 25: KEYBINDS & RESPAWN ===
-    UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if input.KeyCode == Enum.KeyCode.RightControl then
-            mainFrame.Visible = not mainFrame.Visible
-        end
-    end)
-    
-    LP.CharacterAdded:Connect(function(char)
-        char:WaitForChild("HumanoidRootPart")
-        char:WaitForChild("Humanoid")
-        -- Reapply logic
-        if S.fly then flyActive = false; twait(1); flyOn() end
-    end)
-    
-    notify("VEIL Hub v7 Loaded", "Press RightCtrl to toggle UI")
+    notify("VEIL Hub v7 Loaded", "RightCtrl to toggle UI")
 end
