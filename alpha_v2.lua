@@ -539,6 +539,7 @@ local function TweenTo(targetCFrame, destName)
     local time = distance / speed
     CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
     CurrentTween.Completed:Connect(function()
+        CurrentTween = nil
         if hum and hum.Parent then hum.PlatformStand = false end
         HoverLock(targetCFrame)
     end)
