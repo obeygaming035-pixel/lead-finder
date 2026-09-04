@@ -137,16 +137,16 @@ _G.Config = {
     
     -- Farm Distance Settings
     AdaptiveBossDistance = true,
-    MobFarmDistance = 8,
-    BossFarmDistance = 18,
-    FarmDistance = 8,
-    TweenSpeed = 320, -- Redz Flight Speed
+    MobFarmDistance = 14, -- Normal mobs distance set to 14 studs as requested
+    BossFarmDistance = 20, -- Boss distance set to 20 studs
+    FarmDistance = 14,
+    TweenSpeed = 350, -- Redz Flight Speed (350 studs/s)
     
     -- Combat Mode (M1 vs Skills)
     UseM1 = true,
     FastAttack = true,
     FastAttackSpeed = 0.015, -- Super Fast clicks (Redz style)
-    AttackDistance = 65,
+    AttackDistance = 120, -- Increased kill aura range to 120 studs as requested
     AutoBusoHaki = true,
     AutoKenHaki = false,
     
@@ -216,6 +216,9 @@ _G.Config = {
     AntiAFK = true,
     SafeMode = false
 }
+
+-- Global input isolation guard: when user interacts with UI, combat clicks are muted!
+_G.UIInteracting = false
 
 --============================== HELPER FUNCTIONS ==============================
 local function GetCharacter()
@@ -316,28 +319,28 @@ local BossesDB
 
 -- Adaptive farm distance calculator (gives bosses more clearance against AoE stuns)
 local function GetOptimalFarmDistance(enemy)
-    if not enemy then return _G.Config.MobFarmDistance or 8 end
+    if not enemy then return _G.Config.MobFarmDistance or 14 end
     local isBoss = (BossesDB and BossesDB[enemy.Name] ~= nil) or (enemy:FindFirstChild("Humanoid") and enemy.Humanoid.MaxHealth > 50000)
     if isBoss then
         if _G.Config.AdaptiveBossDistance then
             local name = enemy.Name:lower()
             if name:find("indra") or name:find("dough") or name:find("cake") or name:find("reaper") or name:find("beast") then
-                return 22
+                return 24
             elseif name:find("king") or name:find("admiral") or name:find("warden") or name:find("emperor") or name:find("captain") then
-                return 18
+                return 20
             else
-                return _G.Config.BossFarmDistance or 18
+                return _G.Config.BossFarmDistance or 20
             end
         else
-            return _G.Config.BossFarmDistance or 18
+            return _G.Config.BossFarmDistance or 20
         end
     end
-    return _G.Config.MobFarmDistance or 8
+    return _G.Config.MobFarmDistance or 14
 end
 
---============================== REDZ-GRADE SKY TWEEN ENGINE ==============================
+--============================== REDZ-GRADE SKY TWEEN & HOVER LOCK ENGINE ==============================
 local CurrentTween = nil
-local TweenBodyVel = nil
+local FlightBodyVel = nil
 local CurrentTargetPos = nil
 local IsTravelingSky = false
 local NoclipConn = nil
@@ -363,67 +366,99 @@ local function DisableNoclip()
     end
 end
 
+local function GetOrCreateBodyVelocity(root)
+    if FlightBodyVel and FlightBodyVel.Parent == root then
+        return FlightBodyVel
+    end
+    if FlightBodyVel then
+        pcall(function() FlightBodyVel:Destroy() end)
+    end
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "AlphaFlightBV"
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Parent = root
+    FlightBodyVel = bv
+    return bv
+end
+
+-- Persistent Hover Lock: keeps character rigidly anchored at hover altitude so they NEVER fall into the mob!
+local function HoverLock(targetCFrame)
+    local root = GetRoot()
+    if not root or not root.Parent then return end
+    EnableNoclip()
+    local bv = GetOrCreateBodyVelocity(root)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    root.CFrame = targetCFrame
+end
+
 local function StopTween()
     if CurrentTween then
         pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
     end
-    if TweenBodyVel then
-        pcall(function() TweenBodyVel:Destroy() end)
-        TweenBodyVel = nil
-    end
     CurrentTargetPos = nil
     IsTravelingSky = false
+    local hum = GetHumanoid()
+    if hum then hum.PlatformStand = false end
+end
+
+local function FullResetMovement()
+    StopTween()
+    if FlightBodyVel then
+        pcall(function() FlightBodyVel:Destroy() end)
+        FlightBodyVel = nil
+    end
     DisableNoclip()
+    local hum = GetHumanoid()
+    if hum then hum.PlatformStand = false end
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
-    StopTween()
+    FullResetMovement()
 end)
-
-local function GetOrCreateBodyVelocity(root)
-    if TweenBodyVel and TweenBodyVel.Parent == root then
-        return TweenBodyVel
-    end
-    if TweenBodyVel then
-        pcall(function() TweenBodyVel:Destroy() end)
-    end
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "AlphaFlight"
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    bv.Parent = root
-    TweenBodyVel = bv
-    return bv
-end
 
 local function TweenTo(targetCFrame)
     local root = GetRoot()
-    if not root or not root.Parent then return end
+    local hum = GetHumanoid()
+    if not root or not root.Parent or not hum then return end
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
+    
+    -- Close enough: lock position immediately and maintain hover
     if distance < 15 then
         StopTween()
-        root.CFrame = targetCFrame
+        HoverLock(targetCFrame)
         return
     end
     
-    local speed = _G.Config.TweenSpeed or 320
-    if speed < 250 then speed = 320 end
+    local speed = _G.Config.TweenSpeed or 350
+    if speed < 280 then speed = 350 end
     
-    -- 1. LOCAL HOVER / CLOSE RANGE (<= 250 studs)
+    -- 1. LOCAL HOVER / SHORT RANGE (<= 250 studs)
     if distance <= 250 then
         EnableNoclip()
-        GetOrCreateBodyVelocity(root)
+        local bv = GetOrCreateBodyVelocity(root)
+        local dir = (targetCFrame.Position - root.Position).Unit
+        bv.Velocity = dir * speed -- Physics velocity matches CFrame movement to eliminate snap-back!
+        hum.PlatformStand = true -- Prevents character walking physics from conflicting with flight
+        
         local time = distance / speed
         if CurrentTween then CurrentTween:Cancel() end
         CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween.Completed:Connect(function()
+            if hum and hum.Parent then hum.PlatformStand = false end
+            HoverLock(targetCFrame)
+        end)
         CurrentTween:Play()
         return CurrentTween
     end
     
-    -- 2. LONG RANGE / CROSS-ISLAND TRAVEL (> 250 studs)
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 25 and IsTravelingSky then
+    -- 2. LONG RANGE / CROSS-ISLAND FLIGHT (> 250 studs)
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 30 and IsTravelingSky then
         return -- Already sky-traveling to this target
     end
     
@@ -441,22 +476,24 @@ local function TweenTo(targetCFrame)
                 distance = (targetCFrame.Position - root.Position).Magnitude
                 if distance < 120 then
                     StopTween()
-                    root.CFrame = targetCFrame
+                    HoverLock(targetCFrame)
                     return
                 end
             end
         end
         
         EnableNoclip()
-        GetOrCreateBodyVelocity(root)
+        local bv = GetOrCreateBodyVelocity(root)
+        hum.PlatformStand = true
         
         -- High flight altitude: Y = 380+ (immune to water damage, clears all trees/mountains)
         local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 70)
         
-        -- Ascend to sky
+        -- Ascend to sky altitude
         if root.Position.Y < (skyY - 30) then
             local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
+            bv.Velocity = Vector3.new(0, speed, 0)
             local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
             CurrentTween = upTween
             upTween:Play()
@@ -465,10 +502,12 @@ local function TweenTo(targetCFrame)
         
         if not root or not root.Parent or not IsTravelingSky then return end
         
-        -- Fly horizontally across sky
+        -- Fly horizontally across sky to target X, Z
         local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
         if hDist > 25 then
+            local hDir = (skyTargetCF.Position - root.Position).Unit
+            bv.Velocity = hDir * speed
             local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
             CurrentTween = hTween
             hTween:Play()
@@ -477,18 +516,18 @@ local function TweenTo(targetCFrame)
         
         if not root or not root.Parent or not IsTravelingSky then return end
         
-        -- Descend to target position
+        -- Descend directly to target position
         local downDist = (targetCFrame.Position - root.Position).Magnitude
+        local downDir = (targetCFrame.Position - root.Position).Unit
+        bv.Velocity = downDir * speed
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween = downTween
         downTween:Play()
         downTween.Completed:Wait()
         
         IsTravelingSky = false
-        if (targetCFrame.Position - root.Position).Magnitude < 20 then
-            root.CFrame = targetCFrame
-            StopTween()
-        end
+        if hum and hum.Parent then hum.PlatformStand = false end
+        HoverLock(targetCFrame)
     end)
 end
 
@@ -519,13 +558,15 @@ local function GetBladeHits()
     return targets
 end
 
--- Fast M1 Clicks (Redz Hub style: 0.015s super fast)
+-- Fast M1 Clicks (Redz Hub style: 0.015s blazing speed)
 local function FastAttack()
     if not _G.Config.FastAttack or not _G.Config.UseM1 then return end
+    if _G.UIInteracting then return end -- Prevent weapon swings while clicking in UI!
+    
     local char = GetCharacter()
     if not char then return end
     
-    -- Ensure the equipped weapon matches selected weapon type
+    -- Strict check: only activate if equipped weapon matches selected weapon
     local tool = char:FindFirstChildOfClass("Tool")
     if not tool or not IsWeaponType(tool, _G.Config.SelectedWeapon) then
         EquipWeapon(_G.Config.SelectedWeapon)
@@ -555,8 +596,8 @@ local function FastAttack()
             end)
         end
         
-        -- Activate equipped weapon ONLY
-        if tool and _G.Config.UseM1 then
+        -- Activate equipped weapon ONLY (never fires if holding fruit by mistake)
+        if tool and _G.Config.UseM1 and not _G.UIInteracting then
             pcall(function() tool:Activate() end)
         end
     end
@@ -565,6 +606,8 @@ end
 -- Cast skills with selected weapon ONLY
 local function CastNextSkill()
     if not _G.Config.UseSkills then return end
+    if _G.UIInteracting then return end
+    
     local now = tick()
     if (now - _lastSkillCastTime) < 1.0 then return end
     
@@ -579,7 +622,6 @@ local function CastNextSkill()
     local enemies = GetBladeHits()
     if #enemies == 0 then return end
     
-    -- Find enabled skill key
     local chosenKey = nil
     for i = 1, #_skillCycle do
         local key = _skillCycle[_skillCycleIndex]
@@ -896,18 +938,18 @@ end
 --============================== AUTO FARM LEVEL CORE ==============================
 local function StartAutoFarmLevel()
     task.spawn(function()
-        task.wait(math.random(5, 15) / 10) -- Staggered start
+        task.wait(math.random(5, 15) / 10)
         while true do
-            task.wait(0.2 + math.random() * 0.1)
+            task.wait(0.15)
             if _G.Config.AutoFarmLevel then
                 pcall(function()
                     local questInfo = GetCurrentQuest()
                     if not HasQuest() then
-                        StopTween()
                         local cf = CommF()
                         if cf then
+                            TweenTo(questInfo.Pos * CFrame.new(0, 5, 0))
                             cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                            task.wait(0.4 + math.random() * 0.2)
+                            task.wait(0.35)
                         end
                     else
                         local target = FindEnemy(questInfo.Mob)
@@ -915,13 +957,18 @@ local function StartAutoFarmLevel()
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             TweenTo(farmPos)
+                            HoverLock(farmPos)
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            TweenTo(questInfo.Pos * CFrame.new(0, 35, 0))
+                            local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
+                            TweenTo(safePos)
+                            HoverLock(safePos)
                         end
                     end
                 end)
+            else
+                StopTween()
             end
         end
     end)
@@ -932,26 +979,31 @@ local function StartAutoFarmSelectedMob()
     task.spawn(function()
         task.wait(math.random(8, 20) / 10)
         while true do
-            task.wait(0.2 + math.random() * 0.1)
+            task.wait(0.15)
             if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
                 pcall(function()
                     local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
                     local target = FindEnemy(mobName)
                     if target and target:FindFirstChild("HumanoidRootPart") then
                         local dist = GetOptimalFarmDistance(target)
-                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         TweenTo(farmPos)
+                        HoverLock(farmPos)
                         EquipWeapon(_G.Config.SelectedWeapon)
                         BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                     else
                         for _, q in ipairs(QuestsDB) do
                             if q.Mob == mobName then
-                                TweenTo(q.Pos * CFrame.new(0, 35, 0))
+                                local safePos = q.Pos * CFrame.new(0, 35, 0)
+                                TweenTo(safePos)
+                                HoverLock(safePos)
                                 break
                             end
                         end
                     end
                 end)
+            else
+                StopTween()
             end
         end
     end)
@@ -962,7 +1014,7 @@ local function StartAutoFarmSelectedBoss()
     task.spawn(function()
         task.wait(math.random(10, 25) / 10)
         while true do
-            task.wait(0.3 + math.random() * 0.1)
+            task.wait(0.2)
             if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
                 pcall(function()
                     local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
@@ -973,18 +1025,23 @@ local function StartAutoFarmSelectedBoss()
                         if bossData and bossData.Quest and not HasQuest() then
                             local cf = CommF()
                             if cf then cf:InvokeServer("StartQuest", bossData.Quest, bossData.Level) end
-                            task.wait(0.4 + math.random() * 0.2)
+                            task.wait(0.35)
                         end
                         local dist = GetOptimalFarmDistance(target)
-                    local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         TweenTo(farmPos)
+                        HoverLock(farmPos)
                         EquipWeapon(_G.Config.SelectedWeapon)
                     else
                         if bossData then
-                            TweenTo(bossData.Pos * CFrame.new(0, 40, 0))
+                            local safePos = bossData.Pos * CFrame.new(0, 40, 0)
+                            TweenTo(safePos)
+                            HoverLock(safePos)
                         end
                     end
                 end)
+            else
+                StopTween()
             end
         end
     end)
@@ -995,7 +1052,7 @@ local function StartAutoFarmAllBosses()
     task.spawn(function()
         task.wait(math.random(12, 30) / 10)
         while true do
-            task.wait(0.5 + math.random() * 0.2)
+            task.wait(0.3)
             if _G.Config.FarmAllBosses then
                 pcall(function()
                     local enemies = Workspace:FindFirstChild("Enemies")
@@ -1006,19 +1063,22 @@ local function StartAutoFarmAllBosses()
                                 if bData and bData.Quest and not HasQuest() then
                                     local cf = CommF()
                                     if cf then cf:InvokeServer("StartQuest", bData.Quest, bData.Level) end
-                                    task.wait(0.4 + math.random() * 0.2)
+                                    task.wait(0.35)
                                 end
                                 while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
                                     local dist = GetOptimalFarmDistance(enemy)
                                     local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                                     TweenTo(farmPos)
+                                    HoverLock(farmPos)
                                     EquipWeapon(_G.Config.SelectedWeapon)
-                                    task.wait(0.1 + math.random() * 0.05)
+                                    task.wait(0.1)
                                 end
                             end
                         end
                     end
                 end)
+            else
+                StopTween()
             end
         end
     end)
@@ -1031,6 +1091,7 @@ local function FightRaidBoss(bossName)
         local dist = GetOptimalFarmDistance(target)
         local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
         TweenTo(farmPos)
+        HoverLock(farmPos)
         EquipWeapon(_G.Config.SelectedWeapon)
         return true
     end
@@ -1041,7 +1102,7 @@ local function StartRaidBossLoop()
     task.spawn(function()
         task.wait(math.random(15, 35) / 10)
         while true do
-            task.wait(0.5 + math.random() * 0.2)
+            task.wait(0.4)
             pcall(function()
                 if _G.Config.AutoKillRipIndra then if not FightRaidBoss("rip_indra") then FightRaidBoss("Rip Indra") end end
                 if _G.Config.AutoKillDoughKing then FightRaidBoss("Dough King") end
@@ -1230,13 +1291,13 @@ local function EnableAntiAFK()
 end
 if _G.Config.AntiAFK then EnableAntiAFK() end
 
---============================== STEALTH UI FRAMEWORK ==============================
+--============================== STEALTH UI FRAMEWORK (REDZ NEON EDITION) ==============================
 -- All GUI elements use randomized names via GenerateGUID
--- No "Alpha", "Hub", "Redz" strings in any GUI name
+-- Full input isolation: Active = true on all containers so clicks NEVER register into the 3D game world!
 local function CreateUI()
     local parentGui = GetSafeGui()
     
-    -- Cleanup any existing instance (search by attribute, not name)
+    -- Cleanup any existing instance
     for _, child in ipairs(parentGui:GetChildren()) do
         if child:IsA("ScreenGui") and child:GetAttribute("_uid") == "v2h" then
             child:Destroy()
@@ -1244,29 +1305,36 @@ local function CreateUI()
     end
     
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = RNG() -- Random name
-    ScreenGui:SetAttribute("_uid", "v2h") -- Hidden attribute for cleanup
+    ScreenGui.Name = RNG()
+    ScreenGui:SetAttribute("_uid", "v2h")
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = parentGui
     
-    -- Main Frame
+    -- Main Frame (Dark Obsidian Cyber Theme)
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = RNG()
-    MainFrame.Size = UDim2.new(0, 580, 0, 360)
-    MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    MainFrame.Size = UDim2.new(0, 600, 0, 375)
+    MainFrame.Position = UDim2.new(0.5, -300, 0.5, -187)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
+    MainFrame.Active = true -- Consumes input so clicks never reach game!
     MainFrame.Parent = ScreenGui
+    
+    -- Global input lock listeners
+    MainFrame.MouseEnter:Connect(function() _G.UIInteracting = true end)
+    MainFrame.MouseLeave:Connect(function() _G.UIInteracting = false end)
     
     local MainCorner = Instance.new("UICorner")
     MainCorner.CornerRadius = UDim.new(0, 8)
     MainCorner.Parent = MainFrame
     
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(45, 45, 60)
+    MainStroke.Color = Color3.fromRGB(255, 42, 95)
     MainStroke.Thickness = 1.2
+    MainStroke.Transparency = 0.3
     MainStroke.Parent = MainFrame
     
     -- Dragging logic
@@ -1296,42 +1364,46 @@ local function CreateUI()
     -- Top Bar
     local TopBar = Instance.new("Frame")
     TopBar.Name = RNG()
-    TopBar.Size = UDim2.new(1, 0, 0, 42)
-    TopBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+    TopBar.Size = UDim2.new(1, 0, 0, 44)
+    TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
     TopBar.BorderSizePixel = 0
+    TopBar.Active = true
     TopBar.Parent = MainFrame
     
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(0, 300, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 14, 0, 0)
-    TitleLabel.Text = "ALPHA // BLOX FRUITS HUB v2"
-    TitleLabel.TextColor3 = Color3.fromRGB(175, 110, 255)
+    TitleLabel.Size = UDim2.new(0, 320, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 16, 0, 0)
+    TitleLabel.Text = "ALPHA // REDZ HUB EDITION"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 60, 110)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 14
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Active = true
     TitleLabel.Parent = TopBar
     
     local SubLabel = Instance.new("TextLabel")
     SubLabel.Size = UDim2.new(0, 200, 1, 0)
-    SubLabel.Position = UDim2.new(0, 240, 0, 0)
-    SubLabel.Text = "Keyless \xe2\x80\xa2 " .. SeaName
-    SubLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
+    SubLabel.Position = UDim2.new(0, 245, 0, 0)
+    SubLabel.Text = "Keyless • " .. SeaName
+    SubLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
     SubLabel.Font = Enum.Font.Gotham
     SubLabel.TextSize = 11
     SubLabel.TextXAlignment = Enum.TextXAlignment.Left
     SubLabel.BackgroundTransparency = 1
+    SubLabel.Active = true
     SubLabel.Parent = TopBar
     
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0, 28, 0, 28)
-    CloseBtn.Position = UDim2.new(1, -34, 0, 7)
+    CloseBtn.Position = UDim2.new(1, -36, 0, 8)
     CloseBtn.Text = "X"
-    CloseBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 13
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 35)
     CloseBtn.BorderSizePixel = 0
+    CloseBtn.Active = true
     CloseBtn.Parent = TopBar
     local CloseCorner = Instance.new("UICorner")
     CloseCorner.CornerRadius = UDim.new(0, 6)
@@ -1340,24 +1412,25 @@ local function CreateUI()
         MainFrame.Visible = false
     end)
     
-    -- Floating Reopen Button
+    -- Floating Reopen Button with neon pulse
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = RNG()
-    FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
-    FloatingBtn.Position = UDim2.new(0, 20, 0.5, -25)
-    FloatingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    FloatingBtn.Text = "ALPHA"
-    FloatingBtn.TextColor3 = Color3.fromRGB(175, 110, 255)
+    FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
+    FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+    FloatingBtn.Text = "REDZ"
+    FloatingBtn.TextColor3 = Color3.fromRGB(255, 55, 105)
     FloatingBtn.Font = Enum.Font.GothamBold
     FloatingBtn.TextSize = 11
     FloatingBtn.BorderSizePixel = 0
+    FloatingBtn.Active = true
     FloatingBtn.Parent = ScreenGui
     local FloatCorner = Instance.new("UICorner")
     FloatCorner.CornerRadius = UDim.new(1, 0)
     FloatCorner.Parent = FloatingBtn
     local FloatStroke = Instance.new("UIStroke")
-    FloatStroke.Color = Color3.fromRGB(160, 90, 255)
-    FloatStroke.Thickness = 1.5
+    FloatStroke.Color = Color3.fromRGB(255, 45, 95)
+    FloatStroke.Thickness = 1.6
     FloatStroke.Parent = FloatingBtn
     FloatingBtn.MouseButton1Click:Connect(function()
         MainFrame.Visible = not MainFrame.Visible
@@ -1366,12 +1439,13 @@ local function CreateUI()
     -- Left Sidebar
     local Sidebar = Instance.new("ScrollingFrame")
     Sidebar.Name = RNG()
-    Sidebar.Size = UDim2.new(0, 140, 1, -42)
-    Sidebar.Position = UDim2.new(0, 0, 0, 42)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    Sidebar.Size = UDim2.new(0, 145, 1, -44)
+    Sidebar.Position = UDim2.new(0, 0, 0, 44)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
     Sidebar.BorderSizePixel = 0
     Sidebar.ScrollBarThickness = 2
-    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 360)
+    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 380)
+    Sidebar.Active = true
     Sidebar.Parent = MainFrame
     
     local SidebarLayout = Instance.new("UIListLayout")
@@ -1386,10 +1460,11 @@ local function CreateUI()
     -- Content Container
     local ContentHolder = Instance.new("Frame")
     ContentHolder.Name = RNG()
-    ContentHolder.Size = UDim2.new(1, -140, 1, -42)
-    ContentHolder.Position = UDim2.new(0, 140, 0, 42)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    ContentHolder.Size = UDim2.new(1, -145, 1, -44)
+    ContentHolder.Position = UDim2.new(0, 145, 0, 44)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
     ContentHolder.BorderSizePixel = 0
+    ContentHolder.Active = true
     ContentHolder.Parent = MainFrame
     
     local Tabs = {}
@@ -1400,10 +1475,10 @@ local function CreateUI()
             page.Page.Visible = (name == tabName)
             if page.Btn then
                 if name == tabName then
-                    page.Btn.BackgroundColor3 = Color3.fromRGB(140, 70, 255)
+                    page.Btn.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
                     page.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
                 else
-                    page.Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+                    page.Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
                     page.Btn.TextColor3 = Color3.fromRGB(170, 170, 190)
                 end
             end
@@ -1418,8 +1493,9 @@ local function CreateUI()
         TabBtn.TextColor3 = Color3.fromRGB(170, 170, 190)
         TabBtn.Font = Enum.Font.GothamMedium
         TabBtn.TextSize = 11
-        TabBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+        TabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
         TabBtn.BorderSizePixel = 0
+        TabBtn.Active = true
         TabBtn.Parent = Sidebar
         local TabBtnCorner = Instance.new("UICorner")
         TabBtnCorner.CornerRadius = UDim.new(0, 5)
@@ -1433,6 +1509,7 @@ local function CreateUI()
         Page.ScrollBarThickness = 3
         Page.CanvasSize = UDim2.new(0, 0, 0, 100)
         Page.Visible = false
+        Page.Active = true
         Page.Parent = ContentHolder
         
         local PageLayout = Instance.new("UIListLayout")
@@ -1442,7 +1519,7 @@ local function CreateUI()
         PageLayout.Parent = Page
         local PagePad = Instance.new("UIPadding")
         PagePad.PaddingTop = UDim.new(0, 8)
-        PagePad.PaddingBottom = UDim.new(0, 14)
+        PagePad.PaddingBottom = UDim.new(0, 16)
         PagePad.Parent = Page
         
         PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -1461,65 +1538,71 @@ local function CreateUI()
             local SecFrame = Instance.new("Frame")
             SecFrame.Size = UDim2.new(1, -16, 0, 24)
             SecFrame.BackgroundTransparency = 1
+            SecFrame.Active = true
             SecFrame.Parent = Page
             
             local SecLabel = Instance.new("TextLabel")
             SecLabel.Size = UDim2.new(1, 0, 1, 0)
-            SecLabel.Text = secName:upper()
-            SecLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+            SecLabel.Text = "• " .. secName:upper()
+            SecLabel.TextColor3 = Color3.fromRGB(255, 60, 110)
             SecLabel.Font = Enum.Font.GothamBold
             SecLabel.TextSize = 10
             SecLabel.TextXAlignment = Enum.TextXAlignment.Left
             SecLabel.BackgroundTransparency = 1
+            SecLabel.Active = true
             SecLabel.Parent = SecFrame
         end
         
         function TabAPI:AddToggle(title, defaultVal, callback)
             local isChecked = defaultVal or false
             local ToggleFrame = Instance.new("Frame")
-            ToggleFrame.Size = UDim2.new(1, -16, 0, 32)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            ToggleFrame.Size = UDim2.new(1, -16, 0, 34)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
             ToggleFrame.BorderSizePixel = 0
+            ToggleFrame.Active = true
             ToggleFrame.Parent = Page
             local TCorner = Instance.new("UICorner")
-            TCorner.CornerRadius = UDim.new(0, 5)
+            TCorner.CornerRadius = UDim.new(0, 6)
             TCorner.Parent = ToggleFrame
             
             local TTitle = Instance.new("TextLabel")
-            TTitle.Size = UDim2.new(1, -50, 1, 0)
+            TTitle.Size = UDim2.new(1, -55, 1, 0)
             TTitle.Position = UDim2.new(0, 10, 0, 0)
             TTitle.Text = title
-            TTitle.TextColor3 = Color3.fromRGB(220, 220, 230)
+            TTitle.TextColor3 = Color3.fromRGB(225, 225, 235)
             TTitle.Font = Enum.Font.Gotham
             TTitle.TextSize = 11
             TTitle.TextXAlignment = Enum.TextXAlignment.Left
             TTitle.BackgroundTransparency = 1
+            TTitle.Active = true
             TTitle.Parent = ToggleFrame
             
             local Switch = Instance.new("TextButton")
-            Switch.Size = UDim2.new(0, 36, 0, 18)
-            Switch.Position = UDim2.new(1, -44, 0.5, -9)
-            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(140, 70, 255) or Color3.fromRGB(45, 45, 55)
+            Switch.Size = UDim2.new(0, 38, 0, 20)
+            Switch.Position = UDim2.new(1, -48, 0.5, -10)
+            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(45, 45, 58)
             Switch.Text = ""
             Switch.BorderSizePixel = 0
+            Switch.Active = true
             Switch.Parent = ToggleFrame
             local SCorner = Instance.new("UICorner")
             SCorner.CornerRadius = UDim.new(1, 0)
             SCorner.Parent = Switch
             
             local Knob = Instance.new("Frame")
-            Knob.Size = UDim2.new(0, 14, 0, 14)
-            Knob.Position = isChecked and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+            Knob.Size = UDim2.new(0, 16, 0, 16)
+            Knob.Position = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             Knob.BorderSizePixel = 0
+            Knob.Active = true
             Knob.Parent = Switch
             local KCorner = Instance.new("UICorner")
             KCorner.CornerRadius = UDim.new(1, 0)
             KCorner.Parent = Knob
             
             local function UpdateToggle()
-                Switch.BackgroundColor3 = isChecked and Color3.fromRGB(140, 70, 255) or Color3.fromRGB(45, 45, 55)
-                Knob.Position = isChecked and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+                Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(45, 45, 58)
+                Knob.Position = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             end
             
             Switch.MouseButton1Click:Connect(function()
@@ -1540,21 +1623,22 @@ local function CreateUI()
         function TabAPI:AddButton(title, callback)
             local Btn = Instance.new("TextButton")
             Btn.Size = UDim2.new(1, -16, 0, 30)
-            Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+            Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
             Btn.Text = title
-            Btn.TextColor3 = Color3.fromRGB(230, 230, 240)
+            Btn.TextColor3 = Color3.fromRGB(235, 235, 245)
             Btn.Font = Enum.Font.GothamMedium
             Btn.TextSize = 11
             Btn.BorderSizePixel = 0
+            Btn.Active = true
             Btn.Parent = Page
             local BCorner = Instance.new("UICorner")
             BCorner.CornerRadius = UDim.new(0, 5)
             BCorner.Parent = Btn
             
             Btn.MouseButton1Click:Connect(function()
-                Btn.BackgroundColor3 = Color3.fromRGB(140, 70, 255)
-                task.wait(0.12)
-                Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+                Btn.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+                task.wait(0.1)
+                Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
                 if callback then pcall(callback) end
             end)
         end
@@ -1563,9 +1647,10 @@ local function CreateUI()
             local selected = defaultVal or (options and options[1]) or ""
             local DropFrame = Instance.new("Frame")
             DropFrame.Size = UDim2.new(1, -16, 0, 34)
-            DropFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
             DropFrame.BorderSizePixel = 0
             DropFrame.ClipsDescendants = true
+            DropFrame.Active = true
             DropFrame.Parent = Page
             local DCorner = Instance.new("UICorner")
             DCorner.CornerRadius = UDim.new(0, 5)
@@ -1575,22 +1660,24 @@ local function CreateUI()
             DTitle.Size = UDim2.new(0, 160, 0, 34)
             DTitle.Position = UDim2.new(0, 10, 0, 0)
             DTitle.Text = title
-            DTitle.TextColor3 = Color3.fromRGB(210, 210, 220)
+            DTitle.TextColor3 = Color3.fromRGB(215, 215, 225)
             DTitle.Font = Enum.Font.Gotham
             DTitle.TextSize = 11
             DTitle.TextXAlignment = Enum.TextXAlignment.Left
             DTitle.BackgroundTransparency = 1
+            DTitle.Active = true
             DTitle.Parent = DropFrame
             
             local SelectBtn = Instance.new("TextButton")
             SelectBtn.Size = UDim2.new(0, 210, 0, 24)
             SelectBtn.Position = UDim2.new(1, -218, 0, 5)
             SelectBtn.Text = tostring(selected) .. " v"
-            SelectBtn.TextColor3 = Color3.fromRGB(180, 120, 255)
+            SelectBtn.TextColor3 = Color3.fromRGB(255, 80, 130)
             SelectBtn.Font = Enum.Font.GothamMedium
             SelectBtn.TextSize = 10
-            SelectBtn.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
+            SelectBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
             SelectBtn.BorderSizePixel = 0
+            SelectBtn.Active = true
             SelectBtn.Parent = DropFrame
             local SBCorner = Instance.new("UICorner")
             SBCorner.CornerRadius = UDim.new(0, 4)
@@ -1599,10 +1686,11 @@ local function CreateUI()
             local ListScroll = Instance.new("ScrollingFrame")
             ListScroll.Size = UDim2.new(1, -16, 0, 100)
             ListScroll.Position = UDim2.new(0, 8, 0, 38)
-            ListScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+            ListScroll.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
             ListScroll.BorderSizePixel = 0
             ListScroll.ScrollBarThickness = 2
             ListScroll.Visible = false
+            ListScroll.Active = true
             ListScroll.Parent = DropFrame
             local LCorner = Instance.new("UICorner")
             LCorner.CornerRadius = UDim.new(0, 4)
@@ -1620,11 +1708,12 @@ local function CreateUI()
                     local OptBtn = Instance.new("TextButton")
                     OptBtn.Size = UDim2.new(1, 0, 0, 22)
                     OptBtn.Text = tostring(opt)
-                    OptBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+                    OptBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
                     OptBtn.Font = Enum.Font.Gotham
                     OptBtn.TextSize = 10
-                    OptBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
                     OptBtn.BorderSizePixel = 0
+                    OptBtn.Active = true
                     OptBtn.Parent = ListScroll
                     OptBtn.MouseButton1Click:Connect(function()
                         selected = opt
@@ -1660,9 +1749,10 @@ local function CreateUI()
         function TabAPI:AddSlider(title, min, max, defaultVal, callback)
             local current = defaultVal or min
             local SliderFrame = Instance.new("Frame")
-            SliderFrame.Size = UDim2.new(1, -16, 0, 42)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            SliderFrame.Size = UDim2.new(1, -16, 0, 44)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
             SliderFrame.BorderSizePixel = 0
+            SliderFrame.Active = true
             SliderFrame.Parent = Page
             local SlCorner = Instance.new("UICorner")
             SlCorner.CornerRadius = UDim.new(0, 5)
@@ -1672,29 +1762,32 @@ local function CreateUI()
             STitle.Size = UDim2.new(0, 220, 0, 20)
             STitle.Position = UDim2.new(0, 10, 0, 4)
             STitle.Text = title
-            STitle.TextColor3 = Color3.fromRGB(210, 210, 220)
+            STitle.TextColor3 = Color3.fromRGB(220, 220, 230)
             STitle.Font = Enum.Font.Gotham
             STitle.TextSize = 11
             STitle.TextXAlignment = Enum.TextXAlignment.Left
             STitle.BackgroundTransparency = 1
+            STitle.Active = true
             STitle.Parent = SliderFrame
             
             local SValue = Instance.new("TextLabel")
             SValue.Size = UDim2.new(0, 60, 0, 20)
             SValue.Position = UDim2.new(1, -70, 0, 4)
             SValue.Text = tostring(current)
-            SValue.TextColor3 = Color3.fromRGB(180, 120, 255)
+            SValue.TextColor3 = Color3.fromRGB(255, 75, 125)
             SValue.Font = Enum.Font.GothamBold
             SValue.TextSize = 11
             SValue.TextXAlignment = Enum.TextXAlignment.Right
             SValue.BackgroundTransparency = 1
+            SValue.Active = true
             SValue.Parent = SliderFrame
             
             local Bar = Instance.new("Frame")
             Bar.Size = UDim2.new(1, -20, 0, 6)
-            Bar.Position = UDim2.new(0, 10, 0, 28)
-            Bar.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+            Bar.Position = UDim2.new(0, 10, 0, 30)
+            Bar.BackgroundColor3 = Color3.fromRGB(38, 38, 50)
             Bar.BorderSizePixel = 0
+            Bar.Active = true
             Bar.Parent = SliderFrame
             local BarCorner = Instance.new("UICorner")
             BarCorner.CornerRadius = UDim.new(1, 0)
@@ -1703,8 +1796,9 @@ local function CreateUI()
             local Fill = Instance.new("Frame")
             local pct = math.clamp((current - min) / (max - min), 0, 1)
             Fill.Size = UDim2.new(pct, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(150, 80, 255)
+            Fill.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
             Fill.BorderSizePixel = 0
+            Fill.Active = true
             Fill.Parent = Bar
             local FillCorner = Instance.new("UICorner")
             FillCorner.CornerRadius = UDim.new(1, 0)
@@ -1714,6 +1808,7 @@ local function CreateUI()
             Bar.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isSliding = true
+                    _G.UIInteracting = true -- Mute combat clicks while sliding!
                     local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
                     current = math.floor(min + (max - min) * relX)
                     Fill.Size = UDim2.new(relX, 0, 1, 0)
@@ -1723,7 +1818,11 @@ local function CreateUI()
             end)
             UIS.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    isSliding = false
+                    if isSliding then
+                        isSliding = false
+                        task.wait(0.05)
+                        _G.UIInteracting = false
+                    end
                 end
             end)
             UIS.InputChanged:Connect(function(input)
@@ -1740,17 +1839,17 @@ local function CreateUI()
         return TabAPI
     end
     
-    -- Instantiate All Tabs
-    local FarmTab = CreateTab("Main Farm")
-    local BossTab = CreateTab("Boss Farm")
-    local RaidTab = CreateTab("Dungeon & Raids")
-    local FruitTab = CreateTab("Devil Fruit")
-    local SeaTab = CreateTab("Sea Events")
-    local ItemTab = CreateTab("Items & Quests")
-    local StatsTab = CreateTab("Stats Allocator")
-    local ShopTab = CreateTab("Shop")
-    local TeleportTab = CreateTab("Teleports")
-    local MiscTab = CreateTab("Settings")
+    -- Instantiate All Tabs with Redz Hub Icons
+    local FarmTab = CreateTab("⚔️ Main Farm")
+    local BossTab = CreateTab("👑 Boss Farm")
+    local RaidTab = CreateTab("🌀 Raids")
+    local FruitTab = CreateTab("🍇 Devil Fruit")
+    local SeaTab = CreateTab("🌊 Sea Events")
+    local ItemTab = CreateTab("📜 Quests")
+    local StatsTab = CreateTab("⚡ Stats")
+    local ShopTab = CreateTab("🛒 Shop")
+    local TeleportTab = CreateTab("🚀 Teleports")
+    local MiscTab = CreateTab("⚙️ Settings")
     
     -- MAIN FARM
     FarmTab:AddSection("Combat Mode & Weapon Selection")
@@ -1768,7 +1867,7 @@ local function CreateUI()
             _G.Config.FastAttackSpeed = 0.1
         end
     end)
-    FarmTab:AddSlider("Attack Range (Studs)", 30, 85, 65, function(v) _G.Config.AttackDistance = v end)
+    FarmTab:AddSlider("Kill Aura Range (Studs)", 40, 250, 120, function(v) _G.Config.AttackDistance = v end)
     FarmTab:AddToggle("Bring Mobs (Simulation Radius)", true, function(v) _G.Config.BringMobs = v end)
     FarmTab:AddToggle("Auto Buso Haki (Enhancement)", true, function(v) _G.Config.AutoBusoHaki = v end)
     
@@ -1782,13 +1881,13 @@ local function CreateUI()
     
     FarmTab:AddSection("Farm Distance Control")
     FarmTab:AddToggle("Auto Adaptive Boss Distance", true, function(v) _G.Config.AdaptiveBossDistance = v end)
-    FarmTab:AddSlider("Mob Distance (Studs)", 4, 18, 8, function(v) _G.Config.MobFarmDistance = v end)
-    FarmTab:AddSlider("Boss Distance (Studs)", 10, 35, 18, function(v) _G.Config.BossFarmDistance = v end)
+    FarmTab:AddSlider("Mob Distance (Studs)", 6, 25, 14, function(v) _G.Config.MobFarmDistance = v end)
+    FarmTab:AddSlider("Boss Distance (Studs)", 10, 35, 20, function(v) _G.Config.BossFarmDistance = v end)
     
     FarmTab:AddSection("Level Farming")
     FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
         _G.Config.AutoFarmLevel = v
-        if not v then StopTween() end
+        if not v then FullResetMovement() end
     end)
     FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
     
@@ -1800,10 +1899,10 @@ local function CreateUI()
     end)
     FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
         _G.Config.FarmSelectedMob = v
-        if not v then StopTween() end
+        if not v then FullResetMovement() end
     end)
     
-    -- BOSS FARM
+-- BOSS FARM
     BossTab:AddSection("Select Boss Farming")
     local BossDrop = BossTab:AddDropdown("Select Boss", GetSpawnedBossesList(), "The Gorilla King", function(v) _G.Config.SelectedBoss = v end)
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
@@ -1983,7 +2082,7 @@ local function CreateUI()
     end)
     
     -- Set default active tab
-    SwitchTab("Main Farm")
+    SwitchTab("⚔️ Main Farm")
 end
 
 --============================== STAGGERED INITIALIZATION ==============================
