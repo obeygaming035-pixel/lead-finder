@@ -842,7 +842,7 @@ local function StartRaidBossLoop()
         while true do
             task.wait(0.5 + math.random() * 0.2)
             pcall(function()
-                if _G.Config.AutoKillRipIndra then FightRaidBoss("rip_indra") or FightRaidBoss("Rip Indra") end
+                if _G.Config.AutoKillRipIndra then if not FightRaidBoss("rip_indra") then FightRaidBoss("Rip Indra") end end
                 if _G.Config.AutoKillDoughKing then FightRaidBoss("Dough King") end
                 if _G.Config.AutoKillCakePrince then FightRaidBoss("Cake Prince") end
                 if _G.Config.AutoKillSoulReaper then FightRaidBoss("Soul Reaper") end
