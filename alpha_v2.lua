@@ -419,7 +419,6 @@ local function DisableNoclip()
         NoclipConn:Disconnect()
         NoclipConn = nil
     end
-    -- Re-enable character collision
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetDescendants()) do
@@ -446,8 +445,7 @@ local function GetOrCreateBodyVelocity(root)
     return bv
 end
 
--- Persistent Hover Lock: used STRICTLY for MOB/BOSS FARMING to hover above enemies!
--- NEVER used for Island Teleports (prevents falling through unstreamed terrain / rubberbanding)
+-- HoverLock: keeps player hovering 14 studs above enemies while farming
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     if not root or not root.Parent then return end
@@ -480,14 +478,26 @@ local function FullResetMovement()
     end
     DisableNoclip()
     local hum = GetHumanoid()
-    if hum then hum.PlatformStand = false end
+    if hum then
+        hum.PlatformStand = false
+        hum.Sit = false
+    end
+    local root = GetRoot()
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
 end
 
 LocalPlayer.CharacterAdded:Connect(function()
     FullResetMovement()
 end)
 
--- TweenTo: used for farming travel and short repositioning
+-- -------------------------------------------------------------------------
+-- TweenTo: DIRECT LINEAR FARM TWEEN (Redz Hub standard)
+-- Straight-line movement directly to the mob or NPC.
+-- NEVER launches into the sky! NEVER ascends to Y=500!
+-- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
@@ -495,35 +505,89 @@ local function TweenTo(targetCFrame, destName)
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     
+    -- Within farm reach: lock position immediately
     if distance < 15 then
         StopTween()
         HoverLock(targetCFrame)
         return
     end
     
-    -- Safe Blox Fruits speed limit: 240 studs/s (higher speeds trigger server position rollback!)
+    -- Redz Hub safe farm speed: 220-250 studs/s
     local speed = _G.Config.TweenSpeed or 240
+    if speed < 100 then speed = 240 end
     if speed > 270 then speed = 250 end
+    
+    -- Don't restart if already tweening to nearly the same spot (< 15 studs)
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 and CurrentTween then
+        return
+    end
+    
+    if CurrentTween then
+        pcall(function() CurrentTween:Cancel() end)
+        CurrentTween = nil
+    end
+    
+    CurrentTargetPos = targetCFrame.Position
+    
+    EnableNoclip()
+    hum.PlatformStand = true
+    
+    local bv = GetOrCreateBodyVelocity(root)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    
+    local time = distance / speed
+    CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+    CurrentTween.Completed:Connect(function()
+        if hum and hum.Parent then hum.PlatformStand = false end
+        HoverLock(targetCFrame)
+    end)
+    CurrentTween:Play()
+    return CurrentTween
+end
+
+-- -------------------------------------------------------------------------
+-- TeleportToIsland: LONG-RANGE SAFE FLIGHT ENGINE (Redz Hub standard)
+-- Travels across oceans at safe 240 studs/s with Live Cockpit HUD.
+-- Pre-streams destination, places safe landing platform, and lands cleanly on feet!
+-- -------------------------------------------------------------------------
+local function TeleportToIsland(targetCFrame, islandName)
+    local root = GetRoot()
+    local hum = GetHumanoid()
+    if not root or not root.Parent or not hum then return end
+    
+    -- Suspend farm loops so they do not drag the player back to previous island
+    _G.Config.AutoFarmLevel = false
+    _G.Config.FarmSelectedMob = false
+    _G.Config.FarmSelectedBoss = false
+    _G.Config.FarmAllBosses = false
+    
+    StopTween()
+    IsTravelingSky = true
+    
+    local speed = _G.Config.TweenSpeed or 240
     if speed < 150 then speed = 240 end
+    if speed > 260 then speed = 250 end
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     local label = islandName or "Selected Island"
     
     task.spawn(function()
+        -- Show Travel HUD (lowered down to Y = 70, well inside screen border)
         if SetTravelHUD then SetTravelHUD(true, label, distance, speed) end
         
-        -- Request streaming for target location immediately so terrain loads
+        -- Request chunk streaming for destination
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
             end
         end)
         
-        -- Create invisible safe landing platform so player NEVER drops into void/water
+        -- Create invisible collision platform at destination
         if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
         LandingPlatform = Instance.new("Part")
         LandingPlatform.Name = "AlphaLandingPlatform"
-        LandingPlatform.Size = Vector3.new(35, 2, 35)
+        LandingPlatform.Size = Vector3.new(40, 2, 40)
         LandingPlatform.CFrame = targetCFrame * CFrame.new(0, -1, 0)
         LandingPlatform.Anchored = true
         LandingPlatform.CanCollide = true
@@ -537,9 +601,9 @@ local function TweenTo(targetCFrame, destName)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        -- Ascend to sky altitude (Y = 380+)
-        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 60)
-        if root.Position.Y < (skyY - 30) then
+        -- Moderate sky altitude: Y = 280 to 320 (clears water and trees safely, never stacks to 500)
+        local skyY = math.clamp(math.max(root.Position.Y, targetCFrame.Position.Y) + 40, 250, 320)
+        if root.Position.Y < (skyY - 20) then
             local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
             local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
@@ -553,10 +617,10 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Fly horizontally across the sky to target X, Z
+        -- Fly horizontally across sky to island coordinates
         local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
-        if hDist > 25 then
+        if hDist > 20 then
             local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
             CurrentTween = hTween
             hTween:Play()
@@ -580,7 +644,7 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Request streaming again now that we are directly above the island
+        -- Pre-stream terrain now that we are right above the island
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
@@ -595,15 +659,17 @@ local function TweenTo(targetCFrame, destName)
         downTween:Play()
         downTween.Completed:Wait()
         
-        -- CLEAN LANDING (ZERO RUBBERBAND):
-        -- Turn OFF Noclip so character stands solid on island/platform
+        -- =========================================================
+        -- CLEAN LANDING (ZERO RUBBERBANDING):
+        -- Disable noclip so feet are solid on ground
+        -- Destroy body mover so no phantom velocity holds character
+        -- Restore Humanoid physics so player can walk/jump immediately
+        -- =========================================================
         DisableNoclip()
-        -- Destroy flight BodyVelocity so no phantom forces hold character
         if FlightBodyVel then
             pcall(function() FlightBodyVel:Destroy() end)
             FlightBodyVel = nil
         end
-        -- Restore Humanoid physics
         if hum and hum.Parent then
             hum.PlatformStand = false
             hum.Sit = false
@@ -615,9 +681,9 @@ local function TweenTo(targetCFrame, destName)
         IsTravelingSky = false
         if SetTravelHUD then SetTravelHUD(false) end
         
-        -- Keep safe landing platform for 4 seconds while terrain finishes loading, then clean up
+        -- Clean up landing platform after 3 seconds
         task.spawn(function()
-            task.wait(4)
+            task.wait(3)
             if LandingPlatform and LandingPlatform.Parent then
                 LandingPlatform:Destroy()
                 LandingPlatform = nil
@@ -1491,7 +1557,7 @@ local function CreateUI()
     local TravelFrame = Instance.new("Frame")
     TravelFrame.Name = RNG()
     TravelFrame.Size = UDim2.new(0, 360, 0, 54)
-    TravelFrame.Position = UDim2.new(0.5, -180, 0, -80) -- Starts hidden above screen
+    TravelFrame.Position = UDim2.new(0.5, -180, 0, -85) -- Starts hidden above screen
     TravelFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
     TravelFrame.BorderSizePixel = 0
     TravelFrame.Active = true
@@ -1566,7 +1632,7 @@ local function CreateUI()
             TravelDist.Text = "Distance: " .. math.floor(dist or 0) .. " studs • Speed: " .. math.floor(spd or 350)
             if not isTravelHUDActive then
                 isTravelHUDActive = true
-                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 68)}):Play()
+                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 70)}):Play()
             end
         else
             if isTravelHUDActive then
@@ -2622,7 +2688,7 @@ local Tabs = {}
     local IslandDrop = TeleportTab:AddSearchDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
     
     TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
-        -- Crucial: turn off farming toggles so auto farm loop doesn't drag player back!
+        -- Auto-disable farming to avoid loop battle
         _G.Config.AutoFarmLevel = false
         _G.Config.FarmSelectedMob = false
         _G.Config.FarmSelectedBoss = false
