@@ -141,7 +141,7 @@ _G.Config = {
     MobFarmDistance = 14, -- Normal mobs distance set to 14 studs as requested
     BossFarmDistance = 20, -- Boss distance set to 20 studs
     FarmDistance = 14,
-    TweenSpeed = 350, -- Redz Flight Speed (350 studs/s)
+    TweenSpeed = 240, -- Redz Safe Speed (240 studs/s prevents server rollback) -- Redz Flight Speed (350 studs/s)
     
     -- Combat Mode (M1 vs Skills)
     UseM1 = true,
@@ -501,125 +501,10 @@ local function TweenTo(targetCFrame, destName)
         return
     end
     
-    local speed = _G.Config.TweenSpeed or 350
-    if speed < 100 then speed = 350 end
-    
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 20 and CurrentTween then
-        return
-    end
-    
-    if CurrentTween then
-        pcall(function() CurrentTween:Cancel() end)
-        CurrentTween = nil
-    end
-    
-    CurrentTargetPos = targetCFrame.Position
-    local label = destName or "Destination"
-    
-    -- 1. SHORT RANGE (<= 300 studs): Direct linear tween
-    if distance <= 300 then
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        local time = distance / speed
-        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-        CurrentTween.Completed:Connect(function()
-            if hum and hum.Parent then hum.PlatformStand = false end
-            HoverLock(targetCFrame)
-        end)
-        CurrentTween:Play()
-        return CurrentTween
-    end
-    
-    -- 2. LONG RANGE (> 300 studs): Sky flight
-    if IsTravelingSky then return end
-    IsTravelingSky = true
-    
-    task.spawn(function()
-        if SetTravelHUD then SetTravelHUD(true, label, distance, speed) end
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 60)
-        
-        if root.Position.Y < (skyY - 30) then
-            local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
-            local upDist = (upCF.Position - root.Position).Magnitude
-            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
-            CurrentTween = upTween
-            upTween:Play()
-            upTween.Completed:Wait()
-        end
-        
-        if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
-        
-        local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
-        local hDist = (skyTargetCF.Position - root.Position).Magnitude
-        if hDist > 25 then
-            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
-            CurrentTween = hTween
-            hTween:Play()
-            
-            local monConn
-            monConn = RunService.Heartbeat:Connect(function()
-                if not IsTravelingSky or not root or not root.Parent then
-                    if monConn then monConn:Disconnect() end
-                    return
-                end
-                local curDist = (targetCFrame.Position - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed) end
-            end)
-            
-            hTween.Completed:Wait()
-            if monConn then monConn:Disconnect() end
-        end
-        
-        if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
-        
-        local downDist = (targetCFrame.Position - root.Position).Magnitude
-        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-        CurrentTween = downTween
-        downTween:Play()
-        downTween.Completed:Wait()
-        
-        IsTravelingSky = false
-        if hum and hum.Parent then hum.PlatformStand = false end
-        if SetTravelHUD then SetTravelHUD(false) end
-        HoverLock(targetCFrame)
-    end)
-end
-
--- =========================================================================
--- DEDICATED ISLAND TELEPORT (SAFE LANDING ENGINE - ZERO RUBBERBANDING)
--- =========================================================================
--- Why previous version rubberbanded: HoverLock left Noclip ON and BodyVelocity active
--- at target CFrame, dropping the character into the void before chunks streamed in,
--- triggering server-side anti-fall teleport back to spawn!
--- This function guarantees solid ground, requests streaming, and cleanly restores physics on arrival!
-local function TeleportToIsland(targetCFrame, islandName)
-    local root = GetRoot()
-    local hum = GetHumanoid()
-    if not root or not root.Parent or not hum then return end
-    
-    StopTween()
-    IsTravelingSky = true
-    
-    local speed = _G.Config.TweenSpeed or 350
-    if speed < 150 then speed = 350 end
+    -- Safe Blox Fruits speed limit: 240 studs/s (higher speeds trigger server position rollback!)
+    local speed = _G.Config.TweenSpeed or 240
+    if speed > 270 then speed = 250 end
+    if speed < 150 then speed = 240 end
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     local label = islandName or "Selected Island"
@@ -1568,6 +1453,20 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Full input isolation: Active = true on all containers so clicks NEVER register into the 3D game world!
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
+
+-- Tactile Audio Feedback for 3D UI
+local SoundService = game:GetService("SoundService")
+local function PlayClickSound()
+    pcall(function()
+        local s = Instance.new("Sound")
+        s.SoundId = "rbxassetid://6895079853"
+        s.Volume = 0.4
+        s.Parent = SoundService
+        s:Play()
+        game:GetService("Debris"):AddItem(s, 1)
+    end)
+end
+
 local function CreateUI()
     local parentGui = GetSafeGui()
     
@@ -1667,7 +1566,7 @@ local function CreateUI()
             TravelDist.Text = "Distance: " .. math.floor(dist or 0) .. " studs • Speed: " .. math.floor(spd or 350)
             if not isTravelHUDActive then
                 isTravelHUDActive = true
-                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 18)}):Play()
+                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 68)}):Play()
             end
         else
             if isTravelHUDActive then
@@ -2723,6 +2622,12 @@ local Tabs = {}
     local IslandDrop = TeleportTab:AddSearchDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
     
     TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
+        -- Crucial: turn off farming toggles so auto farm loop doesn't drag player back!
+        _G.Config.AutoFarmLevel = false
+        _G.Config.FarmSelectedMob = false
+        _G.Config.FarmSelectedBoss = false
+        _G.Config.FarmAllBosses = false
+        
         local tcf = CurrentIslands[SelIsland]
         if tcf then
             TeleportToIsland(tcf, SelIsland)
@@ -2736,6 +2641,31 @@ local Tabs = {}
     end)
     
     -- ==================== 10. SETTINGS ====================
+    
+    MiscTab:AddSection("Diagnostics & Fixes")
+    MiscTab:AddButton("🔍 Run Movement Diagnostic (Copies to Clipboard)", function()
+        local root = GetRoot()
+        local hum = GetHumanoid()
+        local rPos = root and tostring(root.Position) or "N/A"
+        local bvs = root and root:FindFirstChildOfClass("BodyVelocity") and "YES (" .. root:FindFirstChildOfClass("BodyVelocity").Name .. ")" or "NONE"
+        local report = "ALPHA V2 DIAGNOSTIC SNAPSHOT\n"
+        report = report .. "Player Level: " .. GetPlayerLevel() .. "\n"
+        report = report .. "PlaceId: " .. PlaceId .. " (" .. SeaName .. ")\n"
+        report = report .. "Position: " .. rPos .. "\n"
+        report = report .. "Humanoid PlatformStand: " .. tostring(hum and hum.PlatformStand) .. "\n"
+        report = report .. "Root BodyVelocity: " .. bvs .. "\n"
+        report = report .. "Active Tweens: " .. tostring(CurrentTween ~= nil) .. "\n"
+        report = report .. "HasQuest: " .. tostring(HasQuest()) .. "\n"
+        report = report .. "IsTravelingSky: " .. tostring(IsTravelingSky) .. "\n"
+        report = report .. "TweenSpeed Config: " .. tostring(_G.Config.TweenSpeed) .. "\n"
+        pcall(function()
+            if setclipboard then
+                setclipboard(report)
+                print("[ALPHA] Diagnostic report copied to clipboard!")
+            end
+        end)
+    end)
+
     MiscTab:AddSection("Server Controls")
     MiscTab:AddButton("Server Hop (Low Population)", function()
         local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -2759,7 +2689,7 @@ local Tabs = {}
         _G.Config.AntiAFK = v
         if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
     end)
-    MiscTab:AddSlider("Tween Flight Speed", 150, 450, 350, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("Tween Flight Speed (Safe 200-260)", 150, 300, 240, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
         if hum then hum.WalkSpeed = v end
