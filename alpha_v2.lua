@@ -398,6 +398,7 @@ local CurrentTargetPos = nil
 local IsTravelingSky = false
 local NoclipConn = nil
 local SetTravelHUD = nil -- Forward declaration for Cockpit HUD
+local LandingPlatform = nil
 
 local function EnableNoclip()
     if NoclipConn then return end
@@ -418,6 +419,15 @@ local function DisableNoclip()
         NoclipConn:Disconnect()
         NoclipConn = nil
     end
+    -- Re-enable character collision
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
 end
 
 local function GetOrCreateBodyVelocity(root)
@@ -436,7 +446,8 @@ local function GetOrCreateBodyVelocity(root)
     return bv
 end
 
--- Persistent Hover Lock: keeps character locked at farm altitude so you NEVER drop or take damage!
+-- Persistent Hover Lock: used STRICTLY for MOB/BOSS FARMING to hover above enemies!
+-- NEVER used for Island Teleports (prevents falling through unstreamed terrain / rubberbanding)
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     if not root or not root.Parent then return end
@@ -476,6 +487,7 @@ LocalPlayer.CharacterAdded:Connect(function()
     FullResetMovement()
 end)
 
+-- TweenTo: used for farming travel and short repositioning
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
@@ -483,7 +495,6 @@ local function TweenTo(targetCFrame, destName)
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     
-    -- Close enough: lock position immediately
     if distance < 15 then
         StopTween()
         HoverLock(targetCFrame)
@@ -493,12 +504,10 @@ local function TweenTo(targetCFrame, destName)
     local speed = _G.Config.TweenSpeed or 350
     if speed < 100 then speed = 350 end
     
-    -- ANTI-SPAM: If already tweening to nearly the same target (< 20 studs), don't restart
     if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 20 and CurrentTween then
         return
     end
     
-    -- Cancel any existing tween before starting new one
     if CurrentTween then
         pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
@@ -507,7 +516,7 @@ local function TweenTo(targetCFrame, destName)
     CurrentTargetPos = targetCFrame.Position
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 300 studs): Direct linear tween with noclip
+    -- 1. SHORT RANGE (<= 300 studs): Direct linear tween
     if distance <= 300 then
         EnableNoclip()
         hum.PlatformStand = true
@@ -526,7 +535,7 @@ local function TweenTo(targetCFrame, destName)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 300 studs): Sky flight in segments with Travel HUD
+    -- 2. LONG RANGE (> 300 studs): Sky flight
     if IsTravelingSky then return end
     IsTravelingSky = true
     
@@ -539,7 +548,6 @@ local function TweenTo(targetCFrame, destName)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        -- Ascend to safe sky altitude (immune to trees, mountains, water)
         local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 60)
         
         if root.Position.Y < (skyY - 30) then
@@ -556,7 +564,6 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Fly horizontally across sky to target X, Z
         local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
         if hDist > 25 then
@@ -564,7 +571,6 @@ local function TweenTo(targetCFrame, destName)
             CurrentTween = hTween
             hTween:Play()
             
-            -- Live distance monitor for Travel HUD
             local monConn
             monConn = RunService.Heartbeat:Connect(function()
                 if not IsTravelingSky or not root or not root.Parent then
@@ -584,7 +590,6 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Descend directly to target position
         local downDist = (targetCFrame.Position - root.Position).Magnitude
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween = downTween
@@ -595,6 +600,144 @@ local function TweenTo(targetCFrame, destName)
         if hum and hum.Parent then hum.PlatformStand = false end
         if SetTravelHUD then SetTravelHUD(false) end
         HoverLock(targetCFrame)
+    end)
+end
+
+-- =========================================================================
+-- DEDICATED ISLAND TELEPORT (SAFE LANDING ENGINE - ZERO RUBBERBANDING)
+-- =========================================================================
+-- Why previous version rubberbanded: HoverLock left Noclip ON and BodyVelocity active
+-- at target CFrame, dropping the character into the void before chunks streamed in,
+-- triggering server-side anti-fall teleport back to spawn!
+-- This function guarantees solid ground, requests streaming, and cleanly restores physics on arrival!
+local function TeleportToIsland(targetCFrame, islandName)
+    local root = GetRoot()
+    local hum = GetHumanoid()
+    if not root or not root.Parent or not hum then return end
+    
+    StopTween()
+    IsTravelingSky = true
+    
+    local speed = _G.Config.TweenSpeed or 350
+    if speed < 150 then speed = 350 end
+    
+    local distance = (targetCFrame.Position - root.Position).Magnitude
+    local label = islandName or "Selected Island"
+    
+    task.spawn(function()
+        if SetTravelHUD then SetTravelHUD(true, label, distance, speed) end
+        
+        -- Request streaming for target location immediately so terrain loads
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+            end
+        end)
+        
+        -- Create invisible safe landing platform so player NEVER drops into void/water
+        if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
+        LandingPlatform = Instance.new("Part")
+        LandingPlatform.Name = "AlphaLandingPlatform"
+        LandingPlatform.Size = Vector3.new(35, 2, 35)
+        LandingPlatform.CFrame = targetCFrame * CFrame.new(0, -1, 0)
+        LandingPlatform.Anchored = true
+        LandingPlatform.CanCollide = true
+        LandingPlatform.Transparency = 1
+        LandingPlatform.Parent = Workspace
+        
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        -- Ascend to sky altitude (Y = 380+)
+        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 60)
+        if root.Position.Y < (skyY - 30) then
+            local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
+            local upDist = (upCF.Position - root.Position).Magnitude
+            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
+            CurrentTween = upTween
+            upTween:Play()
+            upTween.Completed:Wait()
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Fly horizontally across the sky to target X, Z
+        local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
+        local hDist = (skyTargetCF.Position - root.Position).Magnitude
+        if hDist > 25 then
+            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
+            CurrentTween = hTween
+            hTween:Play()
+            
+            local monConn
+            monConn = RunService.Heartbeat:Connect(function()
+                if not IsTravelingSky or not root or not root.Parent then
+                    if monConn then monConn:Disconnect() end
+                    return
+                end
+                local curDist = (targetCFrame.Position - root.Position).Magnitude
+                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed) end
+            end)
+            
+            hTween.Completed:Wait()
+            if monConn then monConn:Disconnect() end
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Request streaming again now that we are directly above the island
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+            end
+        end)
+        
+        -- Descend directly to target position + 4 studs above ground
+        local landCF = targetCFrame * CFrame.new(0, 4, 0)
+        local downDist = (landCF.Position - root.Position).Magnitude
+        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
+        CurrentTween = downTween
+        downTween:Play()
+        downTween.Completed:Wait()
+        
+        -- CLEAN LANDING (ZERO RUBBERBAND):
+        -- Turn OFF Noclip so character stands solid on island/platform
+        DisableNoclip()
+        -- Destroy flight BodyVelocity so no phantom forces hold character
+        if FlightBodyVel then
+            pcall(function() FlightBodyVel:Destroy() end)
+            FlightBodyVel = nil
+        end
+        -- Restore Humanoid physics
+        if hum and hum.Parent then
+            hum.PlatformStand = false
+            hum.Sit = false
+        end
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        root.CFrame = landCF
+        
+        IsTravelingSky = false
+        if SetTravelHUD then SetTravelHUD(false) end
+        
+        -- Keep safe landing platform for 4 seconds while terrain finishes loading, then clean up
+        task.spawn(function()
+            task.wait(4)
+            if LandingPlatform and LandingPlatform.Parent then
+                LandingPlatform:Destroy()
+                LandingPlatform = nil
+            end
+        end)
     end)
 end
 --============================== FAST ATTACK & SKILL ENGINE ==============================
@@ -1448,12 +1591,12 @@ local function CreateUI()
     -- -------------------------------------------------------------
     local TravelFrame = Instance.new("Frame")
     TravelFrame.Name = RNG()
-    TravelFrame.Size = UDim2.new(0, 360, 0, 52)
-    TravelFrame.Position = UDim2.new(0.5, -180, 0, -75) -- Hidden above screen
+    TravelFrame.Size = UDim2.new(0, 360, 0, 54)
+    TravelFrame.Position = UDim2.new(0.5, -180, 0, -80) -- Starts hidden above screen
     TravelFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
     TravelFrame.BorderSizePixel = 0
     TravelFrame.Active = true
-    TravelFrame.ZIndex = 50
+    TravelFrame.ZIndex = 60
     TravelFrame.Parent = ScreenGui
     
     local TravelCorner = Instance.new("UICorner")
@@ -1465,6 +1608,14 @@ local function CreateUI()
     TravelStroke.Thickness = 1.6
     TravelStroke.Parent = TravelFrame
     
+    local TravelGrad = Instance.new("UIGradient")
+    TravelGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 24, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 12, 18))
+    }
+    TravelGrad.Rotation = 90
+    TravelGrad.Parent = TravelFrame
+    
     local TravelTitle = Instance.new("TextLabel")
     TravelTitle.Size = UDim2.new(1, -95, 0, 24)
     TravelTitle.Position = UDim2.new(0, 14, 0, 6)
@@ -1474,24 +1625,24 @@ local function CreateUI()
     TravelTitle.TextSize = 12
     TravelTitle.TextXAlignment = Enum.TextXAlignment.Left
     TravelTitle.BackgroundTransparency = 1
-    TravelTitle.ZIndex = 51
+    TravelTitle.ZIndex = 61
     TravelTitle.Parent = TravelFrame
     
     local TravelDist = Instance.new("TextLabel")
     TravelDist.Size = UDim2.new(1, -95, 0, 18)
     TravelDist.Position = UDim2.new(0, 14, 0, 28)
     TravelDist.Text = "Distance: 0 studs • Speed: 350 studs/s"
-    TravelDist.TextColor3 = Color3.fromRGB(180, 180, 200)
+    TravelDist.TextColor3 = Color3.fromRGB(180, 180, 205)
     TravelDist.Font = Enum.Font.Gotham
     TravelDist.TextSize = 10
     TravelDist.TextXAlignment = Enum.TextXAlignment.Left
     TravelDist.BackgroundTransparency = 1
-    TravelDist.ZIndex = 51
+    TravelDist.ZIndex = 61
     TravelDist.Parent = TravelFrame
     
     local CancelFlightBtn = Instance.new("TextButton")
-    CancelFlightBtn.Size = UDim2.new(0, 72, 0, 32)
-    CancelFlightBtn.Position = UDim2.new(1, -82, 0.5, -16)
+    CancelFlightBtn.Size = UDim2.new(0, 74, 0, 32)
+    CancelFlightBtn.Position = UDim2.new(1, -84, 0.5, -16)
     CancelFlightBtn.Text = "✕ CANCEL"
     CancelFlightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     CancelFlightBtn.Font = Enum.Font.GothamBold
@@ -1499,7 +1650,7 @@ local function CreateUI()
     CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(220, 35, 70)
     CancelFlightBtn.BorderSizePixel = 0
     CancelFlightBtn.Active = true
-    CancelFlightBtn.ZIndex = 52
+    CancelFlightBtn.ZIndex = 62
     CancelFlightBtn.Parent = TravelFrame
     local CFCorner = Instance.new("UICorner")
     CFCorner.CornerRadius = UDim.new(0, 6)
@@ -1516,65 +1667,82 @@ local function CreateUI()
             TravelDist.Text = "Distance: " .. math.floor(dist or 0) .. " studs • Speed: " .. math.floor(spd or 350)
             if not isTravelHUDActive then
                 isTravelHUDActive = true
-                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 18)}):Play()
+                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 18)}):Play()
             end
         else
             if isTravelHUDActive then
                 isTravelHUDActive = false
-                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -75)}):Play()
+                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -80)}):Play()
             end
         end
     end
     
     -- -------------------------------------------------------------
-    -- 3D SHADOW BACKDROP FOR MAIN FRAME
+    -- 3D DEEP SHADOW LAYER
     -- -------------------------------------------------------------
     local ShadowFrame = Instance.new("Frame")
     ShadowFrame.Name = RNG()
-    ShadowFrame.Size = UDim2.new(0, 608, 0, 385)
-    ShadowFrame.Position = UDim2.new(0.5, -296, 0.5, -182) -- 4px offset for 3D depth
-    ShadowFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
-    ShadowFrame.BackgroundTransparency = 0.45
+    ShadowFrame.Size = UDim2.new(0, 610, 0, 385)
+    ShadowFrame.Position = UDim2.new(0.5, -295, 0.5, -180) -- 5px 3D offset
+    ShadowFrame.BackgroundColor3 = Color3.fromRGB(4, 4, 7)
+    ShadowFrame.BackgroundTransparency = 0.35
     ShadowFrame.BorderSizePixel = 0
     ShadowFrame.Parent = ScreenGui
     local ShadowCorner = Instance.new("UICorner")
-    ShadowCorner.CornerRadius = UDim.new(0, 12)
+    ShadowCorner.CornerRadius = UDim.new(0, 14)
     ShadowCorner.Parent = ShadowFrame
     
     -- -------------------------------------------------------------
-    -- MAIN CONTAINER (Deep Obsidian 3D Panel)
+    -- MAIN CONTAINER (3D Obsidian Cyber Glass)
     -- -------------------------------------------------------------
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = RNG()
     MainFrame.Size = UDim2.new(0, 600, 0, 375)
     MainFrame.Position = UDim2.new(0.5, -300, 0.5, -187)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 17)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 16)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Active = true -- Input isolation
     MainFrame.Parent = ScreenGui
     
-    -- Sync shadow when dragging
+    -- Smooth 3D Entrance Bounce Animation on load
+    MainFrame.Size = UDim2.new(0, 520, 0, 320)
+    MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 600, 0, 375),
+        Position = UDim2.new(0.5, -300, 0.5, -187)
+    }):Play()
+    
     local function SyncShadow()
-        ShadowFrame.Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset + 4, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset + 5)
+        ShadowFrame.Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset + 5, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset + 6)
+        ShadowFrame.Size = UDim2.new(0, MainFrame.AbsoluteSize.X + 10, 0, MainFrame.AbsoluteSize.Y + 10)
         ShadowFrame.Visible = MainFrame.Visible
     end
     MainFrame:GetPropertyChangedSignal("Position"):Connect(SyncShadow)
     MainFrame:GetPropertyChangedSignal("Visible"):Connect(SyncShadow)
     
-    -- Global input lock listeners
     MainFrame.MouseEnter:Connect(function() _G.UIInteracting = true end)
     MainFrame.MouseLeave:Connect(function() _G.UIInteracting = false end)
     
     local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 8)
+    MainCorner.CornerRadius = UDim.new(0, 10)
     MainCorner.Parent = MainFrame
     
     local MainStroke = Instance.new("UIStroke")
     MainStroke.Color = Color3.fromRGB(255, 42, 95)
-    MainStroke.Thickness = 1.4
-    MainStroke.Transparency = 0.25
+    MainStroke.Thickness = 1.6
+    MainStroke.Transparency = 0.2
     MainStroke.Parent = MainFrame
+    
+    -- 3D Top Bevel Highlight Line
+    local TopHighlight = Instance.new("Frame")
+    TopHighlight.Size = UDim2.new(1, 0, 0, 1)
+    TopHighlight.Position = UDim2.new(0, 0, 0, 0)
+    TopHighlight.BackgroundColor3 = Color3.fromRGB(255, 120, 160)
+    TopHighlight.BackgroundTransparency = 0.5
+    TopHighlight.BorderSizePixel = 0
+    TopHighlight.ZIndex = 10
+    TopHighlight.Parent = MainFrame
     
     -- Dragging logic
     local dragging, dragInput, dragStart, startPos
@@ -1600,52 +1768,91 @@ local function CreateUI()
         end
     end)
     
-    -- Top Bar
+    -- Top Bar with Metallic Gradient
     local TopBar = Instance.new("Frame")
     TopBar.Name = RNG()
     TopBar.Size = UDim2.new(1, 0, 0, 44)
-    TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+    TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
     TopBar.BorderSizePixel = 0
     TopBar.Active = true
     TopBar.Parent = MainFrame
     
+    local TopBarGrad = Instance.new("UIGradient")
+    TopBarGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 28, 40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 16, 24))
+    }
+    TopBarGrad.Rotation = 90
+    TopBarGrad.Parent = TopBar
+    
     local TopStroke = Instance.new("UIStroke")
-    TopStroke.Color = Color3.fromRGB(35, 35, 48)
+    TopStroke.Color = Color3.fromRGB(38, 38, 54)
     TopStroke.Thickness = 1
     TopStroke.Parent = TopBar
     
+    -- 3D Logo Badge
+    local LogoBadge = Instance.new("Frame")
+    LogoBadge.Size = UDim2.new(0, 26, 0, 26)
+    LogoBadge.Position = UDim2.new(0, 12, 0, 9)
+    LogoBadge.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    LogoBadge.BorderSizePixel = 0
+    LogoBadge.Parent = TopBar
+    local LBCorner = Instance.new("UICorner")
+    LBCorner.CornerRadius = UDim.new(0, 6)
+    LBCorner.Parent = LogoBadge
+    local LBLabel = Instance.new("TextLabel")
+    LBLabel.Size = UDim2.new(1, 0, 1, 0)
+    LBLabel.Text = "α"
+    LBLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LBLabel.Font = Enum.Font.GothamBold
+    LBLabel.TextSize = 16
+    LBLabel.BackgroundTransparency = 1
+    LBLabel.Parent = LogoBadge
+    
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(0, 320, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 16, 0, 0)
-    TitleLabel.Text = "ALPHA // 3D REDZ EDITION"
-    TitleLabel.TextColor3 = Color3.fromRGB(255, 55, 105)
+    TitleLabel.Size = UDim2.new(0, 220, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 46, 0, 0)
+    TitleLabel.Text = "ALPHA // 3D CYBER HUB"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.TextSize = 14
+    TitleLabel.TextSize = 13
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     TitleLabel.BackgroundTransparency = 1
     TitleLabel.Active = true
     TitleLabel.Parent = TopBar
     
-    local SubLabel = Instance.new("TextLabel")
-    SubLabel.Size = UDim2.new(0, 200, 1, 0)
-    SubLabel.Position = UDim2.new(0, 235, 0, 0)
-    SubLabel.Text = "Keyless • " .. SeaName
-    SubLabel.TextColor3 = Color3.fromRGB(155, 155, 185)
-    SubLabel.Font = Enum.Font.Gotham
-    SubLabel.TextSize = 11
-    SubLabel.TextXAlignment = Enum.TextXAlignment.Left
-    SubLabel.BackgroundTransparency = 1
-    SubLabel.Active = true
-    SubLabel.Parent = TopBar
+    -- Sea Status Pill Badge
+    local SeaBadge = Instance.new("Frame")
+    SeaBadge.Size = UDim2.new(0, 95, 0, 22)
+    SeaBadge.Position = UDim2.new(0, 245, 0, 11)
+    SeaBadge.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    SeaBadge.BorderSizePixel = 0
+    SeaBadge.Parent = TopBar
+    local SBCorner = Instance.new("UICorner")
+    SBCorner.CornerRadius = UDim.new(1, 0)
+    SBCorner.Parent = SeaBadge
+    local SBStroke = Instance.new("UIStroke")
+    SBStroke.Color = Color3.fromRGB(255, 45, 95)
+    SBStroke.Thickness = 1
+    SBStroke.Transparency = 0.4
+    SBStroke.Parent = SeaBadge
+    local SBLabel = Instance.new("TextLabel")
+    SBLabel.Size = UDim2.new(1, 0, 1, 0)
+    SBLabel.Text = "🌊 " .. SeaName
+    SBLabel.TextColor3 = Color3.fromRGB(255, 90, 135)
+    SBLabel.Font = Enum.Font.GothamBold
+    SBLabel.TextSize = 10
+    SBLabel.BackgroundTransparency = 1
+    SBLabel.Parent = SeaBadge
     
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0, 28, 0, 28)
     CloseBtn.Position = UDim2.new(1, -36, 0, 8)
     CloseBtn.Text = "✕"
-    CloseBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
+    CloseBtn.TextColor3 = Color3.fromRGB(230, 230, 240)
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 12
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(42, 22, 32)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(38, 22, 32)
     CloseBtn.BorderSizePixel = 0
     CloseBtn.Active = true
     CloseBtn.Parent = TopBar
@@ -1654,12 +1861,17 @@ local function CreateUI()
     CloseCorner.Parent = CloseBtn
     
     CloseBtn.MouseEnter:Connect(function()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 40, 70)}):Play()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 35, 70)}):Play()
     end)
     CloseBtn.MouseLeave:Connect(function()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(42, 22, 32)}):Play()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(38, 22, 32)}):Play()
     end)
     CloseBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 520, 0, 320),
+            Position = UDim2.new(0.5, -260, 0.5, -160)
+        }):Play()
+        task.wait(0.25)
         MainFrame.Visible = false
     end)
     
@@ -1668,9 +1880,9 @@ local function CreateUI()
     FloatingBtn.Name = RNG()
     FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
     FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
-    FloatingBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
     FloatingBtn.Text = "ALPHA"
-    FloatingBtn.TextColor3 = Color3.fromRGB(255, 55, 105)
+    FloatingBtn.TextColor3 = Color3.fromRGB(255, 50, 100)
     FloatingBtn.Font = Enum.Font.GothamBold
     FloatingBtn.TextSize = 11
     FloatingBtn.BorderSizePixel = 0
@@ -1681,20 +1893,18 @@ local function CreateUI()
     FloatCorner.Parent = FloatingBtn
     local FloatStroke = Instance.new("UIStroke")
     FloatStroke.Color = Color3.fromRGB(255, 45, 95)
-    FloatStroke.Thickness = 1.8
+    FloatStroke.Thickness = 2
     FloatStroke.Parent = FloatingBtn
     
-    -- Animated breathing glow on reopen button
     task.spawn(function()
         while true do
-            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play()
+            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65}):Play()
             task.wait(1.2)
             TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
             task.wait(1.2)
         end
     end)
     
-    -- Draggable reopen button
     local fDragging, fDragInput, fDragStart, fStartPos
     FloatingBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -1718,7 +1928,17 @@ local function CreateUI()
         end
     end)
     FloatingBtn.MouseButton1Click:Connect(function()
-        MainFrame.Visible = not MainFrame.Visible
+        if not MainFrame.Visible then
+            MainFrame.Visible = true
+            MainFrame.Size = UDim2.new(0, 520, 0, 320)
+            MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
+            TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 600, 0, 375),
+                Position = UDim2.new(0.5, -300, 0.5, -187)
+            }):Play()
+        else
+            MainFrame.Visible = false
+        end
     end)
     
     -- Left Sidebar
@@ -1726,10 +1946,10 @@ local function CreateUI()
     Sidebar.Name = RNG()
     Sidebar.Size = UDim2.new(0, 145, 1, -44)
     Sidebar.Position = UDim2.new(0, 0, 0, 44)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(16, 16, 23)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
     Sidebar.BorderSizePixel = 0
     Sidebar.ScrollBarThickness = 2
-    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 380)
+    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 390)
     Sidebar.Active = true
     Sidebar.Parent = MainFrame
     
@@ -1747,12 +1967,11 @@ local function CreateUI()
     ContentHolder.Name = RNG()
     ContentHolder.Size = UDim2.new(1, -145, 1, -44)
     ContentHolder.Position = UDim2.new(0, 145, 0, 44)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(12, 12, 17)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(11, 11, 16)
     ContentHolder.BorderSizePixel = 0
     ContentHolder.Active = true
     ContentHolder.Parent = MainFrame
-    
-    local Tabs = {}
+local Tabs = {}
     local CurrentActiveTab = nil
     
     local function SwitchTab(tabName)
@@ -2506,7 +2725,7 @@ local function CreateUI()
     TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
         local tcf = CurrentIslands[SelIsland]
         if tcf then
-            TweenTo(tcf, SelIsland)
+            TeleportToIsland(tcf, SelIsland)
         end
     end)
     
