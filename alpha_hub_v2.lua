@@ -1,17 +1,18 @@
 --[[
-    ALPHA // BLOX FRUITS HUB v2 (KEYLESS EDITION)
-    Complete Redz Hub Reconstruction • 100% Keyless • Full Feature Suite
-    
-    - 100% Self-Contained Native Redz UI (Zero External HTTP Dependencies)
-    - Works on ALL Executors: KRNL, Synapse, Wave, Fluxus, Delta, Hydrogen, Arceus X, Solara
-    - Instant Execution • Zero Key System • Zero Ads
+    Blox Fruits Utility Module (v2 Hardened)
+    All features self-contained. No external HTTP dependencies.
+    Compatible with: KRNL, Synapse, Wave, Fluxus, Delta, Hydrogen, Arceus X, Solara
 ]]
 
+--============================== STAGGERED STARTUP ==============================
 pcall(function()
     if not game:IsLoaded() then
         game.Loaded:Wait()
     end
 end)
+
+-- Randomized startup delay to avoid frame-0 detection
+task.wait(math.random(20, 50) / 10) -- 2.0 to 5.0 seconds
 
 --============================== CORE SERVICES ==============================
 local Players = game:GetService("Players")
@@ -38,106 +39,88 @@ local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Thi
 -- Safe request wrapper
 local safeRequest = (syn and syn.request) or http_request or (fluxus and fluxus.request) or (http and http.request) or request
 
---============================== ANTI-CHEAT BYPASS & SECURITY LAYER ==============================
--- 1. Hook __namecall to block LocalPlayer:Kick() and Honeypot / Detection Remotes
-pcall(function()
-    if hookmetamethod then
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            
-            -- Prevent game from kicking player
-            if method == "Kick" or method == "kick" then
-                warn("[ALPHA BYPASS]: Blocked kick attempt!")
-                return nil
-            end
-            
-            -- Block Blox Fruits honeypot remotes (BANEXPLOIT, Report, Security)
-            if method == "FireServer" or method == "InvokeServer" then
-                local remoteName = tostring(self.Name)
-                if remoteName == "BANEXPLOIT" or remoteName == "Report" or remoteName == "Security" or remoteName == "AdminGUI" or remoteName == "AntiCheat" then
-                    warn("[ALPHA BYPASS]: Blocked anti-cheat telemetry remote: " .. remoteName)
-                    return nil
-                end
-            end
-            
-            return oldNamecall(self, ...)
-        end))
-    end
-end)
-
--- 2. Hook LocalPlayer.Kick directly
-pcall(function()
-    if hookfunction and LocalPlayer and LocalPlayer.Kick then
-        hookfunction(LocalPlayer.Kick, newcclosure(function(self, ...)
-            warn("[ALPHA BYPASS]: Blocked LocalPlayer:Kick() direct call")
-            return nil
-        end))
-    end
-end)
-
--- 3. Neutralize in-game Client Anti-Cheat LocalScripts
-local function NeutralizeAntiCheat()
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char then
-            for _, v in ipairs(char:GetDescendants()) do
-                if v:IsA("LocalScript") and (v.Name:lower():find("cheat") or v.Name:lower():find("check") or v.Name:lower():find("ban") or v.Name == "ClientCheck") then
-                    v.Disabled = true
-                end
-            end
-        end
-        local pScripts = LocalPlayer:FindFirstChild("PlayerScripts")
-        if pScripts then
-            for _, v in ipairs(pScripts:GetDescendants()) do
-                if v:IsA("LocalScript") and (v.Name:lower():find("cheat") or v.Name:lower():find("check") or v.Name:lower():find("combatcheck")) then
-                    v.Disabled = true
-                end
-            end
-        end
-    end)
+-- Random GUID generator for stealth naming
+local function RNG()
+    return HttpService:GenerateGUID(false):sub(1, 12)
 end
 
-NeutralizeAntiCheat()
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    NeutralizeAntiCheat()
+--============================== SOFT ANTI-KICK (NO GLOBAL HOOKS) ==============================
+-- Instead of hookmetamethod (which triggers GUI bombing), we use a pcall-wrapped
+-- connection-based approach that doesn't modify the global metatable
+pcall(function()
+    -- Only intercept the Idled event kick, not all kicks globally
+    LocalPlayer.Idled:Connect(function()
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+        end)
+    end)
 end)
+
+-- NOTE: We intentionally do NOT:
+-- 1. hookmetamethod(__namecall) -- triggers GUI bombing detection
+-- 2. Block BANEXPLOIT/Security remotes -- legitimate clients never call them, blocking confirms script presence
+-- 3. Disable LocalScripts (NeutralizeAntiCheat) -- the game detects when its own scripts are disabled
 
 --============================== SAFE GUI PARENTING ==============================
 local function GetSafeGui()
+    -- gethui() is the safest -- hidden from game scripts entirely
     if gethui then
         local ok, res = pcall(gethui)
         if ok and res then return res end
     end
-    local ok, res = pcall(function()
-        local test = Instance.new("Folder")
-        test.Parent = CoreGui
-        test:Destroy()
-        return CoreGui
-    end)
-    if ok and res then return res end
+    -- Fall back to PlayerGui (less safe but universally compatible)
     return LocalPlayer:WaitForChild("PlayerGui", 10)
 end
 
---============================== REMOTES & MODULES ==============================
-local Remotes = RS:WaitForChild("Remotes", 10)
-local CommF_ = Remotes and Remotes:FindFirstChild("CommF_")
-local Commits = Remotes and Remotes:FindFirstChild("Commits")
-local Validator2 = Remotes and Remotes:FindFirstChild("Validator2")
+--============================== LAZY REMOTE INITIALIZATION ==============================
+-- Remotes are NOT looked up at startup (suspicious). Instead, found on first use.
+local _remoteCache = {}
 
-if not CommF_ or not Commits then
-    for _, v in ipairs(RS:GetDescendants()) do
-        if v:IsA("RemoteFunction") and v.Name == "CommF_" then CommF_ = v end
-        if v:IsA("RemoteEvent") and v.Name == "Commits" then Commits = v end
-        if v:IsA("RemoteEvent") and v.Name == "Validator2" then Validator2 = v end
+local function GetRemote(name, className)
+    if _remoteCache[name] then return _remoteCache[name] end
+    
+    -- Try direct path first (fast)
+    local remotes = RS:FindFirstChild("Remotes")
+    if remotes then
+        local r = remotes:FindFirstChild(name)
+        if r then
+            _remoteCache[name] = r
+            return r
+        end
     end
+    
+    -- Deep scan fallback (only if not found directly)
+    for _, v in ipairs(RS:GetDescendants()) do
+        if v.Name == name and (not className or v:IsA(className)) then
+            _remoteCache[name] = v
+            return v
+        end
+    end
+    return nil
 end
 
-local Net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
-local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
-local RegisterHit = Net and Net:FindFirstChild("RE/RegisterHit")
-local ShootGunEvent = Net and Net:FindFirstChild("RE/ShootGunEvent")
+local function CommF()
+    return GetRemote("CommF_", "RemoteFunction")
+end
+
+local function CommitsRemote()
+    return GetRemote("Commits", "RemoteEvent")
+end
+
+-- Net module remotes (lazy)
+local function GetNetRemote(subName)
+    if _remoteCache["Net_" .. subName] then return _remoteCache["Net_" .. subName] end
+    local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
+    if net then
+        local r = net:FindFirstChild(subName)
+        if r then
+            _remoteCache["Net_" .. subName] = r
+            return r
+        end
+    end
+    return nil
+end
 
 --============================== CONFIGURATION ==============================
 _G.Config = {
@@ -152,12 +135,12 @@ _G.Config = {
     SelectedWeapon = "Melee", -- Melee | Sword | Gun | Fruit
     BringMobs = true,
     FarmDistance = 9,
-    TweenSpeed = 320,
+    TweenSpeed = 200, -- Reduced from 320 to avoid behavioral detection
     
     -- Combat & Fast Attack
     FastAttack = true,
     AttackDistance = 65,
-    AttackCooldown = 0.05,
+    AttackCooldown = 0.15, -- Increased from 0.05 to human-plausible range
     AutoBusoHaki = true,
     AutoKenHaki = false,
     
@@ -276,19 +259,25 @@ local function CheckBusoHaki()
     if not _G.Config.AutoBusoHaki then return end
     local char = GetCharacter()
     if char and not char:FindFirstChild("HasBuso") then
-        if CommF_ then
-            pcall(function() CommF_:InvokeServer("Buso") end)
+        local cf = CommF()
+        if cf then
+            pcall(function() cf:InvokeServer("Buso") end)
         end
     end
 end
 
---============================== CLEAN TWEEN ENGINE ==============================
+--============================== STEALTH TWEEN ENGINE ==============================
 local CurrentTween = nil
 local NoclipConn = nil
+local _noclipFrame = 0
 
 local function EnableNoclip()
     if NoclipConn then return end
+    _noclipFrame = 0
     NoclipConn = RunService.Stepped:Connect(function()
+        _noclipFrame = _noclipFrame + 1
+        -- Skip every other frame to reduce detection signature
+        if _noclipFrame % 2 == 0 then return end
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -326,17 +315,39 @@ local function TweenTo(targetCFrame)
         return
     end
     
-    -- Anti-Cheat Teleport Bypass: for long cross-island distances, use requestEntrance
-    if distance > 3000 and CommF_ then
-        pcall(function()
-            CommF_:InvokeServer("requestEntrance", targetCFrame.Position)
-            task.wait(0.3)
-        end)
+    local speed = _G.Config.TweenSpeed or 200
+    
+    -- For long distances, break into segments with micro-stutters
+    if distance > 500 then
+        EnableNoclip()
+        local segments = math.ceil(distance / 500)
+        local direction = (targetCFrame.Position - root.Position).Unit
+        
+        for i = 1, segments do
+            if not root or not root.Parent then break end
+            local segDist = math.min(500, (targetCFrame.Position - root.Position).Magnitude)
+            local segTarget
+            if i == segments then
+                segTarget = targetCFrame
+            else
+                segTarget = CFrame.new(root.Position + direction * segDist) * (targetCFrame - targetCFrame.Position)
+            end
+            
+            local segTime = segDist / speed
+            local tweenInfo = TweenInfo.new(segTime, Enum.EasingStyle.Linear)
+            CurrentTween = TweenService:Create(root, tweenInfo, {CFrame = segTarget})
+            CurrentTween:Play()
+            CurrentTween.Completed:Wait()
+            
+            -- Micro-stutter between segments (breaks perfect linear movement signature)
+            if i < segments then
+                task.wait(0.03 + math.random() * 0.04)
+            end
+        end
+        return
     end
     
-    local speed = _G.Config.TweenSpeed or 320
     local time = distance / speed
-    
     EnableNoclip()
     local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
     CurrentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
@@ -344,7 +355,9 @@ local function TweenTo(targetCFrame)
     return CurrentTween
 end
 
---============================== FAST ATTACK ENGINE ==============================
+--============================== THROTTLED FAST ATTACK ENGINE ==============================
+local _lastAttackTime = 0
+
 local function GetBladeHits()
     local targets = {}
     local root = GetRoot()
@@ -371,12 +384,20 @@ local function FastAttack()
     local char = GetCharacter()
     if not char then return end
     
+    -- Throttle with jitter to avoid perfect-interval detection
+    local now = tick()
+    local cooldown = (_G.Config.AttackCooldown or 0.15) + math.random() * 0.08
+    if (now - _lastAttackTime) < cooldown then return end
+    _lastAttackTime = now
+    
     local enemies = GetBladeHits()
     if #enemies > 0 then
-        -- Method 1: Direct Net Remotes (Safe 0.06s rate to bypass anti-cheat ban)
-        if RegisterAttack and RegisterHit then
+        -- Method 1: Net Remotes (with safe interval)
+        local regAttack = GetNetRemote("RE/RegisterAttack")
+        local regHit = GetNetRemote("RE/RegisterHit")
+        if regAttack and regHit then
             pcall(function()
-                RegisterAttack:FireServer(0.06)
+                regAttack:FireServer(0.12)
                 local args = {nil, {}}
                 for i, v in ipairs(enemies) do
                     if not args[1] and v:FindFirstChild("Head") then
@@ -384,43 +405,57 @@ local function FastAttack()
                     end
                     args[2][i] = {v, v.HumanoidRootPart}
                 end
-                RegisterHit:FireServer(unpack(args))
+                regHit:FireServer(unpack(args))
             end)
         end
         
-        -- Method 2: Tool Activate
+        -- Method 2: Tool Activate (natural click simulation)
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
             pcall(function() tool:Activate() end)
         end
         
-        -- Method 3: VirtualUser
-        pcall(function()
-            VirtualUser:CaptureController()
-            VirtualUser:Button1Down(Vector2.new(0, 0))
-        end)
+        -- NOTE: VirtualUser:Button1Down spam removed -- well-known detection vector
     end
 end
 
--- Combat loop
-task.spawn(function()
-    while true do
-        task.wait(_G.Config.AttackCooldown or 0.05)
-        if _G.Config.FastAttack and (_G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses) then
-            FastAttack()
-            CheckBusoHaki()
+-- Combat loop (starts after delay -- see bottom of script)
+local function StartCombatLoop()
+    task.spawn(function()
+        while true do
+            local cd = (_G.Config.AttackCooldown or 0.15) + math.random() * 0.05
+            task.wait(cd)
+            if _G.Config.FastAttack and (_G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses) then
+                FastAttack()
+                CheckBusoHaki()
+            end
         end
-    end
-end)
+    end)
+end
 
---============================== BRING MOBS SYSTEM ==============================
+--============================== BRING MOBS SYSTEM (CAPPED SIM RADIUS) ==============================
+local _simRadiusSet = false
+
 local function BringMobsTo(targetMobName, centerCFrame)
-    if not _G.Config.BringMobs then return end
+    if not _G.Config.BringMobs then
+        -- Reset sim radius when not actively bringing
+        if _simRadiusSet then
+            pcall(function()
+                if sethiddenproperty then
+                    sethiddenproperty(LocalPlayer, "SimulationRadius", 100)
+                end
+            end)
+            _simRadiusSet = false
+        end
+        return
+    end
     
+    -- Cap at 1000 instead of math.huge to avoid server-side flag
     pcall(function()
         if sethiddenproperty then
-            sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-            sethiddenproperty(LocalPlayer, "MaxSimulationRadius", math.huge)
+            sethiddenproperty(LocalPlayer, "SimulationRadius", 1000)
+            sethiddenproperty(LocalPlayer, "MaxSimulationRadius", 1000)
+            _simRadiusSet = true
         end
     end)
     
@@ -663,116 +698,131 @@ local function FindEnemy(targetName)
 end
 
 --============================== AUTO FARM LEVEL CORE ==============================
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        if _G.Config.AutoFarmLevel then
-            pcall(function()
-                local questInfo = GetCurrentQuest()
-                if not HasQuest() then
-                    StopTween()
-                    if CommF_ then
-                        CommF_:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                        task.wait(0.4)
+local function StartAutoFarmLevel()
+    task.spawn(function()
+        task.wait(math.random(5, 15) / 10) -- Staggered start
+        while true do
+            task.wait(0.2 + math.random() * 0.1)
+            if _G.Config.AutoFarmLevel then
+                pcall(function()
+                    local questInfo = GetCurrentQuest()
+                    if not HasQuest() then
+                        StopTween()
+                        local cf = CommF()
+                        if cf then
+                            cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                            task.wait(0.4 + math.random() * 0.2)
+                        end
+                    else
+                        local target = FindEnemy(questInfo.Mob)
+                        if target and target:FindFirstChild("HumanoidRootPart") then
+                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            TweenTo(farmPos)
+                            EquipWeapon()
+                            BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
+                        else
+                            TweenTo(questInfo.Pos * CFrame.new(0, 35, 0))
+                        end
                     end
-                else
-                    local target = FindEnemy(questInfo.Mob)
+                end)
+            end
+        end
+    end)
+end
+
+--============================== AUTO FARM SELECTED MOB CORE ==============================
+local function StartAutoFarmSelectedMob()
+    task.spawn(function()
+        task.wait(math.random(8, 20) / 10)
+        while true do
+            task.wait(0.2 + math.random() * 0.1)
+            if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
+                pcall(function()
+                    local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
+                    local target = FindEnemy(mobName)
                     if target and target:FindFirstChild("HumanoidRootPart") then
                         local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         TweenTo(farmPos)
                         EquipWeapon()
-                        BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
+                        BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                     else
-                        TweenTo(questInfo.Pos * CFrame.new(0, 35, 0))
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---============================== AUTO FARM SELECTED MOB CORE ==============================
-task.spawn(function()
-    while true do
-        task.wait(0.2)
-        if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
-            pcall(function()
-                local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
-                local target = FindEnemy(mobName)
-                if target and target:FindFirstChild("HumanoidRootPart") then
-                    local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    TweenTo(farmPos)
-                    EquipWeapon()
-                    BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
-                else
-                    for _, q in ipairs(QuestsDB) do
-                        if q.Mob == mobName then
-                            TweenTo(q.Pos * CFrame.new(0, 35, 0))
-                            break
+                        for _, q in ipairs(QuestsDB) do
+                            if q.Mob == mobName then
+                                TweenTo(q.Pos * CFrame.new(0, 35, 0))
+                                break
+                            end
                         end
                     end
-                end
-            end)
+                end)
+            end
         end
-    end
-end)
+    end)
+end
 
 --============================== AUTO FARM SELECTED BOSS CORE ==============================
-task.spawn(function()
-    while true do
-        task.wait(0.3)
-        if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
-            pcall(function()
-                local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
-                local bossData = BossesDB[bossName]
-                local target = FindEnemy(bossName)
-                
-                if target and target:FindFirstChild("HumanoidRootPart") then
-                    if bossData and bossData.Quest and not HasQuest() then
-                        CommF_:InvokeServer("StartQuest", bossData.Quest, bossData.Level)
-                        task.wait(0.4)
+local function StartAutoFarmSelectedBoss()
+    task.spawn(function()
+        task.wait(math.random(10, 25) / 10)
+        while true do
+            task.wait(0.3 + math.random() * 0.1)
+            if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
+                pcall(function()
+                    local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
+                    local bossData = BossesDB[bossName]
+                    local target = FindEnemy(bossName)
+                    
+                    if target and target:FindFirstChild("HumanoidRootPart") then
+                        if bossData and bossData.Quest and not HasQuest() then
+                            local cf = CommF()
+                            if cf then cf:InvokeServer("StartQuest", bossData.Quest, bossData.Level) end
+                            task.wait(0.4 + math.random() * 0.2)
+                        end
+                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        TweenTo(farmPos)
+                        EquipWeapon()
+                    else
+                        if bossData then
+                            TweenTo(bossData.Pos * CFrame.new(0, 40, 0))
+                        end
                     end
-                    local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    TweenTo(farmPos)
-                    EquipWeapon()
-                else
-                    if bossData then
-                        TweenTo(bossData.Pos * CFrame.new(0, 40, 0))
-                    end
-                end
-            end)
+                end)
+            end
         end
-    end
-end)
+    end)
+end
 
 --============================== AUTO FARM ALL BOSSES CORE ==============================
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if _G.Config.FarmAllBosses then
-            pcall(function()
-                local enemies = Workspace:FindFirstChild("Enemies")
-                if enemies then
-                    for _, enemy in ipairs(enemies:GetChildren()) do
-                        if BossesDB[enemy.Name] and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            local bData = BossesDB[enemy.Name]
-                            if bData and bData.Quest and not HasQuest() then
-                                CommF_:InvokeServer("StartQuest", bData.Quest, bData.Level)
-                                task.wait(0.4)
-                            end
-                            while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
-                                local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                                TweenTo(farmPos)
-                                EquipWeapon()
-                                task.wait(0.1)
+local function StartAutoFarmAllBosses()
+    task.spawn(function()
+        task.wait(math.random(12, 30) / 10)
+        while true do
+            task.wait(0.5 + math.random() * 0.2)
+            if _G.Config.FarmAllBosses then
+                pcall(function()
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, enemy in ipairs(enemies:GetChildren()) do
+                            if BossesDB[enemy.Name] and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                                local bData = BossesDB[enemy.Name]
+                                if bData and bData.Quest and not HasQuest() then
+                                    local cf = CommF()
+                                    if cf then cf:InvokeServer("StartQuest", bData.Quest, bData.Level) end
+                                    task.wait(0.4 + math.random() * 0.2)
+                                end
+                                while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
+                                    local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                    TweenTo(farmPos)
+                                    EquipWeapon()
+                                    task.wait(0.1 + math.random() * 0.05)
+                                end
                             end
                         end
                     end
-                end
-            end)
+                end)
+            end
         end
-    end
-end)
+    end)
+end
 
 --============================== RAID & SPECIAL BOSSES ==============================
 local function FightRaidBoss(bossName)
@@ -786,72 +836,84 @@ local function FightRaidBoss(bossName)
     return false
 end
 
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        pcall(function()
-            if _G.Config.AutoKillRipIndra then FightRaidBoss("rip_indra") or FightRaidBoss("Rip Indra") end
-            if _G.Config.AutoKillDoughKing then FightRaidBoss("Dough King") end
-            if _G.Config.AutoKillCakePrince then FightRaidBoss("Cake Prince") end
-            if _G.Config.AutoKillSoulReaper then FightRaidBoss("Soul Reaper") end
-            if _G.Config.AutoKillDarkbeard then FightRaidBoss("Darkbeard") end
-            if _G.Config.AutoKillCursedCaptain then FightRaidBoss("Cursed Captain") end
-            if _G.Config.AutoKillLaw then FightRaidBoss("Order") end
-        end)
-    end
-end)
+local function StartRaidBossLoop()
+    task.spawn(function()
+        task.wait(math.random(15, 35) / 10)
+        while true do
+            task.wait(0.5 + math.random() * 0.2)
+            pcall(function()
+                if _G.Config.AutoKillRipIndra then FightRaidBoss("rip_indra") or FightRaidBoss("Rip Indra") end
+                if _G.Config.AutoKillDoughKing then FightRaidBoss("Dough King") end
+                if _G.Config.AutoKillCakePrince then FightRaidBoss("Cake Prince") end
+                if _G.Config.AutoKillSoulReaper then FightRaidBoss("Soul Reaper") end
+                if _G.Config.AutoKillDarkbeard then FightRaidBoss("Darkbeard") end
+                if _G.Config.AutoKillCursedCaptain then FightRaidBoss("Cursed Captain") end
+                if _G.Config.AutoKillLaw then FightRaidBoss("Order") end
+            end)
+        end
+    end)
+end
 
 --============================== DEVIL FRUIT SYSTEM ==============================
--- Auto Random Gacha
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if _G.Config.AutoRandomFruit and CommF_ then
-            pcall(function() CommF_:InvokeServer("Cousin", "Buy") end)
+local function StartDevilFruitLoops()
+    -- Auto Random Gacha
+    task.spawn(function()
+        task.wait(math.random(20, 40) / 10)
+        while true do
+            task.wait(2 + math.random() * 0.5)
+            if _G.Config.AutoRandomFruit then
+                local cf = CommF()
+                if cf then pcall(function() cf:InvokeServer("Cousin", "Buy") end) end
+            end
         end
-    end
-end)
+    end)
 
--- Auto Store Fruits
-task.spawn(function()
-    while true do
-        task.wait(1.5)
-        if _G.Config.AutoStoreFruit and CommF_ then
-            pcall(function()
-                local bp = LocalPlayer:FindFirstChild("Backpack")
-                local char = GetCharacter()
-                for _, container in ipairs({bp, char}) do
-                    if container then
-                        for _, tool in ipairs(container:GetChildren()) do
-                            if tool:IsA("Tool") and (tool.ToolTip == "Blox Fruit" or string.find(tool.Name, "Fruit")) then
-                                CommF_:InvokeServer("StoreFruit", tool:GetAttribute("OriginalName") or tool.Name, tool)
+    -- Auto Store Fruits
+    task.spawn(function()
+        task.wait(math.random(22, 42) / 10)
+        while true do
+            task.wait(1.5 + math.random() * 0.5)
+            if _G.Config.AutoStoreFruit then
+                local cf = CommF()
+                if cf then
+                    pcall(function()
+                        local bp = LocalPlayer:FindFirstChild("Backpack")
+                        local char = GetCharacter()
+                        for _, container in ipairs({bp, char}) do
+                            if container then
+                                for _, tool in ipairs(container:GetChildren()) do
+                                    if tool:IsA("Tool") and (tool.ToolTip == "Blox Fruit" or string.find(tool.Name, "Fruit")) then
+                                        cf:InvokeServer("StoreFruit", tool:GetAttribute("OriginalName") or tool.Name, tool)
+                                    end
+                                end
                             end
                         end
-                    end
+                    end)
                 end
-            end)
+            end
         end
-    end
-end)
+    end)
 
--- Auto Grab Dropped Fruits
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if _G.Config.AutoGrabFruits then
-            pcall(function()
-                for _, obj in ipairs(Workspace:GetChildren()) do
-                    if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or obj.ToolTip == "Blox Fruit") and obj:FindFirstChild("Handle") then
-                        TweenTo(obj.Handle.CFrame)
-                        task.wait(0.5)
+    -- Auto Grab Dropped Fruits
+    task.spawn(function()
+        task.wait(math.random(25, 45) / 10)
+        while true do
+            task.wait(1 + math.random() * 0.3)
+            if _G.Config.AutoGrabFruits then
+                pcall(function()
+                    for _, obj in ipairs(Workspace:GetChildren()) do
+                        if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or obj.ToolTip == "Blox Fruit") and obj:FindFirstChild("Handle") then
+                            TweenTo(obj.Handle.CFrame)
+                            task.wait(0.5)
+                        end
                     end
-                end
-            end)
+                end)
+            end
         end
-    end
-end)
+    end)
+end
 
--- Fruit ESP
+-- Fruit ESP (randomized billboard names)
 local FruitESPTable = {}
 local function UpdateFruitESP()
     for _, bill in pairs(FruitESPTable) do
@@ -863,7 +925,7 @@ local function UpdateFruitESP()
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or obj.ToolTip == "Blox Fruit") and obj:FindFirstChild("Handle") then
             local bill = Instance.new("BillboardGui")
-            bill.Name = "AlphaFruitESP"
+            bill.Name = RNG() -- Random name instead of "AlphaFruitESP"
             bill.Adornee = obj.Handle
             bill.Size = UDim2.new(0, 100, 0, 30)
             bill.StudsOffset = Vector3.new(0, 2, 0)
@@ -883,57 +945,70 @@ local function UpdateFruitESP()
     end
 end
 
-task.spawn(function()
-    while true do
-        task.wait(3)
-        if _G.Config.FruitESP then UpdateFruitESP() end
-    end
-end)
+local function StartFruitESPLoop()
+    task.spawn(function()
+        task.wait(math.random(30, 50) / 10)
+        while true do
+            task.wait(3 + math.random() * 1)
+            if _G.Config.FruitESP then UpdateFruitESP() end
+        end
+    end)
+end
 
 --============================== AUTO STATS ALLOCATOR ==============================
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if _G.Config.AutoStats and CommF_ then
-            pcall(function()
-                local pts = _G.Config.StatPoints or 1
-                if _G.Config.Stats.Melee then CommF_:InvokeServer("AddPoint", "Melee", pts) end
-                if _G.Config.Stats.Defense then CommF_:InvokeServer("AddPoint", "Defense", pts) end
-                if _G.Config.Stats.Sword then CommF_:InvokeServer("AddPoint", "Sword", pts) end
-                if _G.Config.Stats.Gun then CommF_:InvokeServer("AddPoint", "Gun", pts) end
-                if _G.Config.Stats.Fruit then CommF_:InvokeServer("AddPoint", "Demon Fruit", pts) end
-            end)
+local function StartAutoStatsLoop()
+    task.spawn(function()
+        task.wait(math.random(18, 38) / 10)
+        while true do
+            task.wait(0.5 + math.random() * 0.2)
+            if _G.Config.AutoStats then
+                local cf = CommF()
+                if cf then
+                    pcall(function()
+                        local pts = _G.Config.StatPoints or 1
+                        if _G.Config.Stats.Melee then cf:InvokeServer("AddPoint", "Melee", pts) end
+                        if _G.Config.Stats.Defense then cf:InvokeServer("AddPoint", "Defense", pts) end
+                        if _G.Config.Stats.Sword then cf:InvokeServer("AddPoint", "Sword", pts) end
+                        if _G.Config.Stats.Gun then cf:InvokeServer("AddPoint", "Gun", pts) end
+                        if _G.Config.Stats.Fruit then cf:InvokeServer("AddPoint", "Demon Fruit", pts) end
+                    end)
+                end
+            end
         end
-    end
-end)
+    end)
+end
 
 --============================== DUNGEONS & RAIDS ==============================
-task.spawn(function()
-    while true do
-        task.wait(1.5)
-        pcall(function()
-            if _G.Config.AutoBuyChip and CommF_ then
-                CommF_:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip)
-            end
-            if _G.Config.AutoStartRaid and CommF_ then
-                CommF_:InvokeServer("RaidsNpc", "Start")
-            end
-            if _G.Config.AutoFarmRaid then
-                local enemies = Workspace:FindFirstChild("Enemies")
-                if enemies then
-                    for _, mob in ipairs(enemies:GetChildren()) do
-                        if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                            local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0)
-                            TweenTo(farmPos)
-                            EquipWeapon()
-                            break
+local function StartDungeonRaidLoop()
+    task.spawn(function()
+        task.wait(math.random(20, 40) / 10)
+        while true do
+            task.wait(1.5 + math.random() * 0.5)
+            pcall(function()
+                local cf = CommF()
+                if _G.Config.AutoBuyChip and cf then
+                    cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip)
+                end
+                if _G.Config.AutoStartRaid and cf then
+                    cf:InvokeServer("RaidsNpc", "Start")
+                end
+                if _G.Config.AutoFarmRaid then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0)
+                                TweenTo(farmPos)
+                                EquipWeapon()
+                                break
+                            end
                         end
                     end
                 end
-            end
-        end)
-    end
-end)
+            end)
+        end
+    end)
+end
 
 --============================== SEA EVENTS & MIRAGE ==============================
 local function CheckIslandSpawn(islandName)
@@ -954,24 +1029,29 @@ local function EnableAntiAFK()
 end
 if _G.Config.AntiAFK then EnableAntiAFK() end
 
---============================== NATIVE REDZ-STYLE UI FRAMEWORK ==============================
--- 100% Self-Contained • Zero external downloads • Instant Execution on all executors
+--============================== STEALTH UI FRAMEWORK ==============================
+-- All GUI elements use randomized names via GenerateGUID
+-- No "Alpha", "Hub", "Redz" strings in any GUI name
 local function CreateUI()
     local parentGui = GetSafeGui()
     
-    -- Cleanup any existing instance
-    local old = parentGui:FindFirstChild("AlphaHubV2_Gui")
-    if old then old:Destroy() end
+    -- Cleanup any existing instance (search by attribute, not name)
+    for _, child in ipairs(parentGui:GetChildren()) do
+        if child:IsA("ScreenGui") and child:GetAttribute("_uid") == "v2h" then
+            child:Destroy()
+        end
+    end
     
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "AlphaHubV2_Gui"
+    ScreenGui.Name = RNG() -- Random name
+    ScreenGui:SetAttribute("_uid", "v2h") -- Hidden attribute for cleanup
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = parentGui
     
     -- Main Frame
     local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
+    MainFrame.Name = RNG()
     MainFrame.Size = UDim2.new(0, 580, 0, 360)
     MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
     MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
@@ -1014,7 +1094,7 @@ local function CreateUI()
     
     -- Top Bar
     local TopBar = Instance.new("Frame")
-    TopBar.Name = "TopBar"
+    TopBar.Name = RNG()
     TopBar.Size = UDim2.new(1, 0, 0, 42)
     TopBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
     TopBar.BorderSizePixel = 0
@@ -1034,7 +1114,7 @@ local function CreateUI()
     local SubLabel = Instance.new("TextLabel")
     SubLabel.Size = UDim2.new(0, 200, 1, 0)
     SubLabel.Position = UDim2.new(0, 240, 0, 0)
-    SubLabel.Text = "Keyless • " .. SeaName
+    SubLabel.Text = "Keyless \xe2\x80\xa2 " .. SeaName
     SubLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
     SubLabel.Font = Enum.Font.Gotham
     SubLabel.TextSize = 11
@@ -1059,9 +1139,9 @@ local function CreateUI()
         MainFrame.Visible = false
     end)
     
-    -- Floating Reopen Button (So user can always reopen GUI)
+    -- Floating Reopen Button
     local FloatingBtn = Instance.new("TextButton")
-    FloatingBtn.Name = "AlphaHubToggle"
+    FloatingBtn.Name = RNG()
     FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
     FloatingBtn.Position = UDim2.new(0, 20, 0.5, -25)
     FloatingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
@@ -1084,7 +1164,7 @@ local function CreateUI()
     
     -- Left Sidebar
     local Sidebar = Instance.new("ScrollingFrame")
-    Sidebar.Name = "Sidebar"
+    Sidebar.Name = RNG()
     Sidebar.Size = UDim2.new(0, 140, 1, -42)
     Sidebar.Position = UDim2.new(0, 0, 0, 42)
     Sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
@@ -1104,7 +1184,7 @@ local function CreateUI()
     
     -- Content Container
     local ContentHolder = Instance.new("Frame")
-    ContentHolder.Name = "ContentHolder"
+    ContentHolder.Name = RNG()
     ContentHolder.Size = UDim2.new(1, -140, 1, -42)
     ContentHolder.Position = UDim2.new(0, 140, 0, 42)
     ContentHolder.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
@@ -1145,7 +1225,7 @@ local function CreateUI()
         TabBtnCorner.Parent = TabBtn
         
         local Page = Instance.new("ScrollingFrame")
-        Page.Name = name .. "_Page"
+        Page.Name = RNG()
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
         Page.BorderSizePixel = 0
@@ -1311,9 +1391,9 @@ local function CreateUI()
             SelectBtn.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
             SelectBtn.BorderSizePixel = 0
             SelectBtn.Parent = DropFrame
-            local SCorner = Instance.new("UICorner")
-            SCorner.CornerRadius = UDim.new(0, 4)
-            SCorner.Parent = SelectBtn
+            local SBCorner = Instance.new("UICorner")
+            SBCorner.CornerRadius = UDim.new(0, 4)
+            SBCorner.Parent = SelectBtn
             
             local ListScroll = Instance.new("ScrollingFrame")
             ListScroll.Size = UDim2.new(1, -16, 0, 100)
@@ -1383,9 +1463,9 @@ local function CreateUI()
             SliderFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
             SliderFrame.BorderSizePixel = 0
             SliderFrame.Parent = Page
-            local SCorner = Instance.new("UICorner")
-            SCorner.CornerRadius = UDim.new(0, 5)
-            SCorner.Parent = SliderFrame
+            local SlCorner = Instance.new("UICorner")
+            SlCorner.CornerRadius = UDim.new(0, 5)
+            SlCorner.Parent = SliderFrame
             
             local STitle = Instance.new("TextLabel")
             STitle.Size = UDim2.new(0, 220, 0, 20)
@@ -1549,21 +1629,21 @@ local function CreateUI()
     SeaTab:AddSection("Mirage & Kitsune Island")
     SeaTab:AddButton("Check Mirage Island Status", function()
         local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
-        print("[ALPHA HUB] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
+        print("[HUB] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
     end)
     SeaTab:AddButton("Check Kitsune Island Status", function()
         local s = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
-        print("[ALPHA HUB] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
+        print("[HUB] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
     end)
     SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
     SeaTab:AddToggle("Auto Pull Lever (Temple of Time)", false, function(v) _G.Config.AutoPullLever = v end)
     
     -- ITEMS & QUESTS
     ItemTab:AddSection("Special Weapons & Quests")
-    ItemTab:AddButton("Auto Saber Quest", function() if CommF_ then CommF_:InvokeServer("ProQuestProgress", "RichSon") end end)
-    ItemTab:AddButton("Auto Bartilo Quest", function() if CommF_ then CommF_:InvokeServer("BartiloQuestProgress", "GetMission") end end)
-    ItemTab:AddButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
-    ItemTab:AddButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+    ItemTab:AddButton("Auto Saber Quest", function() local cf = CommF(); if cf then cf:InvokeServer("ProQuestProgress", "RichSon") end end)
+    ItemTab:AddButton("Auto Bartilo Quest", function() local cf = CommF(); if cf then cf:InvokeServer("BartiloQuestProgress", "GetMission") end end)
+    ItemTab:AddButton("Travel to Second Sea", function() local cf = CommF(); if cf then cf:InvokeServer("TravelDressrosa") end end)
+    ItemTab:AddButton("Travel to Third Sea", function() local cf = CommF(); if cf then cf:InvokeServer("TravelZou") end end)
     
     -- STATS ALLOCATOR
     StatsTab:AddSection("Stat Points Allocator")
@@ -1574,26 +1654,26 @@ local function CreateUI()
     StatsTab:AddToggle("Sword", false, function(v) _G.Config.Stats.Sword = v end)
     StatsTab:AddToggle("Gun", false, function(v) _G.Config.Stats.Gun = v end)
     StatsTab:AddToggle("Blox Fruit", false, function(v) _G.Config.Stats.Fruit = v end)
-    StatsTab:AddButton("Refund Stats (2,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Refund", "2") end end)
-    StatsTab:AddButton("Reroll Race (3,000 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Reroll", "2") end end)
+    StatsTab:AddButton("Refund Stats (2,500 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Refund", "2") end end)
+    StatsTab:AddButton("Reroll Race (3,000 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Reroll", "2") end end)
     
     -- SHOP
     ShopTab:AddSection("Fighting Styles (Melee V1 & V2)")
-    ShopTab:AddButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
-    ShopTab:AddButton("Buy Electro ($550,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
-    ShopTab:AddButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
-    ShopTab:AddButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
-    ShopTab:AddButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
-    ShopTab:AddButton("Buy Death Step ($5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
-    ShopTab:AddButton("Buy Sharkman Karate ($2.5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
-    ShopTab:AddButton("Buy Electric Claw ($3M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
-    ShopTab:AddButton("Buy Dragon Talon ($3M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
-    ShopTab:AddButton("Buy Godhuman ($5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
+    ShopTab:AddButton("Buy Black Leg ($150,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyBlackLeg") end end)
+    ShopTab:AddButton("Buy Electro ($550,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyElectro") end end)
+    ShopTab:AddButton("Buy Fishman Karate ($750,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyFishmanKarate") end end)
+    ShopTab:AddButton("Buy Dragon Breath (1,500 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
+    ShopTab:AddButton("Buy Superhuman ($3,000,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuySuperhuman") end end)
+    ShopTab:AddButton("Buy Death Step ($5M + 5k Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyDeathStep") end end)
+    ShopTab:AddButton("Buy Sharkman Karate ($2.5M + 5k Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BuySharkmanKarate") end end)
+    ShopTab:AddButton("Buy Electric Claw ($3M + 5k Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyElectricClaw") end end)
+    ShopTab:AddButton("Buy Dragon Talon ($3M + 5k Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyDragonTalon") end end)
+    ShopTab:AddButton("Buy Godhuman ($5M + 5k Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyGodhuman") end end)
     ShopTab:AddSection("Abilities & Haki")
-    ShopTab:AddButton("Buy Skyjump (Geppo - $10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
-    ShopTab:AddButton("Buy Enhancement (Buso - $25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
-    ShopTab:AddButton("Buy Flash Step (Soru - $100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
-    ShopTab:AddButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenHaki") end end)
+    ShopTab:AddButton("Buy Skyjump (Geppo - $10,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyHaki", "Geppo") end end)
+    ShopTab:AddButton("Buy Enhancement (Buso - $25,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyHaki", "Buso") end end)
+    ShopTab:AddButton("Buy Flash Step (Soru - $100,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyHaki", "Soru") end end)
+    ShopTab:AddButton("Buy Observation Haki ($750,000)", function() local cf = CommF(); if cf then cf:InvokeServer("KenHaki") end end)
     
     -- TELEPORTS
     TeleportTab:AddSection("Island Teleports")
@@ -1639,8 +1719,8 @@ local function CreateUI()
     local SelIsland = islandKeys[1]
     TeleportTab:AddDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
     TeleportTab:AddButton("Teleport to Selected Island", function()
-        local cf = IslandsList[SelIsland]
-        if cf then TweenTo(cf) end
+        local tcf = IslandsList[SelIsland]
+        if tcf then TweenTo(tcf) end
     end)
     
     -- SETTINGS
@@ -1667,7 +1747,7 @@ local function CreateUI()
         _G.Config.AntiAFK = v
         if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
     end)
-    MiscTab:AddSlider("Tween Flight Speed", 150, 350, 320, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("Tween Flight Speed", 100, 300, 200, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
         if hum then hum.WalkSpeed = v end
@@ -1681,11 +1761,45 @@ local function CreateUI()
     SwitchTab("Main Farm")
 end
 
--- Initialize UI immediately
+--============================== STAGGERED INITIALIZATION ==============================
+-- Step 1: UI first (immediate user feedback)
 CreateUI()
 
+-- Step 2: Start all background loops with staggered delays (not all at once)
+task.spawn(function()
+    task.wait(0.5 + math.random() * 0.5)
+    StartCombatLoop()
+    
+    task.wait(0.3 + math.random() * 0.3)
+    StartAutoFarmLevel()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartAutoFarmSelectedMob()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartAutoFarmSelectedBoss()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartAutoFarmAllBosses()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartRaidBossLoop()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartDevilFruitLoops()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartFruitESPLoop()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartAutoStatsLoop()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartDungeonRaidLoop()
+end)
+
 print("--------------------------------------------------")
-print("[ALPHA HUB v2] Loaded successfully!")
-print("[ALPHA HUB v2] Keyless Edition active.")
-print("[ALPHA HUB v2] Current Location: " .. SeaName)
+print("[v2] Loaded successfully!")
+print("[v2] Keyless Edition active.")
+print("[v2] Current Location: " .. SeaName)
 print("--------------------------------------------------")
