@@ -38,6 +38,72 @@ local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Thi
 -- Safe request wrapper
 local safeRequest = (syn and syn.request) or http_request or (fluxus and fluxus.request) or (http and http.request) or request
 
+--============================== ANTI-CHEAT BYPASS & SECURITY LAYER ==============================
+-- 1. Hook __namecall to block LocalPlayer:Kick() and Honeypot / Detection Remotes
+pcall(function()
+    if hookmetamethod then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            
+            -- Prevent game from kicking player
+            if method == "Kick" or method == "kick" then
+                warn("[ALPHA BYPASS]: Blocked kick attempt!")
+                return nil
+            end
+            
+            -- Block Blox Fruits honeypot remotes (BANEXPLOIT, Report, Security)
+            if method == "FireServer" or method == "InvokeServer" then
+                local remoteName = tostring(self.Name)
+                if remoteName == "BANEXPLOIT" or remoteName == "Report" or remoteName == "Security" or remoteName == "AdminGUI" or remoteName == "AntiCheat" then
+                    warn("[ALPHA BYPASS]: Blocked anti-cheat telemetry remote: " .. remoteName)
+                    return nil
+                end
+            end
+            
+            return oldNamecall(self, ...)
+        end))
+    end
+end)
+
+-- 2. Hook LocalPlayer.Kick directly
+pcall(function()
+    if hookfunction and LocalPlayer and LocalPlayer.Kick then
+        hookfunction(LocalPlayer.Kick, newcclosure(function(self, ...)
+            warn("[ALPHA BYPASS]: Blocked LocalPlayer:Kick() direct call")
+            return nil
+        end))
+    end
+end)
+
+-- 3. Neutralize in-game Client Anti-Cheat LocalScripts
+local function NeutralizeAntiCheat()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            for _, v in ipairs(char:GetDescendants()) do
+                if v:IsA("LocalScript") and (v.Name:lower():find("cheat") or v.Name:lower():find("check") or v.Name:lower():find("ban") or v.Name == "ClientCheck") then
+                    v.Disabled = true
+                end
+            end
+        end
+        local pScripts = LocalPlayer:FindFirstChild("PlayerScripts")
+        if pScripts then
+            for _, v in ipairs(pScripts:GetDescendants()) do
+                if v:IsA("LocalScript") and (v.Name:lower():find("cheat") or v.Name:lower():find("check") or v.Name:lower():find("combatcheck")) then
+                    v.Disabled = true
+                end
+            end
+        end
+    end)
+end
+
+NeutralizeAntiCheat()
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    NeutralizeAntiCheat()
+end)
+
 --============================== SAFE GUI PARENTING ==============================
 local function GetSafeGui()
     if gethui then
@@ -260,6 +326,14 @@ local function TweenTo(targetCFrame)
         return
     end
     
+    -- Anti-Cheat Teleport Bypass: for long cross-island distances, use requestEntrance
+    if distance > 3000 and CommF_ then
+        pcall(function()
+            CommF_:InvokeServer("requestEntrance", targetCFrame.Position)
+            task.wait(0.3)
+        end)
+    end
+    
     local speed = _G.Config.TweenSpeed or 320
     local time = distance / speed
     
@@ -299,10 +373,10 @@ local function FastAttack()
     
     local enemies = GetBladeHits()
     if #enemies > 0 then
-        -- Method 1: Direct Net Remotes
+        -- Method 1: Direct Net Remotes (Safe 0.06s rate to bypass anti-cheat ban)
         if RegisterAttack and RegisterHit then
             pcall(function()
-                RegisterAttack:FireServer(-math.huge)
+                RegisterAttack:FireServer(0.06)
                 local args = {nil, {}}
                 for i, v in ipairs(enemies) do
                     if not args[1] and v:FindFirstChild("Head") then
@@ -1607,26 +1681,8 @@ local function CreateUI()
     SwitchTab("Main Farm")
 end
 
--- Initialize UI safely with user notification
-local uiSuccess, uiErr = pcall(CreateUI)
-if not uiSuccess then
-    warn("[ALPHA HUB v2 CRITICAL]: UI Error: " .. tostring(uiErr))
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Alpha Hub v2 Error",
-            Text = tostring(uiErr):sub(1, 60),
-            Duration = 10
-        })
-    end)
-else
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "ALPHA HUB v2",
-            Text = "Loaded Successfully! (" .. SeaName .. ")",
-            Duration = 5
-        })
-    end)
-end
+-- Initialize UI immediately
+CreateUI()
 
 print("--------------------------------------------------")
 print("[ALPHA HUB v2] Loaded successfully!")
