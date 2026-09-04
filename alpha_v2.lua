@@ -34,6 +34,7 @@ local PlaceId = game.PlaceId
 local Sea1 = (PlaceId == 2753915549)
 local Sea2 = (PlaceId == 4442272183)
 local Sea3 = (PlaceId == 7449423635)
+local CurrentSea = Sea1 and 1 or (Sea2 and 2 or (Sea3 and 3 or 1))
 local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Third Sea" or "Blox Fruits"))
 
 -- Safe request wrapper
@@ -396,6 +397,7 @@ local FlightBodyVel = nil
 local CurrentTargetPos = nil
 local IsTravelingSky = false
 local NoclipConn = nil
+local SetTravelHUD = nil -- Forward declaration for Cockpit HUD
 
 local function EnableNoclip()
     if NoclipConn then return end
@@ -456,6 +458,7 @@ local function StopTween()
     IsTravelingSky = false
     local hum = GetHumanoid()
     if hum then hum.PlatformStand = false end
+    if SetTravelHUD then SetTravelHUD(false) end
 end
 
 local function FullResetMovement()
@@ -473,7 +476,7 @@ LocalPlayer.CharacterAdded:Connect(function()
     FullResetMovement()
 end)
 
-local function TweenTo(targetCFrame)
+local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum then return end
@@ -487,8 +490,8 @@ local function TweenTo(targetCFrame)
         return
     end
     
-    local speed = _G.Config.TweenSpeed or 200
-    if speed < 50 then speed = 200 end
+    local speed = _G.Config.TweenSpeed or 350
+    if speed < 100 then speed = 350 end
     
     -- ANTI-SPAM: If already tweening to nearly the same target (< 20 studs), don't restart
     if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 20 and CurrentTween then
@@ -502,16 +505,13 @@ local function TweenTo(targetCFrame)
     end
     
     CurrentTargetPos = targetCFrame.Position
+    local label = destName or "Destination"
     
-    -- PURE TWEENSERVICE (diagnostic proved this works perfectly up to 200+ studs, no rollback)
-    -- BV is ONLY used for hover lock (Velocity=0), NEVER for directional movement (causes overshoot)
-    
-    -- 1. SHORT RANGE (<= 300 studs): Direct tween with noclip
+    -- 1. SHORT RANGE (<= 300 studs): Direct linear tween with noclip
     if distance <= 300 then
         EnableNoclip()
         hum.PlatformStand = true
         
-        -- Zero out any existing BV velocity so it doesn't interfere
         local bv = GetOrCreateBodyVelocity(root)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
@@ -526,66 +526,66 @@ local function TweenTo(targetCFrame)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 300 studs): Sky flight in segments using pure TweenService
+    -- 2. LONG RANGE (> 300 studs): Sky flight in segments with Travel HUD
     if IsTravelingSky then return end
     IsTravelingSky = true
     
     task.spawn(function()
-        -- Try instant game door entrance for extreme distances (> 2500 studs)
-        if distance > 2500 then
-            local cf = CommF()
-            if cf then
-                pcall(function() cf:InvokeServer("requestEntrance", targetCFrame.Position) end)
-                task.wait(0.35)
-                if not root or not root.Parent then IsTravelingSky = false; return end
-                distance = (targetCFrame.Position - root.Position).Magnitude
-                if distance < 120 then
-                    StopTween()
-                    HoverLock(targetCFrame)
-                    return
-                end
-            end
-        end
-        
+        if SetTravelHUD then SetTravelHUD(true, label, distance, speed) end
         EnableNoclip()
         hum.PlatformStand = true
         
-        -- Zero out BV so it doesn't fight the tween
         local bv = GetOrCreateBodyVelocity(root)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        -- Ascend to sky altitude: Y = 380+ (immune to water, clears all trees/mountains)
-        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 70)
+        -- Ascend to safe sky altitude (immune to trees, mountains, water)
+        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 60)
         
         if root.Position.Y < (skyY - 30) then
             local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
-            bv.Velocity = Vector3.new(0, 0, 0) -- BV stays at zero, only tween moves
             local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
             CurrentTween = upTween
             upTween:Play()
             upTween.Completed:Wait()
         end
         
-        if not root or not root.Parent or not IsTravelingSky then return end
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
         
         -- Fly horizontally across sky to target X, Z
         local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
         if hDist > 25 then
-            bv.Velocity = Vector3.new(0, 0, 0)
             local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
             CurrentTween = hTween
             hTween:Play()
+            
+            -- Live distance monitor for Travel HUD
+            local monConn
+            monConn = RunService.Heartbeat:Connect(function()
+                if not IsTravelingSky or not root or not root.Parent then
+                    if monConn then monConn:Disconnect() end
+                    return
+                end
+                local curDist = (targetCFrame.Position - root.Position).Magnitude
+                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed) end
+            end)
+            
             hTween.Completed:Wait()
+            if monConn then monConn:Disconnect() end
         end
         
-        if not root or not root.Parent or not IsTravelingSky then return end
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
         
         -- Descend directly to target position
         local downDist = (targetCFrame.Position - root.Position).Magnitude
-        bv.Velocity = Vector3.new(0, 0, 0)
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween = downTween
         downTween:Play()
@@ -593,10 +593,10 @@ local function TweenTo(targetCFrame)
         
         IsTravelingSky = false
         if hum and hum.Parent then hum.PlatformStand = false end
+        if SetTravelHUD then SetTravelHUD(false) end
         HoverLock(targetCFrame)
     end)
 end
-
 --============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
 local _lastSkillCastTime = 0
@@ -780,189 +780,171 @@ end
 
 --============================== MASTER QUEST DATABASE ==============================
 local QuestsDB = {
-    -- Sea 1 (First Sea)
-    {Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", Pos = CFrame.new(1059.37, 16.51, 1546.99)},
-    {Min = 10, Max = 14, Quest = "JungleQuest", Level = 1, Mob = "Monkey", Pos = CFrame.new(-1612.33, 36.85, 149.13)},
-    {Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", Pos = CFrame.new(-1240.23, 6.27, -495.22)},
-    {Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", Pos = CFrame.new(-1181.39, 4.75, 3843.43)},
-    {Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
-    {Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", Pos = CFrame.new(1094.11, 6.44, 4192.89)},
-    {Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", Pos = CFrame.new(1568.17, 6.44, 4373.23)},
-    {Min = 90, Max = 99, Quest = "SnowQuest", Level = 1, Mob = "Snow Bandit", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
-    {Min = 100, Max = 119, Quest = "SnowQuest", Level = 2, Mob = "Snowman", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
-    {Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", Pos = CFrame.new(-5035.79, 28.65, 4324.96)},
-    {Min = 150, Max = 174, Quest = "SkyQuest", Level = 1, Mob = "Sky Bandit", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
-    {Min = 175, Max = 189, Quest = "SkyQuest", Level = 2, Mob = "Dark Master", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
-    {Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
-    {Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
-    {Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", Pos = CFrame.new(-1588.34, 7.39, -2982.52)},
-    {Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", Pos = CFrame.new(-1427.62, 7.28, -2792.77)},
-    {Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", Pos = CFrame.new(-5389.72, 8.57, 8533.84)},
-    {Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
-    {Min = 375, Max = 399, Quest = "FishmanQuest", Level = 1, Mob = "Fishman Warrior", Pos = CFrame.new(61122.65, 18.50, 1569.40)},
-    {Min = 400, Max = 449, Quest = "FishmanQuest", Level = 2, Mob = "Fishman Commando", Pos = CFrame.new(61845.89, 18.50, 1569.40)},
-    {Min = 450, Max = 474, Quest = "SkyExp1Quest", Level = 1, Mob = "God's Guard", Pos = CFrame.new(-4721.89, 843.87, -1949.97)},
-    {Min = 475, Max = 524, Quest = "SkyExp1Quest", Level = 2, Mob = "Shanda", Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
-    {Min = 525, Max = 549, Quest = "SkyExp2Quest", Level = 1, Mob = "Royal Squad", Pos = CFrame.new(-7906.82, 5635.96, -1411.99)},
-    {Min = 550, Max = 624, Quest = "SkyExp2Quest", Level = 2, Mob = "Royal Soldier", Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
-    {Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", Pos = CFrame.new(5589.90, 4.41, 3995.78)},
-    {Min = 650, Max = 699, Quest = "FountainQuest", Level = 2, Mob = "Galley Captain", Pos = CFrame.new(5649.03, 38.51, 4937.42)},
+    -- Sea 1 (First Sea: Lv. 1 - 699)
+    {Sea = 1, Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", Pos = CFrame.new(1059.37, 16.51, 1546.99)},
+    {Sea = 1, Min = 10, Max = 14, Quest = "JungleQuest", Level = 1, Mob = "Monkey", Pos = CFrame.new(-1612.33, 36.85, 149.13)},
+    {Sea = 1, Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", Pos = CFrame.new(-1240.23, 6.27, -495.22)},
+    {Sea = 1, Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", Pos = CFrame.new(-1181.39, 4.75, 3843.43)},
+    {Sea = 1, Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
+    {Sea = 1, Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", Pos = CFrame.new(1094.11, 6.44, 4192.89)},
+    {Sea = 1, Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", Pos = CFrame.new(1568.17, 6.44, 4373.23)},
+    {Sea = 1, Min = 90, Max = 99, Quest = "SnowQuest", Level = 1, Mob = "Snow Bandit", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
+    {Sea = 1, Min = 100, Max = 119, Quest = "SnowQuest", Level = 2, Mob = "Snowman", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
+    {Sea = 1, Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", Pos = CFrame.new(-5035.79, 28.65, 4324.96)},
+    {Sea = 1, Min = 150, Max = 174, Quest = "SkyQuest", Level = 1, Mob = "Sky Bandit", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
+    {Sea = 1, Min = 175, Max = 189, Quest = "SkyQuest", Level = 2, Mob = "Dark Master", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
+    {Sea = 1, Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
+    {Sea = 1, Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
+    {Sea = 1, Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", Pos = CFrame.new(-1588.34, 7.39, -2982.52)},
+    {Sea = 1, Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", Pos = CFrame.new(-1427.62, 7.28, -2792.77)},
+    {Sea = 1, Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", Pos = CFrame.new(-5389.72, 8.57, 8533.84)},
+    {Sea = 1, Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
+    {Sea = 1, Min = 375, Max = 399, Quest = "FishmanQuest", Level = 1, Mob = "Fishman Warrior", Pos = CFrame.new(61122.65, 18.50, 1569.40)},
+    {Sea = 1, Min = 400, Max = 449, Quest = "FishmanQuest", Level = 2, Mob = "Fishman Commando", Pos = CFrame.new(61845.89, 18.50, 1569.40)},
+    {Sea = 1, Min = 450, Max = 474, Quest = "SkyExp1Quest", Level = 1, Mob = "God's Guard", Pos = CFrame.new(-4721.89, 843.87, -1949.97)},
+    {Sea = 1, Min = 475, Max = 524, Quest = "SkyExp1Quest", Level = 2, Mob = "Shanda", Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
+    {Sea = 1, Min = 525, Max = 549, Quest = "SkyExp2Quest", Level = 1, Mob = "Royal Squad", Pos = CFrame.new(-7906.82, 5635.96, -1411.99)},
+    {Sea = 1, Min = 550, Max = 624, Quest = "SkyExp2Quest", Level = 2, Mob = "Royal Soldier", Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
+    {Sea = 1, Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", Pos = CFrame.new(5589.90, 4.41, 3995.78)},
+    {Sea = 1, Min = 650, Max = 699, Quest = "FountainQuest", Level = 2, Mob = "Galley Captain", Pos = CFrame.new(5649.03, 38.51, 4937.42)},
 
-    -- Sea 2 (Second Sea)
-    {Min = 700, Max = 724, Quest = "Area1Quest", Level = 1, Mob = "Raider", Pos = CFrame.new(-429.54, 72.99, 1836.18)},
-    {Min = 725, Max = 774, Quest = "Area1Quest", Level = 2, Mob = "Mercenary", Pos = CFrame.new(-960.61, 74.38, 1729.07)},
-    {Min = 775, Max = 799, Quest = "Area2Quest", Level = 1, Mob = "Swan Pirate", Pos = CFrame.new(878.01, 121.98, 1235.35)},
-    {Min = 800, Max = 874, Quest = "Area2Quest", Level = 2, Mob = "Factory Staff", Pos = CFrame.new(295.34, 73.01, -56.55)},
-    {Min = 875, Max = 899, Quest = "MarineQuest3", Level = 1, Mob = "Marine Lieutenant", Pos = CFrame.new(-2806.12, 72.96, -3038.55)},
-    {Min = 900, Max = 949, Quest = "MarineQuest3", Level = 2, Mob = "Marine Rear Admiral", Pos = CFrame.new(-3424.41, 72.96, -2997.74)},
-    {Min = 950, Max = 974, Quest = "ZombieQuest", Level = 1, Mob = "Zombie", Pos = CFrame.new(-5418.89, 48.52, -774.75)},
-    {Min = 975, Max = 999, Quest = "ZombieQuest", Level = 2, Mob = "Vampire", Pos = CFrame.new(-6033.86, 6.44, -1316.51)},
-    {Min = 1000, Max = 1049, Quest = "SnowMountainQuest", Level = 1, Mob = "Snow Trooper", Pos = CFrame.new(608.24, 401.52, -5372.46)},
-    {Min = 1050, Max = 1099, Quest = "SnowMountainQuest", Level = 2, Mob = "Winter Warrior", Pos = CFrame.new(1157.44, 430.12, -5187.52)},
-    {Min = 1100, Max = 1124, Quest = "IceSideQuest", Level = 1, Mob = "Lab Subordinate", Pos = CFrame.new(-5775.29, 42.44, -4465.17)},
-    {Min = 1125, Max = 1174, Quest = "FireSideQuest", Level = 1, Mob = "Horned Warrior", Pos = CFrame.new(-6411.39, 15.96, -5836.78)},
-    {Min = 1175, Max = 1199, Quest = "FireSideQuest", Level = 2, Mob = "Magma Ninja", Pos = CFrame.new(-5430.72, 76.96, -5949.19)},
-    {Min = 1200, Max = 1249, Quest = "FireSideQuest", Level = 2, Mob = "Lava Pirate", Pos = CFrame.new(-5223.12, 55.96, -4783.21)},
-    {Min = 1250, Max = 1274, Quest = "ShipQuest1", Level = 1, Mob = "Ship Deckhand", Pos = CFrame.new(1198.81, 125.12, 32986.92)},
-    {Min = 1275, Max = 1299, Quest = "ShipQuest1", Level = 2, Mob = "Ship Engineer", Pos = CFrame.new(918.42, 125.12, 32884.28)},
-    {Min = 1300, Max = 1324, Quest = "ShipQuest2", Level = 1, Mob = "Ship Steward", Pos = CFrame.new(915.24, 125.12, 33458.12)},
-    {Min = 1325, Max = 1349, Quest = "ShipQuest2", Level = 2, Mob = "Ship Officer", Pos = CFrame.new(915.24, 180.12, 33458.12)},
-    {Min = 1350, Max = 1399, Quest = "FrostQuest", Level = 1, Mob = "Arctic Warrior", Pos = CFrame.new(6038.45, 28.25, -6231.25)},
-    {Min = 1400, Max = 1424, Quest = "FrostQuest", Level = 2, Mob = "Snow Lurker", Pos = CFrame.new(5560.13, 28.25, -6826.91)},
-    {Min = 1425, Max = 1449, Quest = "ForgottenQuest", Level = 1, Mob = "Sea Soldier", Pos = CFrame.new(-3054.44, 237.15, -10142.82)},
-    {Min = 1450, Max = 1499, Quest = "ForgottenQuest", Level = 2, Mob = "Water Fighter", Pos = CFrame.new(-3435.12, 237.15, -10534.21)},
+    -- Sea 2 (Second Sea: Lv. 700 - 1499)
+    {Sea = 2, Min = 700, Max = 724, Quest = "Area1Quest", Level = 1, Mob = "Raider", Pos = CFrame.new(-429.54, 72.99, 1836.18)},
+    {Sea = 2, Min = 725, Max = 774, Quest = "Area1Quest", Level = 2, Mob = "Mercenary", Pos = CFrame.new(-960.61, 74.38, 1729.07)},
+    {Sea = 2, Min = 775, Max = 799, Quest = "Area2Quest", Level = 1, Mob = "Swan Pirate", Pos = CFrame.new(878.01, 121.98, 1235.35)},
+    {Sea = 2, Min = 800, Max = 874, Quest = "Area2Quest", Level = 2, Mob = "Factory Staff", Pos = CFrame.new(295.34, 73.01, -56.55)},
+    {Sea = 2, Min = 875, Max = 899, Quest = "MarineQuest3", Level = 1, Mob = "Marine Lieutenant", Pos = CFrame.new(-2806.12, 72.96, -3038.55)},
+    {Sea = 2, Min = 900, Max = 949, Quest = "MarineQuest3", Level = 2, Mob = "Marine Rear Admiral", Pos = CFrame.new(-3424.41, 72.96, -2997.74)},
+    {Sea = 2, Min = 950, Max = 974, Quest = "ZombieQuest", Level = 1, Mob = "Zombie", Pos = CFrame.new(-5418.89, 48.52, -774.75)},
+    {Sea = 2, Min = 975, Max = 999, Quest = "ZombieQuest", Level = 2, Mob = "Vampire", Pos = CFrame.new(-6033.86, 6.44, -1316.51)},
+    {Sea = 2, Min = 1000, Max = 1049, Quest = "SnowMountainQuest", Level = 1, Mob = "Snow Trooper", Pos = CFrame.new(608.24, 401.52, -5372.46)},
+    {Sea = 2, Min = 1050, Max = 1099, Quest = "SnowMountainQuest", Level = 2, Mob = "Winter Warrior", Pos = CFrame.new(1157.44, 430.12, -5187.52)},
+    {Sea = 2, Min = 1100, Max = 1124, Quest = "IceSideQuest", Level = 1, Mob = "Lab Subordinate", Pos = CFrame.new(-5775.29, 42.44, -4465.17)},
+    {Sea = 2, Min = 1125, Max = 1174, Quest = "FireSideQuest", Level = 1, Mob = "Horned Warrior", Pos = CFrame.new(-6411.39, 15.96, -5836.78)},
+    {Sea = 2, Min = 1175, Max = 1199, Quest = "FireSideQuest", Level = 2, Mob = "Magma Ninja", Pos = CFrame.new(-5430.72, 76.96, -5949.19)},
+    {Sea = 2, Min = 1200, Max = 1249, Quest = "FireSideQuest", Level = 2, Mob = "Lava Pirate", Pos = CFrame.new(-5223.12, 55.96, -4783.21)},
+    {Sea = 2, Min = 1250, Max = 1274, Quest = "ShipQuest1", Level = 1, Mob = "Ship Deckhand", Pos = CFrame.new(1198.81, 125.12, 32986.92)},
+    {Sea = 2, Min = 1275, Max = 1299, Quest = "ShipQuest1", Level = 2, Mob = "Ship Engineer", Pos = CFrame.new(918.42, 125.12, 32884.28)},
+    {Sea = 2, Min = 1300, Max = 1324, Quest = "ShipQuest2", Level = 1, Mob = "Ship Steward", Pos = CFrame.new(915.24, 125.12, 33458.12)},
+    {Sea = 2, Min = 1325, Max = 1349, Quest = "ShipQuest2", Level = 2, Mob = "Ship Officer", Pos = CFrame.new(915.24, 180.12, 33458.12)},
+    {Sea = 2, Min = 1350, Max = 1399, Quest = "FrostQuest", Level = 1, Mob = "Arctic Warrior", Pos = CFrame.new(6038.45, 28.25, -6231.25)},
+    {Sea = 2, Min = 1400, Max = 1424, Quest = "FrostQuest", Level = 2, Mob = "Snow Lurker", Pos = CFrame.new(5560.13, 28.25, -6826.91)},
+    {Sea = 2, Min = 1425, Max = 1449, Quest = "ForgottenQuest", Level = 1, Mob = "Sea Soldier", Pos = CFrame.new(-3054.44, 237.15, -10142.82)},
+    {Sea = 2, Min = 1450, Max = 1499, Quest = "ForgottenQuest", Level = 2, Mob = "Water Fighter", Pos = CFrame.new(-3435.12, 237.15, -10534.21)},
 
-    -- Sea 3 (Third Sea)
-    {Min = 1500, Max = 1524, Quest = "PiratePortQuest", Level = 1, Mob = "Pirate Millionaire", Pos = CFrame.new(-290.74, 43.73, 5580.12)},
-    {Min = 1525, Max = 1574, Quest = "PiratePortQuest", Level = 2, Mob = "Pistol Billionaire", Pos = CFrame.new(-468.12, 74.21, 5945.32)},
-    {Min = 1575, Max = 1599, Quest = "DragonCrewQuest", Level = 1, Mob = "Dragon Crew Archer", Pos = CFrame.new(6594.12, 384.12, 142.54)},
-    {Min = 1600, Max = 1624, Quest = "DragonCrewQuest", Level = 2, Mob = "Dragon Crew Warrior", Pos = CFrame.new(6745.23, 384.12, -189.43)},
-    {Min = 1625, Max = 1649, Quest = "VenomCrewQuest", Level = 1, Mob = "Venomous Assailant", Pos = CFrame.new(5210.45, 601.23, 894.12)},
-    {Min = 1650, Max = 1699, Quest = "VenomCrewQuest", Level = 2, Mob = "Hydra Enforcer", Pos = CFrame.new(4512.34, 601.23, 1120.54)},
-    {Min = 1700, Max = 1724, Quest = "DeepForestIsland", Level = 1, Mob = "Marine Commodore", Pos = CFrame.new(2450.12, 73.12, -7320.45)},
-    {Min = 1725, Max = 1774, Quest = "DeepForestIsland", Level = 2, Mob = "Marine Rear Admiral", Pos = CFrame.new(2912.45, 73.12, -7640.12)},
-    {Min = 1775, Max = 1799, Quest = "DeepForestIsland2", Level = 1, Mob = "Fishman Raider", Pos = CFrame.new(-10520.12, 332.12, -8412.34)},
-    {Min = 1800, Max = 1824, Quest = "DeepForestIsland2", Level = 2, Mob = "Fishman Captain", Pos = CFrame.new(-10940.45, 332.12, -8890.12)},
-    {Min = 1825, Max = 1849, Quest = "DeepForestIsland3", Level = 1, Mob = "Forest Pirate", Pos = CFrame.new(-13250.12, 332.12, -7640.54)},
-    {Min = 1850, Max = 1899, Quest = "DeepForestIsland3", Level = 2, Mob = "Mythological Pirate", Pos = CFrame.new(-13560.34, 470.12, -6920.12)},
-    {Min = 1900, Max = 1924, Quest = "DeepForestIsland3", Level = 3, Mob = "Jungle Pirate", Pos = CFrame.new(-12120.45, 332.12, -10540.23)},
-    {Min = 1925, Max = 1974, Quest = "DeepForestIsland3", Level = 4, Mob = "Musketeer Pirate", Pos = CFrame.new(-13140.23, 390.12, -9650.34)},
-    {Min = 1975, Max = 1999, Quest = "HauntedQuest1", Level = 1, Mob = "Reborn Skeleton", Pos = CFrame.new(-8760.12, 141.12, 6050.23)},
-    {Min = 2000, Max = 2024, Quest = "HauntedQuest1", Level = 2, Mob = "Living Zombie", Pos = CFrame.new(-9120.34, 141.12, 5820.45)},
-    {Min = 2025, Max = 2049, Quest = "HauntedQuest2", Level = 1, Mob = "Demonic Soul", Pos = CFrame.new(-9520.45, 172.01, 6120.12)},
-    {Min = 2050, Max = 2074, Quest = "HauntedQuest2", Level = 2, Mob = "Posessed Mummy", Pos = CFrame.new(-9516.99, 12.01, 6078.47)},
-    {Min = 2075, Max = 2099, Quest = "NutsIslandQuest", Level = 1, Mob = "Peanut Scout", Pos = CFrame.new(-2120.34, 38.12, -10190.23)},
-    {Min = 2100, Max = 2124, Quest = "NutsIslandQuest", Level = 2, Mob = "Peanut President", Pos = CFrame.new(-2120.34, 38.12, -10520.45)},
-    {Min = 2125, Max = 2149, Quest = "IceCreamIslandQuest", Level = 1, Mob = "Ice Cream Chef", Pos = CFrame.new(-820.12, 65.12, -10940.34)},
-    {Min = 2150, Max = 2199, Quest = "IceCreamIslandQuest", Level = 2, Mob = "Ice Cream Commander", Pos = CFrame.new(-640.45, 65.12, -11250.12)},
-    {Min = 2200, Max = 2224, Quest = "CakeQuest1", Level = 1, Mob = "Cookie Crafter", Pos = CFrame.new(-2350.12, 38.12, -12020.34)},
-    {Min = 2225, Max = 2249, Quest = "CakeQuest1", Level = 2, Mob = "Cake Guard", Pos = CFrame.new(-1580.45, 38.12, -12340.12)},
-    {Min = 2250, Max = 2274, Quest = "CakeQuest2", Level = 1, Mob = "Baking Staff", Pos = CFrame.new(-1890.23, 38.12, -12950.45)},
-    {Min = 2275, Max = 2299, Quest = "CakeQuest2", Level = 2, Mob = "Head Baker", Pos = CFrame.new(-1920.45, 38.12, -13100.12)},
-    {Min = 2300, Max = 2324, Quest = "ChocQuest1", Level = 1, Mob = "Cocoa Warrior", Pos = CFrame.new(210.12, 24.12, -12350.34)},
-    {Min = 2325, Max = 2349, Quest = "ChocQuest1", Level = 2, Mob = "Chocolate Bar Battler", Pos = CFrame.new(450.45, 24.12, -12650.12)},
-    {Min = 2350, Max = 2374, Quest = "ChocQuest2", Level = 1, Mob = "Sweet Thief", Pos = CFrame.new(712.23, 24.12, -12890.45)},
-    {Min = 2375, Max = 2449, Quest = "ChocQuest2", Level = 2, Mob = "Candy Rebel", Pos = CFrame.new(890.45, 24.12, -13150.12)},
-    {Min = 2450, Max = 2474, Quest = "TikiQuest1", Level = 1, Mob = "Isle Champion", Pos = CFrame.new(-16520.12, 22.12, 60.34)},
-    {Min = 2475, Max = 2499, Quest = "TikiQuest1", Level = 2, Mob = "Island Boy", Pos = CFrame.new(-16800.45, 22.12, 240.12)},
-    {Min = 2500, Max = 2524, Quest = "TikiQuest2", Level = 1, Mob = "Sun-kissed Warrior", Pos = CFrame.new(-16240.23, 22.12, -250.45)},
-    {Min = 2525, Max = 2549, Quest = "TikiQuest2", Level = 2, Mob = "Isle Outlaw", Pos = CFrame.new(-16500.45, 22.12, -450.12)},
-    {Min = 2550, Max = 2574, Quest = "TikiQuest3", Level = 1, Mob = "Serpent Hunter", Pos = CFrame.new(-15120.12, 22.12, 110.34)},
-    {Min = 2575, Max = 3000, Quest = "TikiQuest3", Level = 2, Mob = "Skull Slayer", Pos = CFrame.new(-15400.45, 22.12, 350.12)}
+    -- Sea 3 (Third Sea: Lv. 1500 - 3000)
+    {Sea = 3, Min = 1500, Max = 1524, Quest = "PiratePortQuest", Level = 1, Mob = "Pirate Millionaire", Pos = CFrame.new(-290.74, 43.73, 5580.12)},
+    {Sea = 3, Min = 1525, Max = 1574, Quest = "PiratePortQuest", Level = 2, Mob = "Pistol Billionaire", Pos = CFrame.new(-468.12, 74.21, 5945.32)},
+    {Sea = 3, Min = 1575, Max = 1599, Quest = "DragonCrewQuest", Level = 1, Mob = "Dragon Crew Archer", Pos = CFrame.new(6594.12, 384.12, 142.54)},
+    {Sea = 3, Min = 1600, Max = 1624, Quest = "DragonCrewQuest", Level = 2, Mob = "Dragon Crew Warrior", Pos = CFrame.new(6745.23, 384.12, -189.43)},
+    {Sea = 3, Min = 1625, Max = 1649, Quest = "VenomCrewQuest", Level = 1, Mob = "Venomous Assailant", Pos = CFrame.new(5210.45, 601.23, 894.12)},
+    {Sea = 3, Min = 1650, Max = 1699, Quest = "VenomCrewQuest", Level = 2, Mob = "Hydra Enforcer", Pos = CFrame.new(4512.34, 601.23, 1120.54)},
+    {Sea = 3, Min = 1700, Max = 1724, Quest = "DeepForestIsland", Level = 1, Mob = "Marine Commodore", Pos = CFrame.new(2450.12, 73.12, -7320.45)},
+    {Sea = 3, Min = 1725, Max = 1774, Quest = "DeepForestIsland", Level = 2, Mob = "Marine Rear Admiral", Pos = CFrame.new(2912.45, 73.12, -7640.12)},
+    {Sea = 3, Min = 1775, Max = 1799, Quest = "DeepForestIsland2", Level = 1, Mob = "Fishman Raider", Pos = CFrame.new(-10520.12, 332.12, -8412.34)},
+    {Sea = 3, Min = 1800, Max = 1824, Quest = "DeepForestIsland2", Level = 2, Mob = "Fishman Captain", Pos = CFrame.new(-10940.45, 332.12, -8890.12)},
+    {Sea = 3, Min = 1825, Max = 1849, Quest = "DeepForestIsland3", Level = 1, Mob = "Forest Pirate", Pos = CFrame.new(-13250.12, 332.12, -7640.54)},
+    {Sea = 3, Min = 1850, Max = 1899, Quest = "DeepForestIsland3", Level = 2, Mob = "Mythological Pirate", Pos = CFrame.new(-13560.34, 470.12, -6920.12)},
+    {Sea = 3, Min = 1900, Max = 1924, Quest = "DeepForestIsland3", Level = 3, Mob = "Jungle Pirate", Pos = CFrame.new(-12120.45, 332.12, -10540.23)},
+    {Sea = 3, Min = 1925, Max = 1974, Quest = "DeepForestIsland3", Level = 4, Mob = "Musketeer Pirate", Pos = CFrame.new(-13140.23, 390.12, -9650.34)},
+    {Sea = 3, Min = 1975, Max = 1999, Quest = "HauntedQuest1", Level = 1, Mob = "Reborn Skeleton", Pos = CFrame.new(-8760.12, 141.12, 6050.23)},
+    {Sea = 3, Min = 2000, Max = 2024, Quest = "HauntedQuest1", Level = 2, Mob = "Living Zombie", Pos = CFrame.new(-9120.34, 141.12, 5820.45)},
+    {Sea = 3, Min = 2025, Max = 2049, Quest = "HauntedQuest2", Level = 1, Mob = "Demonic Soul", Pos = CFrame.new(-9520.45, 172.01, 6120.12)},
+    {Sea = 3, Min = 2050, Max = 2074, Quest = "HauntedQuest2", Level = 2, Mob = "Posessed Mummy", Pos = CFrame.new(-9516.99, 12.01, 6078.47)},
+    {Sea = 3, Min = 2075, Max = 2099, Quest = "NutsIslandQuest", Level = 1, Mob = "Peanut Scout", Pos = CFrame.new(-2120.34, 38.12, -10190.23)},
+    {Sea = 3, Min = 2100, Max = 2124, Quest = "NutsIslandQuest", Level = 2, Mob = "Peanut President", Pos = CFrame.new(-2120.34, 38.12, -10520.45)},
+    {Sea = 3, Min = 2125, Max = 2149, Quest = "IceCreamIslandQuest", Level = 1, Mob = "Ice Cream Chef", Pos = CFrame.new(-820.12, 65.12, -10940.34)},
+    {Sea = 3, Min = 2150, Max = 2199, Quest = "IceCreamIslandQuest", Level = 2, Mob = "Ice Cream Commander", Pos = CFrame.new(-640.45, 65.12, -11250.12)},
+    {Sea = 3, Min = 2200, Max = 2224, Quest = "CakeQuest1", Level = 1, Mob = "Cookie Crafter", Pos = CFrame.new(-2350.12, 38.12, -12020.34)},
+    {Sea = 3, Min = 2225, Max = 2249, Quest = "CakeQuest1", Level = 2, Mob = "Cake Guard", Pos = CFrame.new(-1580.45, 38.12, -12340.12)},
+    {Sea = 3, Min = 2250, Max = 2274, Quest = "CakeQuest2", Level = 1, Mob = "Baking Staff", Pos = CFrame.new(-1890.23, 38.12, -12950.45)},
+    {Sea = 3, Min = 2275, Max = 2299, Quest = "CakeQuest2", Level = 2, Mob = "Head Baker", Pos = CFrame.new(-1920.45, 38.12, -13100.12)},
+    {Sea = 3, Min = 2300, Max = 2324, Quest = "ChocQuest1", Level = 1, Mob = "Cocoa Warrior", Pos = CFrame.new(210.12, 24.12, -12350.34)},
+    {Sea = 3, Min = 2325, Max = 2349, Quest = "ChocQuest1", Level = 2, Mob = "Chocolate Bar Battler", Pos = CFrame.new(450.45, 24.12, -12650.12)},
+    {Sea = 3, Min = 2350, Max = 2374, Quest = "ChocQuest2", Level = 1, Mob = "Sweet Thief", Pos = CFrame.new(712.23, 24.12, -12890.45)},
+    {Sea = 3, Min = 2375, Max = 2449, Quest = "ChocQuest2", Level = 2, Mob = "Candy Rebel", Pos = CFrame.new(890.45, 24.12, -13150.12)},
+    {Sea = 3, Min = 2450, Max = 2474, Quest = "TikiQuest1", Level = 1, Mob = "Isle Champion", Pos = CFrame.new(-16520.12, 22.12, 60.34)},
+    {Sea = 3, Min = 2475, Max = 2499, Quest = "TikiQuest1", Level = 2, Mob = "Island Boy", Pos = CFrame.new(-16800.45, 22.12, 240.12)},
+    {Sea = 3, Min = 2500, Max = 2524, Quest = "TikiQuest2", Level = 1, Mob = "Sun-kissed Warrior", Pos = CFrame.new(-16240.23, 22.12, -250.45)},
+    {Sea = 3, Min = 2525, Max = 2549, Quest = "TikiQuest2", Level = 2, Mob = "Isle Outlaw", Pos = CFrame.new(-16500.45, 22.12, -450.12)},
+    {Sea = 3, Min = 2550, Max = 2574, Quest = "TikiQuest3", Level = 1, Mob = "Serpent Hunter", Pos = CFrame.new(-15120.12, 22.12, 110.34)},
+    {Sea = 3, Min = 2575, Max = 3000, Quest = "TikiQuest3", Level = 2, Mob = "Skull Slayer", Pos = CFrame.new(-15400.45, 22.12, 350.12)}
 }
 
 local function GetCurrentQuest()
     local level = GetPlayerLevel()
+    local best = nil
     for _, q in ipairs(QuestsDB) do
-        if level >= q.Min and level <= q.Max then
+        if q.Sea == CurrentSea and level >= q.Min and level <= q.Max then
             return q
         end
+        if q.Sea == CurrentSea then
+            best = q
+        end
     end
-    return QuestsDB[#QuestsDB]
+    return best or QuestsDB[1]
 end
 
+-- Strictly check if Quest HUD is currently visible and active in game
 local function HasQuest()
     local pGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not pGui then return false end
-    
-    -- Method 1: Main.Quest frame - check if it has quest content (text with numbers like "0/5")
     local main = pGui:FindFirstChild("Main")
     if main then
         local q = main:FindFirstChild("Quest")
-        if q then
-            -- Check visible first
-            if q.Visible then return true end
-            -- Even if not visible, check if quest text exists (quest HUD might be toggled off)
-            for _, child in ipairs(q:GetDescendants()) do
-                if child:IsA("TextLabel") and child.Text:find("%d/%d") then
-                    return true
-                end
-            end
+        if q and q.Visible then
+            return true
         end
     end
-    
-    -- Method 2: Check deep for any Quest frame with kill progress text
-    for _, v in ipairs(pGui:GetDescendants()) do
-        if v.Name == "Quest" and v:IsA("Frame") then
-            if v.Visible then return true end
-            for _, child in ipairs(v:GetDescendants()) do
-                if child:IsA("TextLabel") and child.Text:find("%d/%d") then
-                    return true
-                end
-            end
-        end
-    end
-    
     return false
 end
-
 --============================== MASTER BOSS DATABASE ==============================
 local BossesDB = {
-    -- Sea 1
-    ["The Gorilla King"] = {Quest = "JungleQuest", Level = 3, Pos = CFrame.new(-1120.23, 6.27, -495.22)},
-    ["Bobby"] = {Quest = "BuggyQuest1", Level = 3, Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
-    ["The Saw"] = {Quest = nil, Level = 1, Pos = CFrame.new(-682.12, 15.23, 1582.45)},
-    ["Yeti"] = {Quest = "SnowQuest", Level = 3, Pos = CFrame.new(1185.34, 105.12, -1518.23)},
-    ["Mob Leader"] = {Quest = "DesertQuest", Level = 3, Pos = CFrame.new(1568.17, 6.44, 4373.23)},
-    ["Vice Admiral"] = {Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-4807.23, 20.65, 4360.12)},
-    ["Warden"] = {Quest = "PrisonerQuest", Level = 3, Pos = CFrame.new(5175.23, 5.65, 735.45)},
-    ["Chief Warden"] = {Quest = "PrisonerQuest", Level = 4, Pos = CFrame.new(5175.23, 5.65, 735.45)},
-    ["Swan"] = {Quest = "PrisonerQuest", Level = 5, Pos = CFrame.new(5230.12, 5.65, 760.34)},
-    ["Magma Admiral"] = {Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
-    ["Fishman Lord"] = {Quest = "FishmanQuest", Level = 3, Pos = CFrame.new(61350.23, 18.50, 1569.40)},
-    ["Wyper"] = {Quest = "SkyExp1Quest", Level = 3, Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
-    ["Thunder God"] = {Quest = "SkyExp2Quest", Level = 3, Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
-    ["Cyborg"] = {Quest = nil, Level = 1, Pos = CFrame.new(61163.85, 18.49, 1569.25)},
-    ["Saber Expert"] = {Quest = nil, Level = 1, Pos = CFrame.new(-1460.12, 29.85, -30.45)},
+    -- Sea 1 (First Sea)
+    ["The Gorilla King"] = {Sea = 1, Quest = "JungleQuest", Level = 3, Pos = CFrame.new(-1120.23, 6.27, -495.22)},
+    ["Bobby"] = {Sea = 1, Quest = "BuggyQuest1", Level = 3, Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
+    ["The Saw"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-682.12, 15.23, 1582.45)},
+    ["Yeti"] = {Sea = 1, Quest = "SnowQuest", Level = 3, Pos = CFrame.new(1185.34, 105.12, -1518.23)},
+    ["Mob Leader"] = {Sea = 1, Quest = "DesertQuest", Level = 3, Pos = CFrame.new(1568.17, 6.44, 4373.23)},
+    ["Vice Admiral"] = {Sea = 1, Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-4807.23, 20.65, 4360.12)},
+    ["Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 3, Pos = CFrame.new(5175.23, 5.65, 735.45)},
+    ["Chief Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 4, Pos = CFrame.new(5175.23, 5.65, 735.45)},
+    ["Swan"] = {Sea = 1, Quest = "PrisonerQuest", Level = 5, Pos = CFrame.new(5230.12, 5.65, 760.34)},
+    ["Magma Admiral"] = {Sea = 1, Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
+    ["Fishman Lord"] = {Sea = 1, Quest = "FishmanQuest", Level = 3, Pos = CFrame.new(61350.23, 18.50, 1569.40)},
+    ["Wyper"] = {Sea = 1, Quest = "SkyExp1Quest", Level = 3, Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
+    ["Thunder God"] = {Sea = 1, Quest = "SkyExp2Quest", Level = 3, Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
+    ["Cyborg"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(61163.85, 18.49, 1569.25)},
+    ["Saber Expert"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-1460.12, 29.85, -30.45)},
 
-    -- Sea 2
-    ["Diamond"] = {Quest = "Area1Quest", Level = 3, Pos = CFrame.new(-1580.45, 198.12, -210.34)},
-    ["Jeremy"] = {Quest = "Area2Quest", Level = 3, Pos = CFrame.new(2315.12, 449.12, 785.45)},
-    ["Fajita"] = {Quest = "MarineQuest3", Level = 3, Pos = CFrame.new(-2090.23, 72.96, -4210.12)},
-    ["Don Swan"] = {Quest = nil, Level = 1, Pos = CFrame.new(2285.45, 15.12, 860.23)},
-    ["Smoke Admiral"] = {Quest = "IceSideQuest", Level = 2, Pos = CFrame.new(-5075.23, 15.96, -5360.45)},
-    ["Awakened Ice Admiral"] = {Quest = "FrostQuest", Level = 3, Pos = CFrame.new(6472.12, 296.12, -6852.34)},
-    ["Tide Keeper"] = {Quest = "ForgottenQuest", Level = 3, Pos = CFrame.new(-3810.45, 77.15, -11520.12)},
-    ["Darkbeard"] = {Quest = nil, Level = 1, Pos = CFrame.new(3780.03, 22.65, -3498.94)},
-    ["Cursed Captain"] = {Quest = nil, Level = 1, Pos = CFrame.new(915.24, 180.12, 33458.12)},
-    ["Order"] = {Quest = nil, Level = 1, Pos = CFrame.new(-6500.12, 250.12, -4500.12)},
+    -- Sea 2 (Second Sea)
+    ["Diamond"] = {Sea = 2, Quest = "Area1Quest", Level = 3, Pos = CFrame.new(-1580.45, 198.12, -210.34)},
+    ["Jeremy"] = {Sea = 2, Quest = "Area2Quest", Level = 3, Pos = CFrame.new(2315.12, 449.12, 785.45)},
+    ["Fajita"] = {Sea = 2, Quest = "MarineQuest3", Level = 3, Pos = CFrame.new(-2090.23, 72.96, -4210.12)},
+    ["Don Swan"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(2285.45, 15.12, 860.23)},
+    ["Smoke Admiral"] = {Sea = 2, Quest = "IceSideQuest", Level = 2, Pos = CFrame.new(-5075.23, 15.96, -5360.45)},
+    ["Awakened Ice Admiral"] = {Sea = 2, Quest = "FrostQuest", Level = 3, Pos = CFrame.new(6472.12, 296.12, -6852.34)},
+    ["Tide Keeper"] = {Sea = 2, Quest = "ForgottenQuest", Level = 3, Pos = CFrame.new(-3810.45, 77.15, -11520.12)},
+    ["Darkbeard"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(3780.03, 22.65, -3498.94)},
+    ["Cursed Captain"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(915.24, 180.12, 33458.12)},
+    ["Order"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(-6500.12, 250.12, -4500.12)},
 
-    -- Sea 3
-    ["Stone"] = {Quest = "PiratePortQuest", Level = 3, Pos = CFrame.new(-1050.23, 40.12, 6780.45)},
-    ["Island Emperor"] = {Quest = "DragonCrewQuest", Level = 3, Pos = CFrame.new(5700.12, 601.23, 210.45)},
-    ["Kilo Admiral"] = {Quest = nil, Level = 1, Pos = CFrame.new(2880.23, 1682.80, -7250.12)},
-    ["Captain Elephant"] = {Quest = "DeepForestIsland2", Level = 3, Pos = CFrame.new(-13390.23, 332.12, -8420.45)},
-    ["Beautiful Pirate"] = {Quest = "DeepForestIsland3", Level = 5, Pos = CFrame.new(-12463.87, 374.91, -7523.77)},
-    ["Longma"] = {Quest = nil, Level = 1, Pos = CFrame.new(5220.12, 385.12, -340.23)},
-    ["Soul Reaper"] = {Quest = nil, Level = 1, Pos = CFrame.new(-9516.99, 172.01, 6078.47)},
-    ["Cake Queen"] = {Quest = "IceCreamIslandQuest", Level = 3, Pos = CFrame.new(-710.23, 381.12, -11150.45)},
-    ["Cake Prince"] = {Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
-    ["Dough King"] = {Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
-    ["Rip Indra"] = {Quest = nil, Level = 1, Pos = CFrame.new(-5330.12, 314.52, -2780.45)},
-    ["Tyrant of the Skies"] = {Quest = nil, Level = 1, Pos = CFrame.new(-16300.12, 850.12, 450.23)}
+    -- Sea 3 (Third Sea)
+    ["Stone"] = {Sea = 3, Quest = "PiratePortQuest", Level = 3, Pos = CFrame.new(-1050.23, 40.12, 6780.45)},
+    ["Island Emperor"] = {Sea = 3, Quest = "DragonCrewQuest", Level = 3, Pos = CFrame.new(5700.12, 601.23, 210.45)},
+    ["Kilo Admiral"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(2880.23, 1682.80, -7250.12)},
+    ["Captain Elephant"] = {Sea = 3, Quest = "DeepForestIsland2", Level = 3, Pos = CFrame.new(-13390.23, 332.12, -8420.45)},
+    ["Beautiful Pirate"] = {Sea = 3, Quest = "DeepForestIsland3", Level = 5, Pos = CFrame.new(-12463.87, 374.91, -7523.77)},
+    ["Longma"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(5220.12, 385.12, -340.23)},
+    ["Soul Reaper"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-9516.99, 172.01, 6078.47)},
+    ["Cake Queen"] = {Sea = 3, Quest = "IceCreamIslandQuest", Level = 3, Pos = CFrame.new(-710.23, 381.12, -11150.45)},
+    ["Cake Prince"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
+    ["Dough King"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
+    ["Rip Indra"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-5330.12, 314.52, -2780.45)},
+    ["Tyrant of the Skies"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-16300.12, 850.12, 450.23)}
 }
 
---============================== DYNAMIC SCAN FUNCTIONS ==============================
+--============================== DYNAMIC SCAN FUNCTIONS (SEA FILTERED) ==============================
 local function GetSpawnedMobsList()
     local list = {}
     local seen = {}
@@ -978,7 +960,7 @@ local function GetSpawnedMobsList()
         end
     end
     for _, q in ipairs(QuestsDB) do
-        if not seen[q.Mob] then
+        if q.Sea == CurrentSea and not seen[q.Mob] then
             seen[q.Mob] = true
             table.insert(list, q.Mob)
         end
@@ -994,15 +976,16 @@ local function GetSpawnedBossesList()
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                if BossesDB[enemy.Name] and not seen[enemy.Name] then
+                local bData = BossesDB[enemy.Name]
+                if bData and bData.Sea == CurrentSea and not seen[enemy.Name] then
                     seen[enemy.Name] = true
                     table.insert(list, "[Spawned] " .. enemy.Name)
                 end
             end
         end
     end
-    for bName, _ in pairs(BossesDB) do
-        if not seen[bName] then
+    for bName, bData in pairs(BossesDB) do
+        if bData.Sea == CurrentSea and not seen[bName] then
             table.insert(list, bName)
         end
     end
@@ -1028,13 +1011,12 @@ local function FindEnemy(targetName)
     end
     return closest
 end
-
 --============================== AUTO FARM LEVEL CORE ==============================
 local function StartAutoFarmLevel()
     task.spawn(function()
         task.wait(math.random(5, 15) / 10)
         while true do
-            task.wait(0.25) -- Slightly slower loop to reduce tween spam
+            task.wait(0.2)
             if _G.Config.AutoFarmLevel then
                 pcall(function()
                     local questInfo = GetCurrentQuest()
@@ -1046,25 +1028,28 @@ local function StartAutoFarmLevel()
                         local npcPos = questInfo.Pos.Position
                         local distToNPC = (npcPos - root.Position).Magnitude
                         
-                        if distToNPC > 20 then
-                            TweenTo(questInfo.Pos * CFrame.new(0, 5, 0))
-                            -- Wait until we actually arrive near the Quest NPC before asking for quest!
+                        if distToNPC > 30 then
+                            TweenTo(questInfo.Pos * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
                             local t0 = tick()
-                            while (questInfo.Pos.Position - root.Position).Magnitude > 22 and (tick() - t0) < 8 and not HasQuest() and _G.Config.AutoFarmLevel do
+                            while (questInfo.Pos.Position - root.Position).Magnitude > 35 and (tick() - t0) < 10 and not HasQuest() and _G.Config.AutoFarmLevel do
                                 task.wait(0.15)
                             end
                         end
                         
-                        -- STEP 2: Once within talking range (<= 28 studs), invoke StartQuest
-                        if (questInfo.Pos.Position - root.Position).Magnitude <= 28 then
+                        -- STEP 2: Talk to Quest NPC within range
+                        if (questInfo.Pos.Position - root.Position).Magnitude <= 45 then
                             local cf = CommF()
                             if cf then
                                 cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                task.wait(0.4)
+                                task.wait(0.35)
+                                if not HasQuest() then
+                                    cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                                    task.wait(0.25)
+                                end
                             end
                         end
                     else
-                        -- STEP 3: We have the quest! Target the quest mobs!
+                        -- STEP 3: Quest active! Farm mobs!
                         local target = FindEnemy(questInfo.Mob)
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
@@ -1072,24 +1057,23 @@ local function StartAutoFarmLevel()
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
                             
                             if distToFarm < 15 then
-                                -- Already at farm position: just hover lock, don't re-tween
                                 HoverLock(farmPos)
                             else
-                                -- Need to travel: tween there (HoverLock will be called by tween completion)
-                                TweenTo(farmPos)
+                                TweenTo(farmPos, questInfo.Mob)
                             end
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            -- No live mob found: hover at spawn point at 14 studs height
                             local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
-                            TweenTo(safePos)
-                            HoverLock(safePos)
+                            local distToSafe = (safePos.Position - root.Position).Magnitude
+                            if distToSafe < 15 then
+                                HoverLock(safePos)
+                            else
+                                TweenTo(safePos, "Mob Spawn Point")
+                            end
                         end
                     end
                 end)
-            else
-                StopTween()
             end
         end
     end)
@@ -1114,7 +1098,7 @@ local function StartAutoFarmSelectedMob()
                         if distToFarm < 15 then
                             HoverLock(farmPos)
                         else
-                            TweenTo(farmPos)
+                            TweenTo(farmPos, mobName)
                         end
                         EquipWeapon(_G.Config.SelectedWeapon)
                         BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
@@ -1122,15 +1106,17 @@ local function StartAutoFarmSelectedMob()
                         for _, q in ipairs(QuestsDB) do
                             if q.Mob == mobName then
                                 local safePos = q.Pos * CFrame.new(0, 35, 0)
-                                TweenTo(safePos)
-                                HoverLock(safePos)
+                                local distToSafe = (safePos.Position - root.Position).Magnitude
+                                if distToSafe < 15 then
+                                    HoverLock(safePos)
+                                else
+                                    TweenTo(safePos, mobName .. " Spawn")
+                                end
                                 break
                             end
                         end
                     end
                 end)
-            else
-                StopTween()
             end
         end
     end)
@@ -1162,19 +1148,21 @@ local function StartAutoFarmSelectedBoss()
                         if distToFarm < 15 then
                             HoverLock(farmPos)
                         else
-                            TweenTo(farmPos)
+                            TweenTo(farmPos, bossName)
                         end
                         EquipWeapon(_G.Config.SelectedWeapon)
                     else
                         if bossData then
                             local safePos = bossData.Pos * CFrame.new(0, 40, 0)
-                            TweenTo(safePos)
-                            HoverLock(safePos)
+                            local distToSafe = (safePos.Position - root.Position).Magnitude
+                            if distToSafe < 15 then
+                                HoverLock(safePos)
+                            else
+                                TweenTo(safePos, bossName .. " Spawn")
+                            end
                         end
                     end
                 end)
-            else
-                StopTween()
             end
         end
     end)
@@ -1189,11 +1177,12 @@ local function StartAutoFarmAllBosses()
             if _G.Config.FarmAllBosses then
                 pcall(function()
                     local enemies = Workspace:FindFirstChild("Enemies")
-                    if enemies then
+                    local root = GetRoot()
+                    if enemies and root then
                         for _, enemy in ipairs(enemies:GetChildren()) do
-                            if BossesDB[enemy.Name] and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                                local bData = BossesDB[enemy.Name]
-                                if bData and bData.Quest and not HasQuest() then
+                            local bData = BossesDB[enemy.Name]
+                            if bData and bData.Sea == CurrentSea and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                                if bData.Quest and not HasQuest() then
                                     local cf = CommF()
                                     if cf then cf:InvokeServer("StartQuest", bData.Quest, bData.Level) end
                                     task.wait(0.35)
@@ -1205,7 +1194,7 @@ local function StartAutoFarmAllBosses()
                                     if distToFarm < 15 then
                                         HoverLock(farmPos)
                                     else
-                                        TweenTo(farmPos)
+                                        TweenTo(farmPos, enemy.Name)
                                     end
                                     EquipWeapon(_G.Config.SelectedWeapon)
                                     task.wait(0.2)
@@ -1214,13 +1203,10 @@ local function StartAutoFarmAllBosses()
                         end
                     end
                 end)
-            else
-                StopTween()
             end
         end
     end)
 end
-
 --============================== RAID & SPECIAL BOSSES ==============================
 local function FightRaidBoss(bossName)
     local target = FindEnemy(bossName)
@@ -1434,9 +1420,11 @@ local function EnableAntiAFK()
 end
 if _G.Config.AntiAFK then EnableAntiAFK() end
 
---============================== STEALTH UI FRAMEWORK (REDZ NEON EDITION) ==============================
+--============================== STEALTH UI FRAMEWORK (REDZ 3D CYBER EDITION) ==============================
 -- All GUI elements use randomized names via GenerateGUID
 -- Full input isolation: Active = true on all containers so clicks NEVER register into the 3D game world!
+-- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
+
 local function CreateUI()
     local parentGui = GetSafeGui()
     
@@ -1455,16 +1443,124 @@ local function CreateUI()
     ScreenGui.DisplayOrder = 999999
     ScreenGui.Parent = parentGui
     
-    -- Main Frame (Dark Obsidian Cyber Theme)
+    -- -------------------------------------------------------------
+    -- 3D COCKPIT TRAVEL HUD (Appears when traveling long distances)
+    -- -------------------------------------------------------------
+    local TravelFrame = Instance.new("Frame")
+    TravelFrame.Name = RNG()
+    TravelFrame.Size = UDim2.new(0, 360, 0, 52)
+    TravelFrame.Position = UDim2.new(0.5, -180, 0, -75) -- Hidden above screen
+    TravelFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+    TravelFrame.BorderSizePixel = 0
+    TravelFrame.Active = true
+    TravelFrame.ZIndex = 50
+    TravelFrame.Parent = ScreenGui
+    
+    local TravelCorner = Instance.new("UICorner")
+    TravelCorner.CornerRadius = UDim.new(0, 10)
+    TravelCorner.Parent = TravelFrame
+    
+    local TravelStroke = Instance.new("UIStroke")
+    TravelStroke.Color = Color3.fromRGB(255, 42, 95)
+    TravelStroke.Thickness = 1.6
+    TravelStroke.Parent = TravelFrame
+    
+    local TravelTitle = Instance.new("TextLabel")
+    TravelTitle.Size = UDim2.new(1, -95, 0, 24)
+    TravelTitle.Position = UDim2.new(0, 14, 0, 6)
+    TravelTitle.Text = "✈️ FLYING TO: DESTINATION"
+    TravelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TravelTitle.Font = Enum.Font.GothamBold
+    TravelTitle.TextSize = 12
+    TravelTitle.TextXAlignment = Enum.TextXAlignment.Left
+    TravelTitle.BackgroundTransparency = 1
+    TravelTitle.ZIndex = 51
+    TravelTitle.Parent = TravelFrame
+    
+    local TravelDist = Instance.new("TextLabel")
+    TravelDist.Size = UDim2.new(1, -95, 0, 18)
+    TravelDist.Position = UDim2.new(0, 14, 0, 28)
+    TravelDist.Text = "Distance: 0 studs • Speed: 350 studs/s"
+    TravelDist.TextColor3 = Color3.fromRGB(180, 180, 200)
+    TravelDist.Font = Enum.Font.Gotham
+    TravelDist.TextSize = 10
+    TravelDist.TextXAlignment = Enum.TextXAlignment.Left
+    TravelDist.BackgroundTransparency = 1
+    TravelDist.ZIndex = 51
+    TravelDist.Parent = TravelFrame
+    
+    local CancelFlightBtn = Instance.new("TextButton")
+    CancelFlightBtn.Size = UDim2.new(0, 72, 0, 32)
+    CancelFlightBtn.Position = UDim2.new(1, -82, 0.5, -16)
+    CancelFlightBtn.Text = "✕ CANCEL"
+    CancelFlightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CancelFlightBtn.Font = Enum.Font.GothamBold
+    CancelFlightBtn.TextSize = 10
+    CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(220, 35, 70)
+    CancelFlightBtn.BorderSizePixel = 0
+    CancelFlightBtn.Active = true
+    CancelFlightBtn.ZIndex = 52
+    CancelFlightBtn.Parent = TravelFrame
+    local CFCorner = Instance.new("UICorner")
+    CFCorner.CornerRadius = UDim.new(0, 6)
+    CFCorner.Parent = CancelFlightBtn
+    
+    CancelFlightBtn.MouseButton1Click:Connect(function()
+        StopTween()
+    end)
+    
+    local isTravelHUDActive = false
+    SetTravelHUD = function(visible, destName, dist, spd)
+        if visible then
+            TravelTitle.Text = "✈️ FLYING TO: " .. tostring(destName or "TARGET"):upper()
+            TravelDist.Text = "Distance: " .. math.floor(dist or 0) .. " studs • Speed: " .. math.floor(spd or 350)
+            if not isTravelHUDActive then
+                isTravelHUDActive = true
+                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 18)}):Play()
+            end
+        else
+            if isTravelHUDActive then
+                isTravelHUDActive = false
+                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -75)}):Play()
+            end
+        end
+    end
+    
+    -- -------------------------------------------------------------
+    -- 3D SHADOW BACKDROP FOR MAIN FRAME
+    -- -------------------------------------------------------------
+    local ShadowFrame = Instance.new("Frame")
+    ShadowFrame.Name = RNG()
+    ShadowFrame.Size = UDim2.new(0, 608, 0, 385)
+    ShadowFrame.Position = UDim2.new(0.5, -296, 0.5, -182) -- 4px offset for 3D depth
+    ShadowFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 8)
+    ShadowFrame.BackgroundTransparency = 0.45
+    ShadowFrame.BorderSizePixel = 0
+    ShadowFrame.Parent = ScreenGui
+    local ShadowCorner = Instance.new("UICorner")
+    ShadowCorner.CornerRadius = UDim.new(0, 12)
+    ShadowCorner.Parent = ShadowFrame
+    
+    -- -------------------------------------------------------------
+    -- MAIN CONTAINER (Deep Obsidian 3D Panel)
+    -- -------------------------------------------------------------
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = RNG()
     MainFrame.Size = UDim2.new(0, 600, 0, 375)
     MainFrame.Position = UDim2.new(0.5, -300, 0.5, -187)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 17)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
-    MainFrame.Active = true -- Consumes input so clicks never reach game!
+    MainFrame.Active = true -- Input isolation
     MainFrame.Parent = ScreenGui
+    
+    -- Sync shadow when dragging
+    local function SyncShadow()
+        ShadowFrame.Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset + 4, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset + 5)
+        ShadowFrame.Visible = MainFrame.Visible
+    end
+    MainFrame:GetPropertyChangedSignal("Position"):Connect(SyncShadow)
+    MainFrame:GetPropertyChangedSignal("Visible"):Connect(SyncShadow)
     
     -- Global input lock listeners
     MainFrame.MouseEnter:Connect(function() _G.UIInteracting = true end)
@@ -1476,8 +1572,8 @@ local function CreateUI()
     
     local MainStroke = Instance.new("UIStroke")
     MainStroke.Color = Color3.fromRGB(255, 42, 95)
-    MainStroke.Thickness = 1.2
-    MainStroke.Transparency = 0.3
+    MainStroke.Thickness = 1.4
+    MainStroke.Transparency = 0.25
     MainStroke.Parent = MainFrame
     
     -- Dragging logic
@@ -1508,16 +1604,21 @@ local function CreateUI()
     local TopBar = Instance.new("Frame")
     TopBar.Name = RNG()
     TopBar.Size = UDim2.new(1, 0, 0, 44)
-    TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
     TopBar.BorderSizePixel = 0
     TopBar.Active = true
     TopBar.Parent = MainFrame
     
+    local TopStroke = Instance.new("UIStroke")
+    TopStroke.Color = Color3.fromRGB(35, 35, 48)
+    TopStroke.Thickness = 1
+    TopStroke.Parent = TopBar
+    
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Size = UDim2.new(0, 320, 1, 0)
     TitleLabel.Position = UDim2.new(0, 16, 0, 0)
-    TitleLabel.Text = "ALPHA // REDZ HUB EDITION"
-    TitleLabel.TextColor3 = Color3.fromRGB(255, 60, 110)
+    TitleLabel.Text = "ALPHA // 3D REDZ EDITION"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 55, 105)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 14
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1527,9 +1628,9 @@ local function CreateUI()
     
     local SubLabel = Instance.new("TextLabel")
     SubLabel.Size = UDim2.new(0, 200, 1, 0)
-    SubLabel.Position = UDim2.new(0, 245, 0, 0)
+    SubLabel.Position = UDim2.new(0, 235, 0, 0)
     SubLabel.Text = "Keyless • " .. SeaName
-    SubLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+    SubLabel.TextColor3 = Color3.fromRGB(155, 155, 185)
     SubLabel.Font = Enum.Font.Gotham
     SubLabel.TextSize = 11
     SubLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1540,28 +1641,35 @@ local function CreateUI()
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0, 28, 0, 28)
     CloseBtn.Position = UDim2.new(1, -36, 0, 8)
-    CloseBtn.Text = "X"
-    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.Text = "✕"
+    CloseBtn.TextColor3 = Color3.fromRGB(240, 240, 240)
     CloseBtn.Font = Enum.Font.GothamBold
-    CloseBtn.TextSize = 13
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 25, 35)
+    CloseBtn.TextSize = 12
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(42, 22, 32)
     CloseBtn.BorderSizePixel = 0
     CloseBtn.Active = true
     CloseBtn.Parent = TopBar
     local CloseCorner = Instance.new("UICorner")
     CloseCorner.CornerRadius = UDim.new(0, 6)
     CloseCorner.Parent = CloseBtn
+    
+    CloseBtn.MouseEnter:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 40, 70)}):Play()
+    end)
+    CloseBtn.MouseLeave:Connect(function()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(42, 22, 32)}):Play()
+    end)
     CloseBtn.MouseButton1Click:Connect(function()
         MainFrame.Visible = false
     end)
     
-    -- Floating Reopen Button with neon pulse
+    -- Floating Reopen Button with continuous breathing neon pulse
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = RNG()
     FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
     FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
-    FloatingBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
-    FloatingBtn.Text = "REDZ"
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+    FloatingBtn.Text = "ALPHA"
     FloatingBtn.TextColor3 = Color3.fromRGB(255, 55, 105)
     FloatingBtn.Font = Enum.Font.GothamBold
     FloatingBtn.TextSize = 11
@@ -1573,8 +1681,42 @@ local function CreateUI()
     FloatCorner.Parent = FloatingBtn
     local FloatStroke = Instance.new("UIStroke")
     FloatStroke.Color = Color3.fromRGB(255, 45, 95)
-    FloatStroke.Thickness = 1.6
+    FloatStroke.Thickness = 1.8
     FloatStroke.Parent = FloatingBtn
+    
+    -- Animated breathing glow on reopen button
+    task.spawn(function()
+        while true do
+            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.6}):Play()
+            task.wait(1.2)
+            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
+            task.wait(1.2)
+        end
+    end)
+    
+    -- Draggable reopen button
+    local fDragging, fDragInput, fDragStart, fStartPos
+    FloatingBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            fDragging = true
+            fDragStart = input.Position
+            fStartPos = FloatingBtn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then fDragging = false end
+            end)
+        end
+    end)
+    FloatingBtn.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            fDragInput = input
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input == fDragInput and fDragging then
+            local delta = input.Position - fDragStart
+            FloatingBtn.Position = UDim2.new(fStartPos.X.Scale, fStartPos.X.Offset + delta.X, fStartPos.Y.Scale, fStartPos.Y.Offset + delta.Y)
+        end
+    end)
     FloatingBtn.MouseButton1Click:Connect(function()
         MainFrame.Visible = not MainFrame.Visible
     end)
@@ -1584,7 +1726,7 @@ local function CreateUI()
     Sidebar.Name = RNG()
     Sidebar.Size = UDim2.new(0, 145, 1, -44)
     Sidebar.Position = UDim2.new(0, 0, 0, 44)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(16, 16, 23)
     Sidebar.BorderSizePixel = 0
     Sidebar.ScrollBarThickness = 2
     Sidebar.CanvasSize = UDim2.new(0, 0, 0, 380)
@@ -1605,7 +1747,7 @@ local function CreateUI()
     ContentHolder.Name = RNG()
     ContentHolder.Size = UDim2.new(1, -145, 1, -44)
     ContentHolder.Position = UDim2.new(0, 145, 0, 44)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(12, 12, 17)
     ContentHolder.BorderSizePixel = 0
     ContentHolder.Active = true
     ContentHolder.Parent = MainFrame
@@ -1615,14 +1757,17 @@ local function CreateUI()
     
     local function SwitchTab(tabName)
         for name, page in pairs(Tabs) do
-            page.Page.Visible = (name == tabName)
-            if page.Btn then
-                if name == tabName then
-                    page.Btn.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
-                    page.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                else
-                    page.Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
-                    page.Btn.TextColor3 = Color3.fromRGB(170, 170, 190)
+            if name == tabName then
+                page.Page.Position = UDim2.new(0, 0, 0, 8)
+                page.Page.Visible = true
+                TweenService:Create(page.Page, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+                if page.Btn then
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(255, 42, 95), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                end
+            else
+                page.Page.Visible = false
+                if page.Btn then
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(22, 22, 30), TextColor3 = Color3.fromRGB(160, 160, 180)}):Play()
                 end
             end
         end
@@ -1633,16 +1778,28 @@ local function CreateUI()
         local TabBtn = Instance.new("TextButton")
         TabBtn.Size = UDim2.new(1, -12, 0, 28)
         TabBtn.Text = name
-        TabBtn.TextColor3 = Color3.fromRGB(170, 170, 190)
+        TabBtn.TextColor3 = Color3.fromRGB(160, 160, 180)
         TabBtn.Font = Enum.Font.GothamMedium
         TabBtn.TextSize = 11
-        TabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+        TabBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
         TabBtn.BorderSizePixel = 0
         TabBtn.Active = true
         TabBtn.Parent = Sidebar
         local TabBtnCorner = Instance.new("UICorner")
         TabBtnCorner.CornerRadius = UDim.new(0, 5)
         TabBtnCorner.Parent = TabBtn
+        
+        -- Micro hover animation for tab buttons
+        TabBtn.MouseEnter:Connect(function()
+            if CurrentActiveTab ~= name then
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 30, 42), TextColor3 = Color3.fromRGB(210, 210, 230)}):Play()
+            end
+        end)
+        TabBtn.MouseLeave:Connect(function()
+            if CurrentActiveTab ~= name then
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 30), TextColor3 = Color3.fromRGB(160, 160, 180)}):Play()
+            end
+        end)
         
         local Page = Instance.new("ScrollingFrame")
         Page.Name = RNG()
@@ -1666,7 +1823,7 @@ local function CreateUI()
         PagePad.Parent = Page
         
         PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 24)
+            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 28)
         end)
         
         TabBtn.MouseButton1Click:Connect(function()
@@ -1696,17 +1853,49 @@ local function CreateUI()
             SecLabel.Parent = SecFrame
         end
         
+        function TabAPI:AddNotice(text, color)
+            local NFrame = Instance.new("Frame")
+            NFrame.Size = UDim2.new(1, -16, 0, 32)
+            NFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+            NFrame.BorderSizePixel = 0
+            NFrame.Parent = Page
+            local NCorner = Instance.new("UICorner")
+            NCorner.CornerRadius = UDim.new(0, 6)
+            NCorner.Parent = NFrame
+            local NStroke = Instance.new("UIStroke")
+            NStroke.Color = color or Color3.fromRGB(255, 180, 50)
+            NStroke.Thickness = 1
+            NStroke.Transparency = 0.4
+            NStroke.Parent = NFrame
+            
+            local NText = Instance.new("TextLabel")
+            NText.Size = UDim2.new(1, -16, 1, 0)
+            NText.Position = UDim2.new(0, 8, 0, 0)
+            NText.Text = text
+            NText.TextColor3 = color or Color3.fromRGB(255, 200, 80)
+            NText.Font = Enum.Font.GothamMedium
+            NText.TextSize = 10
+            NText.TextXAlignment = Enum.TextXAlignment.Left
+            NText.BackgroundTransparency = 1
+            NText.Parent = NFrame
+        end
+        
         function TabAPI:AddToggle(title, defaultVal, callback)
             local isChecked = defaultVal or false
             local ToggleFrame = Instance.new("Frame")
             ToggleFrame.Size = UDim2.new(1, -16, 0, 34)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
             ToggleFrame.BorderSizePixel = 0
             ToggleFrame.Active = true
             ToggleFrame.Parent = Page
             local TCorner = Instance.new("UICorner")
             TCorner.CornerRadius = UDim.new(0, 6)
             TCorner.Parent = ToggleFrame
+            
+            local TStroke = Instance.new("UIStroke")
+            TStroke.Color = Color3.fromRGB(35, 35, 48)
+            TStroke.Thickness = 1
+            TStroke.Parent = ToggleFrame
             
             local TTitle = Instance.new("TextLabel")
             TTitle.Size = UDim2.new(1, -55, 1, 0)
@@ -1723,7 +1912,7 @@ local function CreateUI()
             local Switch = Instance.new("TextButton")
             Switch.Size = UDim2.new(0, 38, 0, 20)
             Switch.Position = UDim2.new(1, -48, 0.5, -10)
-            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(45, 45, 58)
+            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(42, 42, 55)
             Switch.Text = ""
             Switch.BorderSizePixel = 0
             Switch.Active = true
@@ -1744,8 +1933,10 @@ local function CreateUI()
             KCorner.Parent = Knob
             
             local function UpdateToggle()
-                Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(45, 45, 58)
-                Knob.Position = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+                local targetColor = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(42, 42, 55)
+                local targetPos = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+                TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = targetColor}):Play()
+                TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = targetPos}):Play()
             end
             
             Switch.MouseButton1Click:Connect(function()
@@ -1766,7 +1957,7 @@ local function CreateUI()
         function TabAPI:AddButton(title, callback)
             local Btn = Instance.new("TextButton")
             Btn.Size = UDim2.new(1, -16, 0, 30)
-            Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            Btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
             Btn.Text = title
             Btn.TextColor3 = Color3.fromRGB(235, 235, 245)
             Btn.Font = Enum.Font.GothamMedium
@@ -1777,33 +1968,54 @@ local function CreateUI()
             local BCorner = Instance.new("UICorner")
             BCorner.CornerRadius = UDim.new(0, 5)
             BCorner.Parent = Btn
+            local BStroke = Instance.new("UIStroke")
+            BStroke.Color = Color3.fromRGB(38, 38, 52)
+            BStroke.Thickness = 1
+            BStroke.Parent = Btn
             
+            -- Smooth micro-animations
+            Btn.MouseEnter:Connect(function()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 34, 48)}):Play()
+            end)
+            Btn.MouseLeave:Connect(function()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+            end)
             Btn.MouseButton1Click:Connect(function()
-                Btn.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+                TweenService:Create(Btn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(255, 42, 95)}):Play()
                 task.wait(0.1)
-                Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
                 if callback then pcall(callback) end
             end)
         end
         
-        function TabAPI:AddDropdown(title, options, defaultVal, callback)
+        -- -------------------------------------------------------------
+        -- SEARCHABLE DROPDOWN WITH REAL-TIME FILTER
+        -- -------------------------------------------------------------
+        function TabAPI:AddSearchDropdown(title, options, defaultVal, callback)
             local selected = defaultVal or (options and options[1]) or ""
+            local allOptions = options or {}
+            local filteredOptions = allOptions
+            
             local DropFrame = Instance.new("Frame")
             DropFrame.Size = UDim2.new(1, -16, 0, 34)
-            DropFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
             DropFrame.BorderSizePixel = 0
             DropFrame.ClipsDescendants = true
             DropFrame.Active = true
             DropFrame.Parent = Page
             local DCorner = Instance.new("UICorner")
-            DCorner.CornerRadius = UDim.new(0, 5)
+            DCorner.CornerRadius = UDim.new(0, 6)
             DCorner.Parent = DropFrame
+            local DStroke = Instance.new("UIStroke")
+            DStroke.Color = Color3.fromRGB(36, 36, 50)
+            DStroke.Thickness = 1
+            DStroke.Parent = DropFrame
             
             local DTitle = Instance.new("TextLabel")
-            DTitle.Size = UDim2.new(0, 160, 0, 34)
+            DTitle.Size = UDim2.new(0, 150, 0, 34)
             DTitle.Position = UDim2.new(0, 10, 0, 0)
             DTitle.Text = title
-            DTitle.TextColor3 = Color3.fromRGB(215, 215, 225)
+            DTitle.TextColor3 = Color3.fromRGB(220, 220, 230)
             DTitle.Font = Enum.Font.Gotham
             DTitle.TextSize = 11
             DTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -1812,24 +2024,49 @@ local function CreateUI()
             DTitle.Parent = DropFrame
             
             local SelectBtn = Instance.new("TextButton")
-            SelectBtn.Size = UDim2.new(0, 210, 0, 24)
-            SelectBtn.Position = UDim2.new(1, -218, 0, 5)
-            SelectBtn.Text = tostring(selected) .. " v"
-            SelectBtn.TextColor3 = Color3.fromRGB(255, 80, 130)
+            SelectBtn.Size = UDim2.new(0, 215, 0, 24)
+            SelectBtn.Position = UDim2.new(1, -225, 0, 5)
+            SelectBtn.Text = tostring(selected) .. " ▾"
+            SelectBtn.TextColor3 = Color3.fromRGB(255, 75, 125)
             SelectBtn.Font = Enum.Font.GothamMedium
             SelectBtn.TextSize = 10
-            SelectBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+            SelectBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
             SelectBtn.BorderSizePixel = 0
             SelectBtn.Active = true
             SelectBtn.Parent = DropFrame
             local SBCorner = Instance.new("UICorner")
-            SBCorner.CornerRadius = UDim.new(0, 4)
+            SBCorner.CornerRadius = UDim.new(0, 5)
             SBCorner.Parent = SelectBtn
             
+            -- Search input box
+            local SearchBox = Instance.new("TextBox")
+            SearchBox.Size = UDim2.new(1, -16, 0, 24)
+            SearchBox.Position = UDim2.new(0, 8, 0, 36)
+            SearchBox.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+            SearchBox.PlaceholderText = "🔍 Type to filter " .. title .. "..."
+            SearchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+            SearchBox.Text = ""
+            SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+            SearchBox.Font = Enum.Font.Gotham
+            SearchBox.TextSize = 10
+            SearchBox.ClearTextOnFocus = false
+            SearchBox.BorderSizePixel = 0
+            SearchBox.Active = true
+            SearchBox.Visible = false
+            SearchBox.Parent = DropFrame
+            local SearchCorner = Instance.new("UICorner")
+            SearchCorner.CornerRadius = UDim.new(0, 4)
+            SearchCorner.Parent = SearchBox
+            local SearchStroke = Instance.new("UIStroke")
+            SearchStroke.Color = Color3.fromRGB(255, 42, 95)
+            SearchStroke.Thickness = 0.8
+            SearchStroke.Transparency = 0.5
+            SearchStroke.Parent = SearchBox
+            
             local ListScroll = Instance.new("ScrollingFrame")
-            ListScroll.Size = UDim2.new(1, -16, 0, 100)
-            ListScroll.Position = UDim2.new(0, 8, 0, 38)
-            ListScroll.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
+            ListScroll.Size = UDim2.new(1, -16, 0, 115)
+            ListScroll.Position = UDim2.new(0, 8, 0, 65)
+            ListScroll.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
             ListScroll.BorderSizePixel = 0
             ListScroll.ScrollBarThickness = 2
             ListScroll.Visible = false
@@ -1851,55 +2088,102 @@ local function CreateUI()
                     local OptBtn = Instance.new("TextButton")
                     OptBtn.Size = UDim2.new(1, 0, 0, 22)
                     OptBtn.Text = tostring(opt)
-                    OptBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
-                    OptBtn.Font = Enum.Font.Gotham
+                    OptBtn.TextColor3 = (opt == selected) and Color3.fromRGB(255, 75, 125) or Color3.fromRGB(205, 205, 215)
+                    OptBtn.Font = (opt == selected) and Enum.Font.GothamBold or Enum.Font.Gotham
                     OptBtn.TextSize = 10
                     OptBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
                     OptBtn.BorderSizePixel = 0
                     OptBtn.Active = true
                     OptBtn.Parent = ListScroll
+                    
+                    OptBtn.MouseEnter:Connect(function()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(38, 38, 54)}):Play()
+                    end)
+                    OptBtn.MouseLeave:Connect(function()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+                    end)
+                    
                     OptBtn.MouseButton1Click:Connect(function()
                         selected = opt
-                        SelectBtn.Text = tostring(selected) .. " v"
+                        SelectBtn.Text = tostring(selected) .. " ▾"
                         isOpen = false
-                        DropFrame.Size = UDim2.new(1, -16, 0, 34)
+                        TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 34)}):Play()
+                        task.wait(0.2)
+                        SearchBox.Visible = false
                         ListScroll.Visible = false
                         if callback then pcall(callback, selected) end
                     end)
                 end
                 ListScroll.CanvasSize = UDim2.new(0, 0, 0, #opts * 24)
             end
-            Populate(options or {})
+            
+            SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                local query = SearchBox.Text:lower()
+                if query == "" then
+                    filteredOptions = allOptions
+                else
+                    filteredOptions = {}
+                    for _, opt in ipairs(allOptions) do
+                        if tostring(opt):lower():find(query) then
+                            table.insert(filteredOptions, opt)
+                        end
+                    end
+                end
+                Populate(filteredOptions)
+            end)
             
             SelectBtn.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
                 if isOpen then
-                    DropFrame.Size = UDim2.new(1, -16, 0, 146)
+                    SearchBox.Visible = true
                     ListScroll.Visible = true
+                    SearchBox.Text = ""
+                    filteredOptions = allOptions
+                    Populate(filteredOptions)
+                    TweenService:Create(DropFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 188)}):Play()
                 else
-                    DropFrame.Size = UDim2.new(1, -16, 0, 34)
-                    ListScroll.Visible = false
+                    TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 34)}):Play()
+                    task.wait(0.2)
+                    if not isOpen then
+                        SearchBox.Visible = false
+                        ListScroll.Visible = false
+                    end
                 end
             end)
             
+            Populate(allOptions)
+            
             local DropAPI = {}
             function DropAPI:SetOptions(newOpts)
+                allOptions = newOpts
+                filteredOptions = newOpts
                 Populate(newOpts)
             end
+            function DropAPI:Get()
+                return selected
+            end
             return DropAPI
+        end
+        
+        function TabAPI:AddDropdown(title, options, defaultVal, callback)
+            return TabAPI:AddSearchDropdown(title, options, defaultVal, callback)
         end
         
         function TabAPI:AddSlider(title, min, max, defaultVal, callback)
             local current = defaultVal or min
             local SliderFrame = Instance.new("Frame")
             SliderFrame.Size = UDim2.new(1, -16, 0, 44)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
             SliderFrame.BorderSizePixel = 0
             SliderFrame.Active = true
             SliderFrame.Parent = Page
             local SlCorner = Instance.new("UICorner")
-            SlCorner.CornerRadius = UDim.new(0, 5)
+            SlCorner.CornerRadius = UDim.new(0, 6)
             SlCorner.Parent = SliderFrame
+            local SlStroke = Instance.new("UIStroke")
+            SlStroke.Color = Color3.fromRGB(35, 35, 48)
+            SlStroke.Thickness = 1
+            SlStroke.Parent = SliderFrame
             
             local STitle = Instance.new("TextLabel")
             STitle.Size = UDim2.new(0, 220, 0, 20)
@@ -1928,7 +2212,7 @@ local function CreateUI()
             local Bar = Instance.new("Frame")
             Bar.Size = UDim2.new(1, -20, 0, 6)
             Bar.Position = UDim2.new(0, 10, 0, 30)
-            Bar.BackgroundColor3 = Color3.fromRGB(38, 38, 50)
+            Bar.BackgroundColor3 = Color3.fromRGB(36, 36, 48)
             Bar.BorderSizePixel = 0
             Bar.Active = true
             Bar.Parent = SliderFrame
@@ -1948,15 +2232,19 @@ local function CreateUI()
             FillCorner.Parent = Fill
             
             local isSliding = false
+            local function UpdateSlide(input)
+                local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                current = math.floor(min + (max - min) * relX)
+                TweenService:Create(Fill, TweenInfo.new(0.08), {Size = UDim2.new(relX, 0, 1, 0)}):Play()
+                SValue.Text = tostring(current)
+                if callback then pcall(callback, current) end
+            end
+            
             Bar.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     isSliding = true
-                    _G.UIInteracting = true -- Mute combat clicks while sliding!
-                    local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-                    current = math.floor(min + (max - min) * relX)
-                    Fill.Size = UDim2.new(relX, 0, 1, 0)
-                    SValue.Text = tostring(current)
-                    if callback then pcall(callback, current) end
+                    _G.UIInteracting = true
+                    UpdateSlide(input)
                 end
             end)
             UIS.InputEnded:Connect(function(input)
@@ -1970,11 +2258,7 @@ local function CreateUI()
             end)
             UIS.InputChanged:Connect(function(input)
                 if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-                    current = math.floor(min + (max - min) * relX)
-                    Fill.Size = UDim2.new(relX, 0, 1, 0)
-                    SValue.Text = tostring(current)
-                    if callback then pcall(callback, current) end
+                    UpdateSlide(input)
                 end
             end)
         end
@@ -1982,7 +2266,7 @@ local function CreateUI()
         return TabAPI
     end
     
-    -- Instantiate All Tabs with Redz Hub Icons
+    -- Instantiate Tabs
     local FarmTab = CreateTab("⚔️ Main Farm")
     local BossTab = CreateTab("👑 Boss Farm")
     local RaidTab = CreateTab("🌀 Raids")
@@ -1994,7 +2278,7 @@ local function CreateUI()
     local TeleportTab = CreateTab("🚀 Teleports")
     local MiscTab = CreateTab("⚙️ Settings")
     
-    -- MAIN FARM
+    -- ==================== 1. MAIN FARM ====================
     FarmTab:AddSection("Combat Mode & Weapon Selection")
     FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v)
         _G.Config.SelectedWeapon = v
@@ -2034,9 +2318,9 @@ local function CreateUI()
     end)
     FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
     
-    FarmTab:AddSection("Select Mob Farming")
-    local MobDrop = FarmTab:AddDropdown("Select Mob", GetSpawnedMobsList(), GetSpawnedMobsList()[1] or "Bandit", function(v) _G.Config.SelectedMob = v end)
-    FarmTab:AddButton("Refresh Mobs List", function()
+    FarmTab:AddSection("Select Mob Farming (" .. SeaName .. ")")
+    local MobDrop = FarmTab:AddSearchDropdown("Select Mob", GetSpawnedMobsList(), GetSpawnedMobsList()[1] or "Bandit", function(v) _G.Config.SelectedMob = v end)
+    FarmTab:AddButton("Refresh Mobs List (" .. SeaName .. ")", function()
         local updated = GetSpawnedMobsList()
         MobDrop:SetOptions(updated)
     end)
@@ -2045,9 +2329,9 @@ local function CreateUI()
         if not v then FullResetMovement() end
     end)
     
--- BOSS FARM
-    BossTab:AddSection("Select Boss Farming")
-    local BossDrop = BossTab:AddDropdown("Select Boss", GetSpawnedBossesList(), "The Gorilla King", function(v) _G.Config.SelectedBoss = v end)
+    -- ==================== 2. BOSS FARM ====================
+    BossTab:AddSection("Select Boss Farming (" .. SeaName .. ")")
+    local BossDrop = BossTab:AddSearchDropdown("Select Boss", GetSpawnedBossesList(), GetSpawnedBossesList()[1] or "The Gorilla King", function(v) _G.Config.SelectedBoss = v end)
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
         local updated = GetSpawnedBossesList()
         BossDrop:SetOptions(updated)
@@ -2056,29 +2340,39 @@ local function CreateUI()
         _G.Config.FarmSelectedBoss = v
         if not v then StopTween() end
     end)
-    BossTab:AddToggle("Auto Farm All Spawned Bosses", false, function(v)
+    BossTab:AddToggle("Auto Farm All Spawned Bosses (" .. SeaName .. ")", false, function(v)
         _G.Config.FarmAllBosses = v
         if not v then StopTween() end
     end)
     
-    BossTab:AddSection("World & Raid Bosses")
-    BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v end)
-    BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v end)
-    BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v end)
-    BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v end)
-    BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v end)
-    BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v end)
-    BossTab:AddToggle("Auto Kill Order (Law)", false, function(v) _G.Config.AutoKillLaw = v end)
+    -- World & Raid Bosses filtered by current sea
+    BossTab:AddSection("World & Special Bosses")
+    if Sea3 then
+        BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v end)
+        BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v end)
+        BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v end)
+        BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v end)
+    elseif Sea2 then
+        BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v end)
+        BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v end)
+        BossTab:AddToggle("Auto Kill Order (Law)", false, function(v) _G.Config.AutoKillLaw = v end)
+    else
+        BossTab:AddNotice("World Raid Bosses (Indra, Dough King, Darkbeard) are located in Second & Third Sea.", Color3.fromRGB(255, 170, 70))
+    end
     
-    -- DUNGEON & RAIDS
+    -- ==================== 3. DUNGEON & RAIDS ====================
     RaidTab:AddSection("Raid Controls")
-    RaidTab:AddDropdown("Select Raid Chip", {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"}, "Flame", function(v) _G.Config.SelectedChip = v end)
-    RaidTab:AddToggle("Auto Buy Raid Chip", false, function(v) _G.Config.AutoBuyChip = v end)
-    RaidTab:AddToggle("Auto Start Raid", false, function(v) _G.Config.AutoStartRaid = v end)
-    RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v end)
-    RaidTab:AddToggle("Auto Awaken Fruit", false, function(v) _G.Config.AutoAwaken = v end)
+    if Sea1 then
+        RaidTab:AddNotice("🔒 Raids unlock at Level 1100 in Second Sea.", Color3.fromRGB(255, 150, 70))
+    else
+        RaidTab:AddSearchDropdown("Select Raid Chip", {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"}, "Flame", function(v) _G.Config.SelectedChip = v end)
+        RaidTab:AddToggle("Auto Buy Raid Chip", false, function(v) _G.Config.AutoBuyChip = v end)
+        RaidTab:AddToggle("Auto Start Raid", false, function(v) _G.Config.AutoStartRaid = v end)
+        RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v end)
+        RaidTab:AddToggle("Auto Awaken Fruit", false, function(v) _G.Config.AutoAwaken = v end)
+    end
     
-    -- DEVIL FRUIT
+    -- ==================== 4. DEVIL FRUIT ====================
     FruitTab:AddSection("Fruit Actions")
     FruitTab:AddToggle("Auto Random Fruit (Gacha Cousin)", false, function(v) _G.Config.AutoRandomFruit = v end)
     FruitTab:AddToggle("Auto Store Fruits in Inventory", true, function(v) _G.Config.AutoStoreFruit = v end)
@@ -2088,31 +2382,39 @@ local function CreateUI()
         UpdateFruitESP()
     end)
     
-    -- SEA EVENTS
-    SeaTab:AddSection("Sea Events")
-    SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v end)
-    SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v end)
-    SeaTab:AddToggle("Auto Kill Sea Beast", false, function(v) _G.Config.AutoKillSeaBeast = v end)
-    SeaTab:AddSection("Mirage & Kitsune Island")
-    SeaTab:AddButton("Check Mirage Island Status", function()
-        local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
-        print("[HUB] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
-    end)
-    SeaTab:AddButton("Check Kitsune Island Status", function()
-        local s = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
-        print("[HUB] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
-    end)
-    SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
-    SeaTab:AddToggle("Auto Pull Lever (Temple of Time)", false, function(v) _G.Config.AutoPullLever = v end)
+    -- ==================== 5. SEA EVENTS ====================
+    SeaTab:AddSection("Sea Events & Mirage")
+    if Sea1 then
+        SeaTab:AddNotice("🔒 Sea Events & Mirage Island unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
+    else
+        SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v end)
+        SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v end)
+        SeaTab:AddToggle("Auto Kill Sea Beast", false, function(v) _G.Config.AutoKillSeaBeast = v end)
+        SeaTab:AddButton("Check Mirage Island Status", function()
+            local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
+            print("[ALPHA] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
+        end)
+        SeaTab:AddButton("Check Kitsune Island Status", function()
+            local s = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
+            print("[ALPHA] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
+        end)
+        SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
+        SeaTab:AddToggle("Auto Pull Lever (Temple of Time)", false, function(v) _G.Config.AutoPullLever = v end)
+    end
     
-    -- ITEMS & QUESTS
-    ItemTab:AddSection("Special Weapons & Quests")
-    ItemTab:AddButton("Auto Saber Quest", function() local cf = CommF(); if cf then cf:InvokeServer("ProQuestProgress", "RichSon") end end)
-    ItemTab:AddButton("Auto Bartilo Quest", function() local cf = CommF(); if cf then cf:InvokeServer("BartiloQuestProgress", "GetMission") end end)
-    ItemTab:AddButton("Travel to Second Sea", function() local cf = CommF(); if cf then cf:InvokeServer("TravelDressrosa") end end)
-    ItemTab:AddButton("Travel to Third Sea", function() local cf = CommF(); if cf then cf:InvokeServer("TravelZou") end end)
+    -- ==================== 6. ITEMS & QUESTS ====================
+    ItemTab:AddSection("Special Quests & Sea Travel")
+    if Sea1 then
+        ItemTab:AddButton("Auto Saber Quest", function() local cf = CommF(); if cf then cf:InvokeServer("ProQuestProgress", "RichSon") end end)
+        ItemTab:AddButton("Travel to Second Sea (Requires Lv. 700)", function() local cf = CommF(); if cf then cf:InvokeServer("TravelDressrosa") end end)
+    elseif Sea2 then
+        ItemTab:AddButton("Auto Bartilo Quest", function() local cf = CommF(); if cf then cf:InvokeServer("BartiloQuestProgress", "GetMission") end end)
+        ItemTab:AddButton("Travel to Third Sea (Requires Lv. 1500)", function() local cf = CommF(); if cf then cf:InvokeServer("TravelZou") end end)
+    else
+        ItemTab:AddNotice("You have reached the Third Sea!", Color3.fromRGB(100, 255, 150))
+    end
     
-    -- STATS ALLOCATOR
+    -- ==================== 7. STATS ALLOCATOR ====================
     StatsTab:AddSection("Stat Points Allocator")
     StatsTab:AddToggle("Auto Allocate Stats", false, function(v) _G.Config.AutoStats = v end)
     StatsTab:AddSlider("Points Per Stat", 1, 100, 1, function(v) _G.Config.StatPoints = v end)
@@ -2124,8 +2426,8 @@ local function CreateUI()
     StatsTab:AddButton("Refund Stats (2,500 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Refund", "2") end end)
     StatsTab:AddButton("Reroll Race (3,000 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Reroll", "2") end end)
     
-    -- SHOP
-    ShopTab:AddSection("Fighting Styles (Melee V1 & V2)")
+    -- ==================== 8. SHOP ====================
+    ShopTab:AddSection("Fighting Styles")
     ShopTab:AddButton("Buy Black Leg ($150,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyBlackLeg") end end)
     ShopTab:AddButton("Buy Electro ($550,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyElectro") end end)
     ShopTab:AddButton("Buy Fishman Karate ($750,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyFishmanKarate") end end)
@@ -2142,55 +2444,79 @@ local function CreateUI()
     ShopTab:AddButton("Buy Flash Step (Soru - $100,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyHaki", "Soru") end end)
     ShopTab:AddButton("Buy Observation Haki ($750,000)", function() local cf = CommF(); if cf then cf:InvokeServer("KenHaki") end end)
     
-    -- TELEPORTS
-    TeleportTab:AddSection("Island Teleports")
-    local IslandsList = {
-        ["Pirate Starter"] = CFrame.new(1059.37, 16.51, 1546.99),
-        ["Marine Starter"] = CFrame.new(-2573.39, 6.94, 2059.27),
-        ["Jungle"] = CFrame.new(-1612.33, 36.85, 149.13),
-        ["Pirate Village"] = CFrame.new(-1181.39, 4.75, 3843.43),
-        ["Desert"] = CFrame.new(1094.11, 6.44, 4192.89),
-        ["Snow Island"] = CFrame.new(1384.81, 87.27, -1298.47),
-        ["Marineford"] = CFrame.new(-5035.79, 28.65, 4324.96),
-        ["Sky Island"] = CFrame.new(-4839.53, 717.67, -2619.44),
-        ["Prison"] = CFrame.new(4875.33, 5.65, 735.45),
-        ["Colosseum"] = CFrame.new(-1427.62, 7.28, -2792.77),
-        ["Magma Village"] = CFrame.new(-5247.72, 8.57, 8504.68),
-        ["Underwater City"] = CFrame.new(61163.85, 18.49, 1569.25),
-        ["Fountain City"] = CFrame.new(5127.13, 59.50, 4105.45),
-        ["Cafe (Sea 2)"] = CFrame.new(-380.47, 77.22, 255.82),
-        ["Mansion (Sea 2)"] = CFrame.new(-417.47, 332.18, 595.66),
-        ["Green Zone (Sea 2)"] = CFrame.new(-2448.53, 73.02, -3210.63),
-        ["Graveyard (Sea 2)"] = CFrame.new(-5418.89, 48.52, -774.75),
-        ["Snow Mountain (Sea 2)"] = CFrame.new(608.24, 401.52, -5372.46),
-        ["Hot & Cold (Sea 2)"] = CFrame.new(-6026.96, 15.96, -5071.29),
-        ["Cursed Ship (Sea 2)"] = CFrame.new(923.21, 126.98, 32852.83),
-        ["Ice Castle (Sea 2)"] = CFrame.new(5422.31, 28.25, -6767.13),
-        ["Forgotten Island (Sea 2)"] = CFrame.new(-3054.44, 237.15, -10142.82),
-        ["Port Town (Sea 3)"] = CFrame.new(-290.74, 6.73, 5343.55),
-        ["Hydra Island (Sea 3)"] = CFrame.new(5749.73, 610.42, -267.78),
-        ["Great Tree (Sea 3)"] = CFrame.new(2681.27, 1682.80, -7190.99),
-        ["Floating Turtle (Sea 3)"] = CFrame.new(-12463.87, 374.91, -7523.77),
-        ["Castle on Sea (Sea 3)"] = CFrame.new(-5085.24, 314.52, -3156.26),
-        ["Haunted Castle (Sea 3)"] = CFrame.new(-9516.99, 172.01, 6078.47),
-        ["Peanut Island (Sea 3)"] = CFrame.new(-2062.73, 50.32, -10232.22),
-        ["Ice Cream Island (Sea 3)"] = CFrame.new(-902.59, 79.92, -10988.69),
-        ["Chocolate Island (Sea 3)"] = CFrame.new(141.52, 34.21, -12608.45),
-        ["Candy Island (Sea 3)"] = CFrame.new(-1149.29, 23.63, -14445.61),
-        ["Tiki Outpost (Sea 3)"] = CFrame.new(-16106.33, 9.21, 440.38),
-        ["Temple of Time"] = CFrame.new(28282.57, 14896.85, 105.10)
+    -- ==================== 9. TELEPORTS (PER-SEA ONLY) ====================
+    TeleportTab:AddSection("Island Teleports (" .. SeaName .. ")")
+    
+    local AllIslands = {
+        [1] = {
+            ["Pirate Starter (Lv. 1)"] = CFrame.new(1059.37, 16.51, 1546.99),
+            ["Marine Starter (Lv. 1)"] = CFrame.new(-2573.39, 6.94, 2059.27),
+            ["Middle Town"] = CFrame.new(-655.82, 7.84, 1588.65),
+            ["Jungle (Lv. 15)"] = CFrame.new(-1612.33, 36.85, 149.13),
+            ["Pirate Village (Lv. 30)"] = CFrame.new(-1181.39, 4.75, 3843.43),
+            ["Desert (Lv. 60)"] = CFrame.new(1094.11, 6.44, 4192.89),
+            ["Snow Island (Lv. 90)"] = CFrame.new(1384.81, 87.27, -1298.47),
+            ["Marineford (Lv. 120)"] = CFrame.new(-5035.79, 28.65, 4324.96),
+            ["Sky Island (Lv. 150)"] = CFrame.new(-4839.53, 717.67, -2619.44),
+            ["Upper Sky (Lv. 450)"] = CFrame.new(-7894.62, 5545.49, -380.41),
+            ["Prison (Lv. 190)"] = CFrame.new(4875.33, 5.65, 735.45),
+            ["Colosseum (Lv. 250)"] = CFrame.new(-1427.62, 7.28, -2792.77),
+            ["Magma Village (Lv. 300)"] = CFrame.new(-5247.72, 8.57, 8504.68),
+            ["Underwater City (Lv. 375)"] = CFrame.new(61163.85, 18.49, 1569.25),
+            ["Fountain City (Lv. 625)"] = CFrame.new(5127.13, 59.50, 4105.45)
+        },
+        [2] = {
+            ["Cafe (Safe Zone)"] = CFrame.new(-380.47, 77.22, 255.82),
+            ["Mansion (Swan)"] = CFrame.new(-417.47, 332.18, 595.66),
+            ["Kingdom of Rose (Lv. 700)"] = CFrame.new(878.01, 121.98, 1235.35),
+            ["Green Zone (Lv. 875)"] = CFrame.new(-2448.53, 73.02, -3210.63),
+            ["Graveyard (Lv. 950)"] = CFrame.new(-5418.89, 48.52, -774.75),
+            ["Snow Mountain (Lv. 1000)"] = CFrame.new(608.24, 401.52, -5372.46),
+            ["Hot and Cold (Lv. 1100)"] = CFrame.new(-6026.96, 15.96, -5071.29),
+            ["Cursed Ship (Lv. 1250)"] = CFrame.new(923.21, 126.98, 32852.83),
+            ["Ice Castle (Lv. 1350)"] = CFrame.new(5422.31, 28.25, -6767.13),
+            ["Forgotten Island (Lv. 1425)"] = CFrame.new(-3054.44, 237.15, -10142.82),
+            ["Dark Arena (Darkbeard)"] = CFrame.new(3780.03, 22.65, -3498.94)
+        },
+        [3] = {
+            ["Port Town (Lv. 1500)"] = CFrame.new(-290.74, 6.73, 5343.55),
+            ["Hydra Island (Lv. 1575)"] = CFrame.new(5749.73, 610.42, -267.78),
+            ["Great Tree (Lv. 1700)"] = CFrame.new(2681.27, 1682.80, -7190.99),
+            ["Floating Turtle (Lv. 1775)"] = CFrame.new(-12463.87, 374.91, -7523.77),
+            ["Castle on the Sea"] = CFrame.new(-5085.24, 314.52, -3156.26),
+            ["Haunted Castle (Lv. 1975)"] = CFrame.new(-9516.99, 172.01, 6078.47),
+            ["Peanut Island (Lv. 2075)"] = CFrame.new(-2062.73, 50.32, -10232.22),
+            ["Ice Cream Island (Lv. 2125)"] = CFrame.new(-902.59, 79.92, -10988.69),
+            ["Cake Island (Lv. 2200)"] = CFrame.new(-2100.12, 70.12, -12150.34),
+            ["Chocolate Island (Lv. 2300)"] = CFrame.new(141.52, 34.21, -12608.45),
+            ["Candy Island (Lv. 2375)"] = CFrame.new(-1149.29, 23.63, -14445.61),
+            ["Tiki Outpost (Lv. 2450)"] = CFrame.new(-16106.33, 9.21, 440.38),
+            ["Temple of Time"] = CFrame.new(28282.57, 14896.85, 105.10)
+        }
     }
+    
+    local CurrentIslands = AllIslands[CurrentSea] or AllIslands[1]
     local islandKeys = {}
-    for k, _ in pairs(IslandsList) do table.insert(islandKeys, k) end
+    for k, _ in pairs(CurrentIslands) do table.insert(islandKeys, k) end
     table.sort(islandKeys)
-    local SelIsland = islandKeys[1]
-    TeleportTab:AddDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
-    TeleportTab:AddButton("Teleport to Selected Island", function()
-        local tcf = IslandsList[SelIsland]
-        if tcf then TweenTo(tcf) end
+    local SelIsland = islandKeys[1] or "Pirate Starter"
+    
+    local IslandDrop = TeleportTab:AddSearchDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
+    
+    TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
+        local tcf = CurrentIslands[SelIsland]
+        if tcf then
+            TweenTo(tcf, SelIsland)
+        end
     end)
     
-    -- SETTINGS
+    TeleportTab:AddButton("🛑 Stop Travel & Hover Here", function()
+        StopTween()
+        local root = GetRoot()
+        if root then HoverLock(root.CFrame) end
+    end)
+    
+    -- ==================== 10. SETTINGS ====================
     MiscTab:AddSection("Server Controls")
     MiscTab:AddButton("Server Hop (Low Population)", function()
         local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -2214,7 +2540,7 @@ local function CreateUI()
         _G.Config.AntiAFK = v
         if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
     end)
-    MiscTab:AddSlider("Tween Flight Speed", 100, 300, 200, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("Tween Flight Speed", 150, 450, 350, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
         if hum then hum.WalkSpeed = v end
@@ -2227,7 +2553,6 @@ local function CreateUI()
     -- Set default active tab
     SwitchTab("⚔️ Main Farm")
 end
-
 --============================== STAGGERED INITIALIZATION ==============================
 -- Step 1: UI first (immediate user feedback)
 CreateUI()
