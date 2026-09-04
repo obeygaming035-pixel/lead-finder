@@ -243,29 +243,81 @@ local function GetPlayerLevel()
     return 1
 end
 
--- Strict weapon type identifier
+-- Strict weapon type identifier (handles Blox Fruits where ToolTip is often empty)
 local function IsWeaponType(tool, targetType)
     if not tool or not tool:IsA("Tool") then return false end
-    local tip = tool:FindFirstChild("ToolTip") and tool.ToolTip or ""
+    local tip = tool.ToolTip or ""
     local name = tool.Name:lower()
+    
+    -- Known Blox Fruit names (always classified as Fruit regardless of ToolTip)
+    local fruitNames = {
+        "bomb", "spike", "chop", "spring", "smoke", "flame", "falcon", "ice",
+        "sand", "dark", "light", "rubber", "barrier", "magma", "quake",
+        "human", "buddha", "string", "bird", "phoenix", "rumble", "paw",
+        "gravity", "dough", "venom", "shadow", "control", "soul", "dragon",
+        "leopard", "spirit", "portal", "blizzard", "sound", "mammoth",
+        "t-rex", "kitsune", "rocket", "spin", "diamond", "love", "gas"
+    }
+    -- Check if tool name contains a fruit name pattern (e.g. "Bomb-Bomb", "Flame-Flame")
+    local isFruitByName = false
+    for _, fn in ipairs(fruitNames) do
+        if name:find(fn) then isFruitByName = true; break end
+    end
+    if name:find("fruit") then isFruitByName = true end
+    
+    -- Known melee/fighting style names
+    local meleeStyles = {
+        "combat", "black leg", "electro", "water kung fu", "dragon claw",
+        "superhuman", "death step", "sharkman karate", "electric claw",
+        "dragon talon", "godhuman", "sanguine art", "karate"
+    }
+    local isMeleeByName = false
+    for _, m in ipairs(meleeStyles) do
+        if name:find(m) then isMeleeByName = true; break end
+    end
+    
+    -- Known sword names
+    local swordNames = {
+        "cutlass", "katana", "pipe", "dual katana", "iron mace", "bisento",
+        "trident", "pole", "soul cane", "saber", "longsword", "gravity cane",
+        "saddi", "wando", "shisui", "yama", "tushita", "canvander",
+        "rengoku", "buddy sword", "midnight blade", "hallow scythe",
+        "cursed dual katana", "dark blade", "true triple katana",
+        "dragon trident", "soul guitar", "spikey trident"
+    }
+    local isSwordByName = false
+    for _, s in ipairs(swordNames) do
+        if name:find(s) then isSwordByName = true; break end
+    end
+    
+    -- Known gun names
+    local gunNames = {
+        "musket", "flintlock", "refined flintlock", "cannon", "kabucha",
+        "acidum rifle", "serpent bow", "bizarre rifle", "bazooka", "soul guitar"
+    }
+    local isGunByName = false
+    for _, g in ipairs(gunNames) do
+        if name:find(g) then isGunByName = true; break end
+    end
     
     if targetType == "Melee" then
         if tip == "Melee" or tool:FindFirstChild("Combat") then return true end
-        local meleeStyles = {
-            "combat", "black leg", "electro", "water kung fu", "dragon claw",
-            "superhuman", "death step", "sharkman karate", "electric claw",
-            "dragon talon", "godhuman", "sanguine art", "karate"
-        }
-        for _, m in ipairs(meleeStyles) do
-            if name:find(m) then return true end
-        end
+        if isMeleeByName then return true end
+        -- Generic "Tool" with no ToolTip and no specific classification = treat as melee accessory
+        if not isFruitByName and not isSwordByName and not isGunByName and tip == "" and name == "tool" then return true end
         return false
     elseif targetType == "Sword" then
-        return tip == "Sword" or tip == "Melee Weapon"
+        if tip == "Sword" or tip == "Melee Weapon" then return true end
+        if isSwordByName then return true end
+        -- Any unrecognized tool with empty tooltip that isn't fruit/melee/gun = default Sword
+        if not isFruitByName and not isMeleeByName and not isGunByName and tip == "" and name ~= "tool" then return true end
+        return false
     elseif targetType == "Gun" then
-        return tip == "Gun"
+        if tip == "Gun" then return true end
+        return isGunByName
     elseif targetType == "Fruit" then
-        return tip == "Blox Fruit" or name:find("fruit")
+        if tip == "Blox Fruit" then return true end
+        return isFruitByName
     end
     return false
 end
@@ -435,26 +487,36 @@ local function TweenTo(targetCFrame)
         return
     end
     
-    local speed = _G.Config.TweenSpeed or 350
-    if speed < 280 then speed = 350 end
+    local speed = _G.Config.TweenSpeed or 200
+    if speed < 50 then speed = 200 end
     
-    -- If already moving to almost the exact same target (< 10 studs difference), let it continue
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 10 and CurrentTween then
+    -- ANTI-SPAM: If already tweening to nearly the same target (< 20 studs), don't restart
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 20 and CurrentTween then
         return
+    end
+    
+    -- Cancel any existing tween before starting new one
+    if CurrentTween then
+        pcall(function() CurrentTween:Cancel() end)
+        CurrentTween = nil
     end
     
     CurrentTargetPos = targetCFrame.Position
     
-    -- 1. SHORT RANGE (<= 250 studs)
-    if distance <= 250 then
+    -- PURE TWEENSERVICE (diagnostic proved this works perfectly up to 200+ studs, no rollback)
+    -- BV is ONLY used for hover lock (Velocity=0), NEVER for directional movement (causes overshoot)
+    
+    -- 1. SHORT RANGE (<= 300 studs): Direct tween with noclip
+    if distance <= 300 then
         EnableNoclip()
-        local bv = GetOrCreateBodyVelocity(root)
-        local dir = (targetCFrame.Position - root.Position).Unit
-        bv.Velocity = dir * speed
         hum.PlatformStand = true
         
+        -- Zero out any existing BV velocity so it doesn't interfere
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
         local time = distance / speed
-        if CurrentTween then CurrentTween:Cancel() end
         CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween.Completed:Connect(function()
             if hum and hum.Parent then hum.PlatformStand = false end
@@ -464,7 +526,7 @@ local function TweenTo(targetCFrame)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 250 studs)
+    -- 2. LONG RANGE (> 300 studs): Sky flight in segments using pure TweenService
     if IsTravelingSky then return end
     IsTravelingSky = true
     
@@ -486,8 +548,12 @@ local function TweenTo(targetCFrame)
         end
         
         EnableNoclip()
-        local bv = GetOrCreateBodyVelocity(root)
         hum.PlatformStand = true
+        
+        -- Zero out BV so it doesn't fight the tween
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
         -- Ascend to sky altitude: Y = 380+ (immune to water, clears all trees/mountains)
         local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 70)
@@ -495,7 +561,7 @@ local function TweenTo(targetCFrame)
         if root.Position.Y < (skyY - 30) then
             local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
-            bv.Velocity = Vector3.new(0, speed, 0)
+            bv.Velocity = Vector3.new(0, 0, 0) -- BV stays at zero, only tween moves
             local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
             CurrentTween = upTween
             upTween:Play()
@@ -508,8 +574,7 @@ local function TweenTo(targetCFrame)
         local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
         if hDist > 25 then
-            local hDir = (skyTargetCF.Position - root.Position).Unit
-            bv.Velocity = hDir * speed
+            bv.Velocity = Vector3.new(0, 0, 0)
             local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
             CurrentTween = hTween
             hTween:Play()
@@ -520,8 +585,7 @@ local function TweenTo(targetCFrame)
         
         -- Descend directly to target position
         local downDist = (targetCFrame.Position - root.Position).Magnitude
-        local downDir = (targetCFrame.Position - root.Position).Unit
-        bv.Velocity = downDir * speed
+        bv.Velocity = Vector3.new(0, 0, 0)
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween = downTween
         downTween:Play()
@@ -821,26 +885,31 @@ local function HasQuest()
     local pGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not pGui then return false end
     
-    -- Method 1: Main.Quest visible
+    -- Method 1: Main.Quest frame - check if it has quest content (text with numbers like "0/5")
     local main = pGui:FindFirstChild("Main")
     if main then
         local q = main:FindFirstChild("Quest")
-        if q and q.Visible then return true end
-    end
-    
-    -- Method 2: Check deep for any visible Quest frame
-    for _, v in ipairs(pGui:GetDescendants()) do
-        if v.Name == "Quest" and v:IsA("Frame") and v.Visible then
-            return true
+        if q then
+            -- Check visible first
+            if q.Visible then return true end
+            -- Even if not visible, check if quest text exists (quest HUD might be toggled off)
+            for _, child in ipairs(q:GetDescendants()) do
+                if child:IsA("TextLabel") and child.Text:find("%d/%d") then
+                    return true
+                end
+            end
         end
     end
     
-    -- Method 3: Check Player Data folder
-    local data = LocalPlayer:FindFirstChild("Data")
-    if data then
-        local qVal = data:FindFirstChild("Quest")
-        if qVal and qVal.Value ~= "" and qVal.Value ~= "None" then
-            return true
+    -- Method 2: Check deep for any Quest frame with kill progress text
+    for _, v in ipairs(pGui:GetDescendants()) do
+        if v.Name == "Quest" and v:IsA("Frame") then
+            if v.Visible then return true end
+            for _, child in ipairs(v:GetDescendants()) do
+                if child:IsA("TextLabel") and child.Text:find("%d/%d") then
+                    return true
+                end
+            end
         end
     end
     
@@ -965,7 +1034,7 @@ local function StartAutoFarmLevel()
     task.spawn(function()
         task.wait(math.random(5, 15) / 10)
         while true do
-            task.wait(0.15)
+            task.wait(0.25) -- Slightly slower loop to reduce tween spam
             if _G.Config.AutoFarmLevel then
                 pcall(function()
                     local questInfo = GetCurrentQuest()
@@ -981,12 +1050,12 @@ local function StartAutoFarmLevel()
                             TweenTo(questInfo.Pos * CFrame.new(0, 5, 0))
                             -- Wait until we actually arrive near the Quest NPC before asking for quest!
                             local t0 = tick()
-                            while (questInfo.Pos.Position - root.Position).Magnitude > 22 and (tick() - t0) < 6 and not HasQuest() and _G.Config.AutoFarmLevel do
-                                task.wait(0.1)
+                            while (questInfo.Pos.Position - root.Position).Magnitude > 22 and (tick() - t0) < 8 and not HasQuest() and _G.Config.AutoFarmLevel do
+                                task.wait(0.15)
                             end
                         end
                         
-                        -- STEP 2: Once within talking range (<= 25 studs), invoke StartQuest
+                        -- STEP 2: Once within talking range (<= 28 studs), invoke StartQuest
                         if (questInfo.Pos.Position - root.Position).Magnitude <= 28 then
                             local cf = CommF()
                             if cf then
@@ -1000,8 +1069,15 @@ local function StartAutoFarmLevel()
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                            TweenTo(farmPos)
-                            HoverLock(farmPos)
+                            local distToFarm = (farmPos.Position - root.Position).Magnitude
+                            
+                            if distToFarm < 15 then
+                                -- Already at farm position: just hover lock, don't re-tween
+                                HoverLock(farmPos)
+                            else
+                                -- Need to travel: tween there (HoverLock will be called by tween completion)
+                                TweenTo(farmPos)
+                            end
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
@@ -1024,16 +1100,22 @@ local function StartAutoFarmSelectedMob()
     task.spawn(function()
         task.wait(math.random(8, 20) / 10)
         while true do
-            task.wait(0.15)
+            task.wait(0.25)
             if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
                 pcall(function()
                     local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
                     local target = FindEnemy(mobName)
+                    local root = GetRoot()
+                    if not root then return end
                     if target and target:FindFirstChild("HumanoidRootPart") then
                         local dist = GetOptimalFarmDistance(target)
                         local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        TweenTo(farmPos)
-                        HoverLock(farmPos)
+                        local distToFarm = (farmPos.Position - root.Position).Magnitude
+                        if distToFarm < 15 then
+                            HoverLock(farmPos)
+                        else
+                            TweenTo(farmPos)
+                        end
                         EquipWeapon(_G.Config.SelectedWeapon)
                         BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                     else
@@ -1059,12 +1141,14 @@ local function StartAutoFarmSelectedBoss()
     task.spawn(function()
         task.wait(math.random(10, 25) / 10)
         while true do
-            task.wait(0.2)
+            task.wait(0.3)
             if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
                 pcall(function()
                     local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
                     local bossData = BossesDB[bossName]
                     local target = FindEnemy(bossName)
+                    local root = GetRoot()
+                    if not root then return end
                     
                     if target and target:FindFirstChild("HumanoidRootPart") then
                         if bossData and bossData.Quest and not HasQuest() then
@@ -1074,8 +1158,12 @@ local function StartAutoFarmSelectedBoss()
                         end
                         local dist = GetOptimalFarmDistance(target)
                         local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        TweenTo(farmPos)
-                        HoverLock(farmPos)
+                        local distToFarm = (farmPos.Position - root.Position).Magnitude
+                        if distToFarm < 15 then
+                            HoverLock(farmPos)
+                        else
+                            TweenTo(farmPos)
+                        end
                         EquipWeapon(_G.Config.SelectedWeapon)
                     else
                         if bossData then
@@ -1113,10 +1201,14 @@ local function StartAutoFarmAllBosses()
                                 while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
                                     local dist = GetOptimalFarmDistance(enemy)
                                     local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                                    TweenTo(farmPos)
-                                    HoverLock(farmPos)
+                                    local distToFarm = (farmPos.Position - root.Position).Magnitude
+                                    if distToFarm < 15 then
+                                        HoverLock(farmPos)
+                                    else
+                                        TweenTo(farmPos)
+                                    end
                                     EquipWeapon(_G.Config.SelectedWeapon)
-                                    task.wait(0.1)
+                                    task.wait(0.2)
                                 end
                             end
                         end
@@ -1132,11 +1224,17 @@ end
 --============================== RAID & SPECIAL BOSSES ==============================
 local function FightRaidBoss(bossName)
     local target = FindEnemy(bossName)
+    local root = GetRoot()
+    if not root then return false end
     if target and target:FindFirstChild("HumanoidRootPart") then
         local dist = GetOptimalFarmDistance(target)
         local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-        TweenTo(farmPos)
-        HoverLock(farmPos)
+        local distToFarm = (farmPos.Position - root.Position).Magnitude
+        if distToFarm < 15 then
+            HoverLock(farmPos)
+        else
+            TweenTo(farmPos)
+        end
         EquipWeapon(_G.Config.SelectedWeapon)
         return true
     end
