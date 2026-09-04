@@ -141,7 +141,7 @@ _G.Config = {
     MobFarmDistance = 14, -- Normal mobs distance set to 14 studs as requested
     BossFarmDistance = 20, -- Boss distance set to 20 studs
     FarmDistance = 14,
-    TweenSpeed = 240, -- Redz Safe Speed (240 studs/s prevents server rollback) -- Redz Flight Speed (350 studs/s)
+    TweenSpeed = 250, -- Redz Safe Speed (240 studs/s prevents server rollback) -- Redz Flight Speed (350 studs/s)
     
     -- Combat Mode (M1 vs Skills)
     UseM1 = true,
@@ -445,7 +445,7 @@ local function GetOrCreateBodyVelocity(root)
     return bv
 end
 
--- HoverLock: keeps player hovering 14 studs above enemies while farming
+-- HoverLock: locks altitude above enemies or NPCs during combat/interaction
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     if not root or not root.Parent then return end
@@ -494,9 +494,10 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 -- -------------------------------------------------------------------------
--- TweenTo: DIRECT LINEAR FARM TWEEN (Redz Hub standard)
--- Straight-line movement directly to the mob or NPC.
--- NEVER launches into the sky! NEVER ascends to Y=500!
+-- UNIFIED AUTO-CRUISE TWEEN ENGINE (Redz Hub Standard)
+-- Short distance (<= 150 studs): Direct straight-line farm tween.
+-- Long distance (> 150 studs): Auto-Cruise over ocean at Y=230-280, pre-streaming,
+-- and clean landing on solid ground without rubberbanding!
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
@@ -505,19 +506,19 @@ local function TweenTo(targetCFrame, destName)
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     
-    -- Within farm reach: lock position immediately
+    -- Within reach: lock position immediately
     if distance < 15 then
         StopTween()
         HoverLock(targetCFrame)
         return
     end
     
-    -- Redz Hub safe farm speed: 220-250 studs/s
-    local speed = _G.Config.TweenSpeed or 240
-    if speed < 100 then speed = 240 end
-    if speed > 270 then speed = 250 end
+    -- Safe Blox Fruits speed limit: 250 studs/s (prevents server position rollback)
+    local speed = _G.Config.TweenSpeed or 250
+    if speed < 150 then speed = 250 end
+    if speed > 275 then speed = 260 end
     
-    -- Don't restart if already tweening to nearly the same spot (< 15 studs)
+    -- Anti-spam check: already heading to nearly the same spot
     if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 and CurrentTween then
         return
     end
@@ -528,68 +529,49 @@ local function TweenTo(targetCFrame, destName)
     end
     
     CurrentTargetPos = targetCFrame.Position
+    local label = destName or "Destination"
     
-    EnableNoclip()
-    hum.PlatformStand = true
+    -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween
+    if distance <= 150 then
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        local time = distance / speed
+        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween.Completed:Connect(function()
+            CurrentTween = nil
+            if hum and hum.Parent then hum.PlatformStand = false end
+            HoverLock(targetCFrame)
+        end)
+        CurrentTween:Play()
+        return CurrentTween
+    end
     
-    local bv = GetOrCreateBodyVelocity(root)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    
-    local time = distance / speed
-    CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-    CurrentTween.Completed:Connect(function()
-        CurrentTween = nil
-        if hum and hum.Parent then hum.PlatformStand = false end
-        HoverLock(targetCFrame)
-    end)
-    CurrentTween:Play()
-    return CurrentTween
-end
-
--- -------------------------------------------------------------------------
--- TeleportToIsland: LONG-RANGE SAFE FLIGHT ENGINE (Redz Hub standard)
--- Travels across oceans at safe 240 studs/s with Live Cockpit HUD.
--- Pre-streams destination, places safe landing platform, and lands cleanly on feet!
--- -------------------------------------------------------------------------
-local function TeleportToIsland(targetCFrame, islandName)
-    local root = GetRoot()
-    local hum = GetHumanoid()
-    if not root or not root.Parent or not hum then return end
-    
-    -- Suspend farm loops so they do not drag the player back to previous island
-    _G.Config.AutoFarmLevel = false
-    _G.Config.FarmSelectedMob = false
-    _G.Config.FarmSelectedBoss = false
-    _G.Config.FarmAllBosses = false
-    
-    StopTween()
+    -- 2. LONG RANGE (> 150 studs): Auto-Cruise Cross-Island Flight
+    if IsTravelingSky then return end
     IsTravelingSky = true
     
-    local speed = _G.Config.TweenSpeed or 240
-    if speed < 150 then speed = 240 end
-    if speed > 260 then speed = 250 end
-    
-    local distance = (targetCFrame.Position - root.Position).Magnitude
-    local label = islandName or "Selected Island"
-    
     task.spawn(function()
-        -- Show Travel HUD (lowered down to Y = 70, well inside screen border)
-        if SetTravelHUD then SetTravelHUD(true, label, distance, speed) end
+        local totalDist = distance
+        if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
         
-        -- Request chunk streaming for destination
+        -- Pre-stream destination chunks immediately so terrain loads
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
             end
         end)
         
-        -- Create invisible collision platform at destination
+        -- Create solid invisible landing platform so player NEVER falls into water or through unstreamed terrain
         if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
         LandingPlatform = Instance.new("Part")
         LandingPlatform.Name = "AlphaLandingPlatform"
-        LandingPlatform.Size = Vector3.new(40, 2, 40)
-        LandingPlatform.CFrame = targetCFrame * CFrame.new(0, -1, 0)
+        LandingPlatform.Size = Vector3.new(60, 2, 60)
+        LandingPlatform.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
         LandingPlatform.Anchored = true
         LandingPlatform.CanCollide = true
         LandingPlatform.Transparency = 1
@@ -602,10 +584,17 @@ local function TeleportToIsland(targetCFrame, islandName)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        -- Moderate sky altitude: Y = 280 to 320 (clears water and trees safely, never stacks to 500)
-        local skyY = math.clamp(math.max(root.Position.Y, targetCFrame.Position.Y) + 40, 250, 320)
-        if root.Position.Y < (skyY - 20) then
-            local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
+        -- Safe Cruise Altitude: Y = 230 to 280 (far above all water, trees, mountains; never stacks to 500!)
+        local cruiseY = 240
+        if targetCFrame.Position.Y > 200 then
+            cruiseY = targetCFrame.Position.Y + 45
+        elseif root.Position.Y > 200 then
+            cruiseY = math.max(root.Position.Y, 240)
+        end
+        
+        -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
+        if root.Position.Y < (cruiseY - 20) then
+            local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
             local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
             CurrentTween = upTween
@@ -618,8 +607,8 @@ local function TeleportToIsland(targetCFrame, islandName)
             return
         end
         
-        -- Fly horizontally across sky to island coordinates
-        local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
+        -- Step 2: Cruise horizontally across sky to target X, Z
+        local skyTargetCF = CFrame.new(targetCFrame.Position.X, cruiseY, targetCFrame.Position.Z)
         local hDist = (skyTargetCF.Position - root.Position).Magnitude
         if hDist > 20 then
             local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
@@ -633,7 +622,7 @@ local function TeleportToIsland(targetCFrame, islandName)
                     return
                 end
                 local curDist = (targetCFrame.Position - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed) end
+                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
             end)
             
             hTween.Completed:Wait()
@@ -645,52 +634,60 @@ local function TeleportToIsland(targetCFrame, islandName)
             return
         end
         
-        -- Pre-stream terrain now that we are right above the island
+        -- Pre-stream terrain again directly above destination
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
             end
         end)
         
-        -- Descend directly to target position + 4 studs above ground
-        local landCF = targetCFrame * CFrame.new(0, 4, 0)
+        -- Step 3: Descend directly to target position + 3.5 studs above ground
+        local landCF = targetCFrame * CFrame.new(0, 3.5, 0)
         local downDist = (landCF.Position - root.Position).Magnitude
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
         CurrentTween = downTween
         downTween:Play()
         downTween.Completed:Wait()
         
-        -- =========================================================
-        -- CLEAN LANDING (ZERO RUBBERBANDING):
-        -- Disable noclip so feet are solid on ground
-        -- Destroy body mover so no phantom velocity holds character
-        -- Restore Humanoid physics so player can walk/jump immediately
-        -- =========================================================
-        DisableNoclip()
-        if FlightBodyVel then
-            pcall(function() FlightBodyVel:Destroy() end)
-            FlightBodyVel = nil
-        end
-        if hum and hum.Parent then
-            hum.PlatformStand = false
-            hum.Sit = false
-        end
+        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding):
+        -- Keep BodyVelocity active with zero velocity for stability
+        local finalBv = GetOrCreateBodyVelocity(root)
+        finalBv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         root.CFrame = landCF
         
+        if hum and hum.Parent then
+            hum.PlatformStand = false
+            hum.Sit = false
+        end
+        
         IsTravelingSky = false
+        CurrentTween = nil
         if SetTravelHUD then SetTravelHUD(false) end
         
-        -- Clean up landing platform after 3 seconds
+        -- Hold platform for 4 seconds so terrain geometry completely loads and server acknowledges position
         task.spawn(function()
-            task.wait(3)
+            task.wait(0.5)
+            DisableNoclip()
+            task.wait(3.5)
             if LandingPlatform and LandingPlatform.Parent then
                 LandingPlatform:Destroy()
                 LandingPlatform = nil
             end
         end)
     end)
+end
+
+-- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Auto-Cruise
+local function TeleportToIsland(targetCFrame, islandName)
+    _G.Config.AutoFarmLevel = false
+    _G.Config.FarmSelectedMob = false
+    _G.Config.FarmSelectedBoss = false
+    _G.Config.FarmAllBosses = false
+    
+    StopTween()
+    TweenTo(targetCFrame, islandName or "Selected Island")
 end
 --============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
@@ -1119,15 +1116,20 @@ local function StartAutoFarmLevel()
                     if not root then return end
                     
                     if not HasQuest() then
-                        -- STEP 1: Travel to Quest NPC if far away
+                        -- STEP 1: Travel to Quest NPC (Auto-Cruise across sea if distant island)
                         local npcPos = questInfo.Pos.Position
                         local distToNPC = (npcPos - root.Position).Magnitude
                         
-                        if distToNPC > 30 then
+                        if distToNPC > 35 then
                             TweenTo(questInfo.Pos * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
+                            
+                            -- Dynamic timeout based on distance: never aborts prematurely mid-ocean!
+                            local speed = _G.Config.TweenSpeed or 250
+                            local maxWait = (distToNPC / speed) + 12
                             local t0 = tick()
-                            while (questInfo.Pos.Position - root.Position).Magnitude > 35 and (tick() - t0) < 10 and not HasQuest() and _G.Config.AutoFarmLevel do
-                                task.wait(0.15)
+                            
+                            while (questInfo.Pos.Position - root.Position).Magnitude > 40 and (tick() - t0) < maxWait and not HasQuest() and _G.Config.AutoFarmLevel do
+                                task.wait(0.2)
                             end
                         end
                         
@@ -1144,7 +1146,7 @@ local function StartAutoFarmLevel()
                             end
                         end
                     else
-                        -- STEP 3: Quest active! Farm mobs!
+                        -- STEP 3: Quest active! Farm quest mobs!
                         local target = FindEnemy(questInfo.Mob)
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
@@ -1159,12 +1161,20 @@ local function StartAutoFarmLevel()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
+                            -- Mobs not spawned nearby (or player not yet at mob spawn area)
                             local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
                             local distToSafe = (safePos.Position - root.Position).Magnitude
                             if distToSafe < 15 then
                                 HoverLock(safePos)
                             else
                                 TweenTo(safePos, "Mob Spawn Point")
+                                -- Dynamic wait if crossing islands to reach mob spawn
+                                local speed = _G.Config.TweenSpeed or 250
+                                local maxWait = (distToSafe / speed) + 12
+                                local t0 = tick()
+                                while (safePos.Position - root.Position).Magnitude > 35 and (tick() - t0) < maxWait and HasQuest() and _G.Config.AutoFarmLevel do
+                                    task.wait(0.2)
+                                end
                             end
                         end
                     end
@@ -1553,12 +1563,12 @@ local function CreateUI()
     ScreenGui.Parent = parentGui
     
     -- -------------------------------------------------------------
-    -- 3D COCKPIT TRAVEL HUD (Appears when traveling long distances)
+    -- 3D COCKPIT TRAVEL HUD (Lowered to Y = 75 with Live Progress Bar)
     -- -------------------------------------------------------------
     local TravelFrame = Instance.new("Frame")
     TravelFrame.Name = RNG()
-    TravelFrame.Size = UDim2.new(0, 360, 0, 54)
-    TravelFrame.Position = UDim2.new(0.5, -180, 0, -85) -- Starts hidden above screen
+    TravelFrame.Size = UDim2.new(0, 360, 0, 56)
+    TravelFrame.Position = UDim2.new(0.5, -180, 0, -90) -- Hidden above screen
     TravelFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
     TravelFrame.BorderSizePixel = 0
     TravelFrame.Active = true
@@ -1576,14 +1586,14 @@ local function CreateUI()
     
     local TravelGrad = Instance.new("UIGradient")
     TravelGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 24, 38)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 26, 38)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 12, 18))
     }
     TravelGrad.Rotation = 90
     TravelGrad.Parent = TravelFrame
     
     local TravelTitle = Instance.new("TextLabel")
-    TravelTitle.Size = UDim2.new(1, -95, 0, 24)
+    TravelTitle.Size = UDim2.new(1, -95, 0, 22)
     TravelTitle.Position = UDim2.new(0, 14, 0, 6)
     TravelTitle.Text = "✈️ FLYING TO: DESTINATION"
     TravelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1595,9 +1605,9 @@ local function CreateUI()
     TravelTitle.Parent = TravelFrame
     
     local TravelDist = Instance.new("TextLabel")
-    TravelDist.Size = UDim2.new(1, -95, 0, 18)
-    TravelDist.Position = UDim2.new(0, 14, 0, 28)
-    TravelDist.Text = "Distance: 0 studs • Speed: 350 studs/s"
+    TravelDist.Size = UDim2.new(1, -95, 0, 16)
+    TravelDist.Position = UDim2.new(0, 14, 0, 26)
+    TravelDist.Text = "Distance: 0 studs • Speed: 250 studs/s"
     TravelDist.TextColor3 = Color3.fromRGB(180, 180, 205)
     TravelDist.Font = Enum.Font.Gotham
     TravelDist.TextSize = 10
@@ -1605,6 +1615,28 @@ local function CreateUI()
     TravelDist.BackgroundTransparency = 1
     TravelDist.ZIndex = 61
     TravelDist.Parent = TravelFrame
+    
+    -- Live Journey Progress Bar
+    local TravelProgressBar = Instance.new("Frame")
+    TravelProgressBar.Size = UDim2.new(1, -110, 0, 4)
+    TravelProgressBar.Position = UDim2.new(0, 14, 0, 44)
+    TravelProgressBar.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    TravelProgressBar.BorderSizePixel = 0
+    TravelProgressBar.ZIndex = 61
+    TravelProgressBar.Parent = TravelFrame
+    local TPBCorner = Instance.new("UICorner")
+    TPBCorner.CornerRadius = UDim.new(1, 0)
+    TPBCorner.Parent = TravelProgressBar
+    
+    local TravelProgressFill = Instance.new("Frame")
+    TravelProgressFill.Size = UDim2.new(0, 0, 1, 0)
+    TravelProgressFill.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    TravelProgressFill.BorderSizePixel = 0
+    TravelProgressFill.ZIndex = 62
+    TravelProgressFill.Parent = TravelProgressBar
+    local TPBFCorner = Instance.new("UICorner")
+    TPBFCorner.CornerRadius = UDim.new(1, 0)
+    TPBFCorner.Parent = TravelProgressFill
     
     local CancelFlightBtn = Instance.new("TextButton")
     CancelFlightBtn.Size = UDim2.new(0, 74, 0, 32)
@@ -1623,22 +1655,31 @@ local function CreateUI()
     CFCorner.Parent = CancelFlightBtn
     
     CancelFlightBtn.MouseButton1Click:Connect(function()
+        PlayClickSound()
         StopTween()
     end)
     
     local isTravelHUDActive = false
-    SetTravelHUD = function(visible, destName, dist, spd)
+    SetTravelHUD = function(visible, destName, curDist, spd, totalDist)
         if visible then
             TravelTitle.Text = "✈️ FLYING TO: " .. tostring(destName or "TARGET"):upper()
-            TravelDist.Text = "Distance: " .. math.floor(dist or 0) .. " studs • Speed: " .. math.floor(spd or 350)
+            TravelDist.Text = "Distance: " .. math.floor(curDist or 0) .. " studs • Speed: " .. math.floor(spd or 250) .. " studs/s"
+            
+            if totalDist and totalDist > 0 then
+                local pct = math.clamp(1 - ((curDist or 0) / totalDist), 0, 1)
+                TravelProgressFill.Size = UDim2.new(pct, 0, 1, 0)
+            end
+            
             if not isTravelHUDActive then
                 isTravelHUDActive = true
-                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 70)}):Play()
+                -- Lowered down to Y = 75 (~1.5 inches down, fully below Roblox header)
+                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 75)}):Play()
             end
         else
             if isTravelHUDActive then
                 isTravelHUDActive = false
-                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -80)}):Play()
+                TravelProgressFill.Size = UDim2.new(0, 0, 1, 0)
+                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -90)}):Play()
             end
         end
     end
@@ -1940,7 +1981,21 @@ local function CreateUI()
 local Tabs = {}
     local CurrentActiveTab = nil
     
+    -- Smooth animated sliding tab indicator on sidebar
+    local TabIndicator = Instance.new("Frame")
+    TabIndicator.Name = "ActiveTabIndicator"
+    TabIndicator.Size = UDim2.new(0, 4, 0, 24)
+    TabIndicator.Position = UDim2.new(0, 2, 0, 8)
+    TabIndicator.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    TabIndicator.BorderSizePixel = 0
+    TabIndicator.ZIndex = 5
+    TabIndicator.Parent = Sidebar
+    local TICorner = Instance.new("UICorner")
+    TICorner.CornerRadius = UDim.new(1, 0)
+    TICorner.Parent = TabIndicator
+    
     local function SwitchTab(tabName)
+        PlayClickSound()
         for name, page in pairs(Tabs) do
             if name == tabName then
                 page.Page.Position = UDim2.new(0, 0, 0, 8)
@@ -1948,6 +2003,10 @@ local Tabs = {}
                 TweenService:Create(page.Page, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
                 if page.Btn then
                     TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(255, 42, 95), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                    -- Slide tab indicator smoothly to active tab button position
+                    TweenService:Create(TabIndicator, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(0, 2, 0, page.Btn.Position.Y.Offset + 2)
+                    }):Play()
                 end
             else
                 page.Page.Visible = false
