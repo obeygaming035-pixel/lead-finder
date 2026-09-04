@@ -134,15 +134,29 @@ _G.Config = {
     SelectedBoss = "",
     SelectedWeapon = "Melee", -- Melee | Sword | Gun | Fruit
     BringMobs = true,
-    FarmDistance = 9,
-    TweenSpeed = 200, -- Reduced from 320 to avoid behavioral detection
     
-    -- Combat & Fast Attack
+    -- Farm Distance Settings
+    AdaptiveBossDistance = true,
+    MobFarmDistance = 8,
+    BossFarmDistance = 18,
+    FarmDistance = 8,
+    TweenSpeed = 320, -- Redz Flight Speed
+    
+    -- Combat Mode (M1 vs Skills)
+    UseM1 = true,
     FastAttack = true,
+    FastAttackSpeed = 0.015, -- Super Fast clicks (Redz style)
     AttackDistance = 65,
-    AttackCooldown = 0.15, -- Increased from 0.05 to human-plausible range
     AutoBusoHaki = true,
     AutoKenHaki = false,
+    
+    -- Weapon Skills
+    UseSkills = false,
+    Skill_Z = true,
+    Skill_X = true,
+    Skill_C = true,
+    Skill_V = false,
+    Skill_F = false,
     
     -- World & Raid Bosses
     AutoKillRipIndra = false,
@@ -226,32 +240,63 @@ local function GetPlayerLevel()
     return 1
 end
 
--- Equip selected weapon type
+-- Strict weapon type identifier
+local function IsWeaponType(tool, targetType)
+    if not tool or not tool:IsA("Tool") then return false end
+    local tip = tool:FindFirstChild("ToolTip") and tool.ToolTip or ""
+    local name = tool.Name:lower()
+    
+    if targetType == "Melee" then
+        if tip == "Melee" or tool:FindFirstChild("Combat") then return true end
+        local meleeStyles = {
+            "combat", "black leg", "electro", "water kung fu", "dragon claw",
+            "superhuman", "death step", "sharkman karate", "electric claw",
+            "dragon talon", "godhuman", "sanguine art", "karate"
+        }
+        for _, m in ipairs(meleeStyles) do
+            if name:find(m) then return true end
+        end
+        return false
+    elseif targetType == "Sword" then
+        return tip == "Sword" or tip == "Melee Weapon"
+    elseif targetType == "Gun" then
+        return tip == "Gun"
+    elseif targetType == "Fruit" then
+        return tip == "Blox Fruit" or name:find("fruit")
+    end
+    return false
+end
+
+-- Strictly equip only the chosen weapon type (never equips Fruit if Melee selected)
 local function EquipWeapon(weaponType)
-    weaponType = weaponType or _G.Config.SelectedWeapon
+    weaponType = weaponType or _G.Config.SelectedWeapon or "Melee"
     local char = GetCharacter()
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if not char or not bp then return end
     
-    for _, tool in ipairs(char:GetChildren()) do
-        if tool:IsA("Tool") and tool:FindFirstChild("ToolTip") and tool.ToolTip == weaponType then
-            return tool
+    -- 1. If currently equipped tool matches targetType, keep it
+    local currentTool = char:FindFirstChildOfClass("Tool")
+    if currentTool then
+        if IsWeaponType(currentTool, weaponType) then
+            return currentTool
+        else
+            -- Wrong weapon currently held in hands (e.g. Fruit held when Melee was selected):
+            -- UNEQUIP IT immediately so it doesn't fire unwanted moves!
+            pcall(function() char.Humanoid:UnequipTools() end)
+            task.wait(0.05)
         end
     end
     
+    -- 2. Search Backpack for exact match
     for _, tool in ipairs(bp:GetChildren()) do
-        if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Fruit" and tool.ToolTip == "Blox Fruit")) then
+        if IsWeaponType(tool, weaponType) then
             char.Humanoid:EquipTool(tool)
             return tool
         end
     end
     
-    for _, tool in ipairs(bp:GetChildren()) do
-        if tool:IsA("Tool") then
-            char.Humanoid:EquipTool(tool)
-            return tool
-        end
-    end
+    -- If not found, DO NOT equip random items!
+    return nil
 end
 
 -- Auto Buso Haki
@@ -266,18 +311,40 @@ local function CheckBusoHaki()
     end
 end
 
---============================== STEALTH TWEEN ENGINE ==============================
+-- Forward declaration of BossesDB
+local BossesDB
+
+-- Adaptive farm distance calculator (gives bosses more clearance against AoE stuns)
+local function GetOptimalFarmDistance(enemy)
+    if not enemy then return _G.Config.MobFarmDistance or 8 end
+    local isBoss = (BossesDB and BossesDB[enemy.Name] ~= nil) or (enemy:FindFirstChild("Humanoid") and enemy.Humanoid.MaxHealth > 50000)
+    if isBoss then
+        if _G.Config.AdaptiveBossDistance then
+            local name = enemy.Name:lower()
+            if name:find("indra") or name:find("dough") or name:find("cake") or name:find("reaper") or name:find("beast") then
+                return 22
+            elseif name:find("king") or name:find("admiral") or name:find("warden") or name:find("emperor") or name:find("captain") then
+                return 18
+            else
+                return _G.Config.BossFarmDistance or 18
+            end
+        else
+            return _G.Config.BossFarmDistance or 18
+        end
+    end
+    return _G.Config.MobFarmDistance or 8
+end
+
+--============================== REDZ-GRADE SKY TWEEN ENGINE ==============================
 local CurrentTween = nil
+local TweenBodyVel = nil
+local CurrentTargetPos = nil
+local IsTravelingSky = false
 local NoclipConn = nil
-local _noclipFrame = 0
 
 local function EnableNoclip()
     if NoclipConn then return end
-    _noclipFrame = 0
     NoclipConn = RunService.Stepped:Connect(function()
-        _noclipFrame = _noclipFrame + 1
-        -- Skip every other frame to reduce detection signature
-        if _noclipFrame % 2 == 0 then return end
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -298,65 +365,138 @@ end
 
 local function StopTween()
     if CurrentTween then
-        CurrentTween:Cancel()
+        pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
     end
+    if TweenBodyVel then
+        pcall(function() TweenBodyVel:Destroy() end)
+        TweenBodyVel = nil
+    end
+    CurrentTargetPos = nil
+    IsTravelingSky = false
     DisableNoclip()
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    StopTween()
+end)
+
+local function GetOrCreateBodyVelocity(root)
+    if TweenBodyVel and TweenBodyVel.Parent == root then
+        return TweenBodyVel
+    end
+    if TweenBodyVel then
+        pcall(function() TweenBodyVel:Destroy() end)
+    end
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "AlphaFlight"
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.Parent = root
+    TweenBodyVel = bv
+    return bv
 end
 
 local function TweenTo(targetCFrame)
     local root = GetRoot()
-    if not root then return end
+    if not root or not root.Parent then return end
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     if distance < 15 then
-        root.CFrame = targetCFrame
         StopTween()
+        root.CFrame = targetCFrame
         return
     end
     
-    local speed = _G.Config.TweenSpeed or 200
+    local speed = _G.Config.TweenSpeed or 320
+    if speed < 250 then speed = 320 end
     
-    -- For long distances, break into segments with micro-stutters
-    if distance > 500 then
+    -- 1. LOCAL HOVER / CLOSE RANGE (<= 250 studs)
+    if distance <= 250 then
         EnableNoclip()
-        local segments = math.ceil(distance / 500)
-        local direction = (targetCFrame.Position - root.Position).Unit
-        
-        for i = 1, segments do
-            if not root or not root.Parent then break end
-            local segDist = math.min(500, (targetCFrame.Position - root.Position).Magnitude)
-            local segTarget
-            if i == segments then
-                segTarget = targetCFrame
-            else
-                segTarget = CFrame.new(root.Position + direction * segDist) * (targetCFrame - targetCFrame.Position)
-            end
-            
-            local segTime = segDist / speed
-            local tweenInfo = TweenInfo.new(segTime, Enum.EasingStyle.Linear)
-            CurrentTween = TweenService:Create(root, tweenInfo, {CFrame = segTarget})
-            CurrentTween:Play()
-            CurrentTween.Completed:Wait()
-            
-            -- Micro-stutter between segments (breaks perfect linear movement signature)
-            if i < segments then
-                task.wait(0.03 + math.random() * 0.04)
+        GetOrCreateBodyVelocity(root)
+        local time = distance / speed
+        if CurrentTween then CurrentTween:Cancel() end
+        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween:Play()
+        return CurrentTween
+    end
+    
+    -- 2. LONG RANGE / CROSS-ISLAND TRAVEL (> 250 studs)
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 25 and IsTravelingSky then
+        return -- Already sky-traveling to this target
+    end
+    
+    CurrentTargetPos = targetCFrame.Position
+    IsTravelingSky = true
+    
+    task.spawn(function()
+        -- Try instant game door entrance for extreme distances (> 2500 studs)
+        if distance > 2500 then
+            local cf = CommF()
+            if cf then
+                pcall(function() cf:InvokeServer("requestEntrance", targetCFrame.Position) end)
+                task.wait(0.35)
+                if not root or not root.Parent then IsTravelingSky = false; return end
+                distance = (targetCFrame.Position - root.Position).Magnitude
+                if distance < 120 then
+                    StopTween()
+                    root.CFrame = targetCFrame
+                    return
+                end
             end
         end
-        return
-    end
-    
-    local time = distance / speed
-    EnableNoclip()
-    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    CurrentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
-    CurrentTween:Play()
-    return CurrentTween
+        
+        EnableNoclip()
+        GetOrCreateBodyVelocity(root)
+        
+        -- High flight altitude: Y = 380+ (immune to water damage, clears all trees/mountains)
+        local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 70)
+        
+        -- Ascend to sky
+        if root.Position.Y < (skyY - 30) then
+            local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
+            local upDist = (upCF.Position - root.Position).Magnitude
+            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
+            CurrentTween = upTween
+            upTween:Play()
+            upTween.Completed:Wait()
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then return end
+        
+        -- Fly horizontally across sky
+        local skyTargetCF = CFrame.new(targetCFrame.Position.X, skyY, targetCFrame.Position.Z)
+        local hDist = (skyTargetCF.Position - root.Position).Magnitude
+        if hDist > 25 then
+            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
+            CurrentTween = hTween
+            hTween:Play()
+            hTween.Completed:Wait()
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then return end
+        
+        -- Descend to target position
+        local downDist = (targetCFrame.Position - root.Position).Magnitude
+        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween = downTween
+        downTween:Play()
+        downTween.Completed:Wait()
+        
+        IsTravelingSky = false
+        if (targetCFrame.Position - root.Position).Magnitude < 20 then
+            root.CFrame = targetCFrame
+            StopTween()
+        end
+    end)
 end
 
---============================== THROTTLED FAST ATTACK ENGINE ==============================
+--============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
+local _lastSkillCastTime = 0
+local _skillCycle = {"Z", "X", "C", "V", "F"}
+local _skillCycleIndex = 1
 
 local function GetBladeHits()
     local targets = {}
@@ -379,25 +519,31 @@ local function GetBladeHits()
     return targets
 end
 
+-- Fast M1 Clicks (Redz Hub style: 0.015s super fast)
 local function FastAttack()
-    if not _G.Config.FastAttack then return end
+    if not _G.Config.FastAttack or not _G.Config.UseM1 then return end
     local char = GetCharacter()
     if not char then return end
     
-    -- Throttle with jitter to avoid perfect-interval detection
+    -- Ensure the equipped weapon matches selected weapon type
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool or not IsWeaponType(tool, _G.Config.SelectedWeapon) then
+        EquipWeapon(_G.Config.SelectedWeapon)
+        return
+    end
+    
     local now = tick()
-    local cooldown = (_G.Config.AttackCooldown or 0.15) + math.random() * 0.08
-    if (now - _lastAttackTime) < cooldown then return end
+    local cd = _G.Config.FastAttackSpeed or 0.015
+    if (now - _lastAttackTime) < cd then return end
     _lastAttackTime = now
     
     local enemies = GetBladeHits()
     if #enemies > 0 then
-        -- Method 1: Net Remotes (with safe interval)
         local regAttack = GetNetRemote("RE/RegisterAttack")
         local regHit = GetNetRemote("RE/RegisterHit")
         if regAttack and regHit then
             pcall(function()
-                regAttack:FireServer(0.12)
+                regAttack:FireServer(0)
                 local args = {nil, {}}
                 for i, v in ipairs(enemies) do
                     if not args[1] and v:FindFirstChild("Head") then
@@ -409,24 +555,74 @@ local function FastAttack()
             end)
         end
         
-        -- Method 2: Tool Activate (natural click simulation)
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
+        -- Activate equipped weapon ONLY
+        if tool and _G.Config.UseM1 then
             pcall(function() tool:Activate() end)
         end
-        
-        -- NOTE: VirtualUser:Button1Down spam removed -- well-known detection vector
     end
 end
 
--- Combat loop (starts after delay -- see bottom of script)
+-- Cast skills with selected weapon ONLY
+local function CastNextSkill()
+    if not _G.Config.UseSkills then return end
+    local now = tick()
+    if (now - _lastSkillCastTime) < 1.0 then return end
+    
+    local char = GetCharacter()
+    if not char then return end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool or not IsWeaponType(tool, _G.Config.SelectedWeapon) then
+        EquipWeapon(_G.Config.SelectedWeapon)
+        return
+    end
+    
+    local enemies = GetBladeHits()
+    if #enemies == 0 then return end
+    
+    -- Find enabled skill key
+    local chosenKey = nil
+    for i = 1, #_skillCycle do
+        local key = _skillCycle[_skillCycleIndex]
+        _skillCycleIndex = (_skillCycleIndex % #_skillCycle) + 1
+        if _G.Config["Skill_" .. key] then
+            chosenKey = key
+            break
+        end
+    end
+    
+    if chosenKey then
+        _lastSkillCastTime = now
+        local VIM = game:GetService("VirtualInputManager")
+        local keyCode = Enum.KeyCode[chosenKey]
+        if VIM and keyCode then
+            pcall(function()
+                VIM:SendKeyEvent(true, keyCode, false, game)
+                task.wait(0.06)
+                VIM:SendKeyEvent(false, keyCode, false, game)
+            end)
+        elseif keypress and keyrelease then
+            local byte = string.byte(chosenKey)
+            pcall(function()
+                keypress(byte)
+                task.wait(0.06)
+                keyrelease(byte)
+            end)
+        end
+    end
+end
+
 local function StartCombatLoop()
     task.spawn(function()
         while true do
-            local cd = (_G.Config.AttackCooldown or 0.15) + math.random() * 0.05
+            local cd = _G.Config.FastAttackSpeed or 0.015
             task.wait(cd)
-            if _G.Config.FastAttack and (_G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses) then
-                FastAttack()
+            if _G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses then
+                if _G.Config.FastAttack and _G.Config.UseM1 then
+                    FastAttack()
+                end
+                if _G.Config.UseSkills then
+                    CastNextSkill()
+                end
                 CheckBusoHaki()
             end
         end
@@ -716,9 +912,10 @@ local function StartAutoFarmLevel()
                     else
                         local target = FindEnemy(questInfo.Mob)
                         if target and target:FindFirstChild("HumanoidRootPart") then
-                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            local dist = GetOptimalFarmDistance(target)
+                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             TweenTo(farmPos)
-                            EquipWeapon()
+                            EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
                             TweenTo(questInfo.Pos * CFrame.new(0, 35, 0))
@@ -741,9 +938,10 @@ local function StartAutoFarmSelectedMob()
                     local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
                     local target = FindEnemy(mobName)
                     if target and target:FindFirstChild("HumanoidRootPart") then
-                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local dist = GetOptimalFarmDistance(target)
+                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         TweenTo(farmPos)
-                        EquipWeapon()
+                        EquipWeapon(_G.Config.SelectedWeapon)
                         BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                     else
                         for _, q in ipairs(QuestsDB) do
@@ -777,9 +975,10 @@ local function StartAutoFarmSelectedBoss()
                             if cf then cf:InvokeServer("StartQuest", bossData.Quest, bossData.Level) end
                             task.wait(0.4 + math.random() * 0.2)
                         end
-                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local dist = GetOptimalFarmDistance(target)
+                    local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         TweenTo(farmPos)
-                        EquipWeapon()
+                        EquipWeapon(_G.Config.SelectedWeapon)
                     else
                         if bossData then
                             TweenTo(bossData.Pos * CFrame.new(0, 40, 0))
@@ -810,9 +1009,10 @@ local function StartAutoFarmAllBosses()
                                     task.wait(0.4 + math.random() * 0.2)
                                 end
                                 while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
-                                    local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 4, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                    local dist = GetOptimalFarmDistance(enemy)
+                                    local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                                     TweenTo(farmPos)
-                                    EquipWeapon()
+                                    EquipWeapon(_G.Config.SelectedWeapon)
                                     task.wait(0.1 + math.random() * 0.05)
                                 end
                             end
@@ -828,9 +1028,10 @@ end
 local function FightRaidBoss(bossName)
     local target = FindEnemy(bossName)
     if target and target:FindFirstChild("HumanoidRootPart") then
-        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance + 5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+        local dist = GetOptimalFarmDistance(target)
+        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
         TweenTo(farmPos)
-        EquipWeapon()
+        EquipWeapon(_G.Config.SelectedWeapon)
         return true
     end
     return false
@@ -999,7 +1200,7 @@ local function StartDungeonRaidLoop()
                             if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
                                 local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0)
                                 TweenTo(farmPos)
-                                EquipWeapon()
+                                EquipWeapon(_G.Config.SelectedWeapon)
                                 break
                             end
                         end
@@ -1552,13 +1753,37 @@ local function CreateUI()
     local MiscTab = CreateTab("Settings")
     
     -- MAIN FARM
-    FarmTab:AddSection("Combat Settings")
-    FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v) _G.Config.SelectedWeapon = v end)
-    FarmTab:AddToggle("Fast Attack (RegisterAttack + Hit)", true, function(v) _G.Config.FastAttack = v end)
+    FarmTab:AddSection("Combat Mode & Weapon Selection")
+    FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v)
+        _G.Config.SelectedWeapon = v
+        EquipWeapon(v)
+    end)
+    FarmTab:AddToggle("Use M1 / Normal Clicks (Fast Attack)", true, function(v) _G.Config.UseM1 = v end)
+    FarmTab:AddDropdown("Click Speed", {"Super Fast (0.015s)", "Fast (0.04s)", "Normal (0.1s)"}, "Super Fast (0.015s)", function(v)
+        if v:find("Super") then
+            _G.Config.FastAttackSpeed = 0.015
+        elseif v:find("Fast") then
+            _G.Config.FastAttackSpeed = 0.04
+        else
+            _G.Config.FastAttackSpeed = 0.1
+        end
+    end)
     FarmTab:AddSlider("Attack Range (Studs)", 30, 85, 65, function(v) _G.Config.AttackDistance = v end)
     FarmTab:AddToggle("Bring Mobs (Simulation Radius)", true, function(v) _G.Config.BringMobs = v end)
-    FarmTab:AddSlider("Farm Distance (Hover Offset)", 4, 20, 9, function(v) _G.Config.FarmDistance = v end)
     FarmTab:AddToggle("Auto Buso Haki (Enhancement)", true, function(v) _G.Config.AutoBusoHaki = v end)
+    
+    FarmTab:AddSection("Skills Control")
+    FarmTab:AddToggle("Use Weapon Skills", false, function(v) _G.Config.UseSkills = v end)
+    FarmTab:AddToggle("Use Skill [Z]", true, function(v) _G.Config.Skill_Z = v end)
+    FarmTab:AddToggle("Use Skill [X]", true, function(v) _G.Config.Skill_X = v end)
+    FarmTab:AddToggle("Use Skill [C]", true, function(v) _G.Config.Skill_C = v end)
+    FarmTab:AddToggle("Use Skill [V]", false, function(v) _G.Config.Skill_V = v end)
+    FarmTab:AddToggle("Use Skill [F]", false, function(v) _G.Config.Skill_F = v end)
+    
+    FarmTab:AddSection("Farm Distance Control")
+    FarmTab:AddToggle("Auto Adaptive Boss Distance", true, function(v) _G.Config.AdaptiveBossDistance = v end)
+    FarmTab:AddSlider("Mob Distance (Studs)", 4, 18, 8, function(v) _G.Config.MobFarmDistance = v end)
+    FarmTab:AddSlider("Boss Distance (Studs)", 10, 35, 18, function(v) _G.Config.BossFarmDistance = v end)
     
     FarmTab:AddSection("Level Farming")
     FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
