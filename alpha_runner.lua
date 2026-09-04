@@ -182,16 +182,25 @@ local function EquipCombatWeapon()
     local char = GetChar()
     local hum = GetHum()
     if not char or not hum then return nil end
+    
     local equipped = char:FindFirstChildOfClass("Tool")
-    if equipped and (equipped.ToolTip == "Melee" or equipped.ToolTip == "Sword" or not equipped.ToolTip or equipped.ToolTip == "") then
+    if equipped and equipped.Name ~= "Bomb-Bomb" and not string.find(equipped.Name:lower(), "fruit") and equipped.Name ~= "Tool" then
         return equipped
     end
+    
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if bp then
         for _, t in ipairs(bp:GetChildren()) do
-            if t:IsA("Tool") and t.ToolTip ~= "Blox Fruit" then
+            if t.Name == "Combat" or t.Name == "Black Leg" or t.Name == "Electro" or t.Name == "Fishman Karate" or string.find(t.Name:lower(), "katana") or string.find(t.Name:lower(), "sword") then
                 hum:EquipTool(t)
-                task.wait(0.2)
+                task.wait(0.3)
+                return t
+            end
+        end
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and not string.find(t.Name:lower(), "fruit") and not string.find(t.Name:lower(), "bomb") and t.Name ~= "Tool" then
+                hum:EquipTool(t)
+                task.wait(0.3)
                 return t
             end
         end
@@ -403,12 +412,12 @@ local function RunAllTests()
     
     -- TEST 2: Short-Range Farm Tween
     TelemetryState.current_test = "TEST_2_SHORT_TWEEN"
-    LogEvent("TEST_2", "Testing short-range linear farm tween (50 studs)...")
-    local testPos2 = root.CFrame * CFrame.new(35, 0, 35)
-    local ok2, msg2 = ControlledTweenTo(testPos2, "Short Farm Target", 250)
-    task.wait(0.5)
+    LogEvent("TEST_2", "Testing short-range linear farm tween (25 studs ahead)...")
+    local testPos2 = root.CFrame * CFrame.new(0, 0, -25)
+    local ok2, msg2 = ControlledTweenTo(testPos2, "Short Farm Target", 200)
+    task.wait(0.3)
     local shortDist = (root.Position - testPos2.Position).Magnitude
-    local pass2 = ok2 and (shortDist < 10)
+    local pass2 = ok2 and (shortDist < 8)
     RecordTest("ShortRangeTween", pass2, {delta = shortDist, status = msg2})
     
     -- TEST 3: Cross-Island Ocean Flight (REAL SEA VOYAGE)
@@ -509,7 +518,7 @@ local function RunAllTests()
         end
         
         -- Hover 12 studs above mob
-        local farmPos = mobTarget.HumanoidRootPart.CFrame * CFrame.new(0, 12, 0)
+        local farmPos = mobTarget.HumanoidRootPart.CFrame * CFrame.new(0, 7.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
         HoverLock(farmPos)
         task.wait(0.5)
         
