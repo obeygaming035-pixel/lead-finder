@@ -2,28 +2,16 @@
     ALPHA // BLOX FRUITS HUB v2 (KEYLESS EDITION)
     Complete Redz Hub Reconstruction • 100% Keyless • Full Feature Suite
     
-    Features:
-    - Auto Farm Level (Sea 1, 2, 3 complete level quest system)
-    - Dynamic Mob Selector & Auto Farm Selected Mob
-    - Master Boss Selector & Auto Farm Selected Boss / All Bosses
-    - World & Raid Bosses: Rip Indra, Dough King, Cake Prince, Soul Reaper, Darkbeard, Cursed Captain, Law
-    - Redz Fast Attack Engine (RE/RegisterAttack + RE/RegisterHit + Koby Fast Hit Algorithm)
-    - Bring Mobs (SimulationRadius mob clumping)
-    - Items & Quests: Auto Saber, Pole, Rengoku, Dragon Trident, Yama, Tushita, CDK, Soul Guitar, Bartilo
-    - Sea Events: Shark, Terror Shark, Piranha, Fish Crew, Sea Beast
-    - Mirage Island & Kitsune Island: Spawn Detector, Tween, Blue Gear Finder, Temple Lever
-    - Dungeon & Raids: Auto Buy Chip, Auto Start, Next Island, Auto Awaken
-    - Devil Fruit: Auto Random Gacha, Auto Store, Auto Grab Dropped Fruits, Fruit ESP
-    - Auto Stats: Real-time point allocator for Melee, Defense, Sword, Gun, Fruit
-    - Shop: 1-Click Buy for all Fighting Styles (V1 & V2), Swords, Haki, Geppo, Soru
-    - Teleports: Full Island Teleports for Sea 1, Sea 2, Sea 3
-    - UI: RedzLib UI Framework with built-in resilient fallback
-    - Zero Key System • Zero Ads • Instant Execution
+    - 100% Self-Contained Native Redz UI (Zero External HTTP Dependencies)
+    - Works on ALL Executors: KRNL, Synapse, Wave, Fluxus, Delta, Hydrogen, Arceus X, Solara
+    - Instant Execution • Zero Key System • Zero Ads
 ]]
 
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+pcall(function()
+    if not game:IsLoaded() then
+        game.Loaded:Wait()
+    end
+end)
 
 --============================== CORE SERVICES ==============================
 local Players = game:GetService("Players")
@@ -34,7 +22,6 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local UIS = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
@@ -46,10 +33,26 @@ local PlaceId = game.PlaceId
 local Sea1 = (PlaceId == 2753915549)
 local Sea2 = (PlaceId == 4442272183)
 local Sea3 = (PlaceId == 7449423635)
-local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Third Sea" or "Unknown Sea"))
+local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Third Sea" or "Blox Fruits"))
 
 -- Safe request wrapper
 local safeRequest = (syn and syn.request) or http_request or (fluxus and fluxus.request) or (http and http.request) or request
+
+--============================== SAFE GUI PARENTING ==============================
+local function GetSafeGui()
+    if gethui then
+        local ok, res = pcall(gethui)
+        if ok and res then return res end
+    end
+    local ok, res = pcall(function()
+        local test = Instance.new("Folder")
+        test.Parent = CoreGui
+        test:Destroy()
+        return CoreGui
+    end)
+    if ok and res then return res end
+    return LocalPlayer:WaitForChild("PlayerGui", 10)
+end
 
 --============================== REMOTES & MODULES ==============================
 local Remotes = RS:WaitForChild("Remotes", 10)
@@ -194,7 +197,6 @@ local function EquipWeapon(weaponType)
         end
     end
     
-    -- Fallback: equip any available tool
     for _, tool in ipairs(bp:GetChildren()) do
         if tool:IsA("Tool") then
             char.Humanoid:EquipTool(tool)
@@ -269,7 +271,6 @@ local function TweenTo(targetCFrame)
 end
 
 --============================== FAST ATTACK ENGINE ==============================
--- Exact Redz Hub multi-method combat system
 local function GetBladeHits()
     local targets = {}
     local root = GetRoot()
@@ -298,7 +299,7 @@ local function FastAttack()
     
     local enemies = GetBladeHits()
     if #enemies > 0 then
-        -- Method 1: Net remotes
+        -- Method 1: Direct Net Remotes
         if RegisterAttack and RegisterHit then
             pcall(function()
                 RegisterAttack:FireServer(-math.huge)
@@ -313,13 +314,13 @@ local function FastAttack()
             end)
         end
         
-        -- Method 2: Tool activate fallback
+        -- Method 2: Tool Activate
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
             pcall(function() tool:Activate() end)
         end
         
-        -- Method 3: VirtualUser click
+        -- Method 3: VirtualUser
         pcall(function()
             VirtualUser:CaptureController()
             VirtualUser:Button1Down(Vector2.new(0, 0))
@@ -365,7 +366,6 @@ local function BringMobsTo(targetMobName, centerCFrame)
 end
 
 --============================== MASTER QUEST DATABASE ==============================
--- Covers every single level bracket for Sea 1, Sea 2, and Sea 3
 local QuestsDB = {
     -- Sea 1 (First Sea)
     {Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", Pos = CFrame.new(1059.37, 16.51, 1546.99)},
@@ -623,7 +623,7 @@ task.spawn(function()
         task.wait(0.2)
         if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
             pcall(function()
-                local mobName = _G.Config.SelectedMob:gsub("^[Spawned] ", "")
+                local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
                 local target = FindEnemy(mobName)
                 if target and target:FindFirstChild("HumanoidRootPart") then
                     local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
@@ -631,7 +631,6 @@ task.spawn(function()
                     EquipWeapon()
                     BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                 else
-                    -- Look up position in QuestsDB
                     for _, q in ipairs(QuestsDB) do
                         if q.Mob == mobName then
                             TweenTo(q.Pos * CFrame.new(0, 35, 0))
@@ -650,7 +649,7 @@ task.spawn(function()
         task.wait(0.3)
         if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
             pcall(function()
-                local bossName = _G.Config.SelectedBoss:gsub("^[Spawned] ", "")
+                local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
                 local bossData = BossesDB[bossName]
                 local target = FindEnemy(bossName)
                 
@@ -800,7 +799,7 @@ local function UpdateFruitESP()
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
-            label.Text = "🍎 " .. obj.Name
+            label.Text = "[Fruit] " .. obj.Name
             label.TextColor3 = Color3.fromRGB(255, 100, 100)
             label.Font = Enum.Font.GothamBold
             label.TextSize = 13
@@ -881,270 +880,649 @@ local function EnableAntiAFK()
 end
 if _G.Config.AntiAFK then EnableAntiAFK() end
 
---============================== REDZLIB UI INITIALIZATION ==============================
-local RedzLibSuccess, RedzLib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/farehamhz/RedzLib/main/RedzLib"))()
-end)
-
-if RedzLibSuccess and RedzLib then
-    local Window = RedzLib:MakeWindow({
-        Title = "ALPHA // BLOX FRUITS HUB v2",
-        SubTitle = "Keyless Edition • " .. SeaName,
-        SaveFolder = "AlphaHubV2"
-    })
+--============================== NATIVE REDZ-STYLE UI FRAMEWORK ==============================
+-- 100% Self-Contained • Zero external downloads • Instant Execution on all executors
+local function CreateUI()
+    local parentGui = GetSafeGui()
     
-    -- Tabs
-    local FarmTab = Window:MakeTab({"Main Farm", "swords"})
-    local BossTab = Window:MakeTab({"Boss Farm", "skull"})
-    local RaidTab = Window:MakeTab({"Dungeon & Raids", "flame"})
-    local FruitTab = Window:MakeTab({"Devil Fruit", "cherry"})
-    local SeaTab = Window:MakeTab({"Sea Events & Mirage", "anchor"})
-    local ItemTab = Window:MakeTab({"Items & Quests", "trophy"})
-    local StatsTab = Window:MakeTab({"Stats Allocator", "bar-chart-2"})
-    local ShopTab = Window:MakeTab({"Shop", "shopping-cart"})
-    local TeleportTab = Window:MakeTab({"Teleports", "map-pin"})
-    local MiscTab = Window:MakeTab({"Settings & Server", "settings"})
+    -- Cleanup any existing instance
+    local old = parentGui:FindFirstChild("AlphaHubV2_Gui")
+    if old then old:Destroy() end
     
-    -- MAIN FARM TAB
-    FarmTab:AddSection({"Combat Settings"})
-    FarmTab:AddDropdown({
-        Name = "Select Weapon",
-        Options = {"Melee", "Sword", "Gun", "Fruit"},
-        Default = "Melee",
-        Callback = function(v) _G.Config.SelectedWeapon = v end
-    })
-    FarmTab:AddToggle({
-        Name = "Fast Attack (RE/RegisterAttack + Hit)",
-        Default = true,
-        Callback = function(v) _G.Config.FastAttack = v end
-    })
-    FarmTab:AddSlider({
-        Name = "Attack Range (Studs)",
-        Min = 30,
-        Max = 85,
-        Default = 65,
-        Callback = function(v) _G.Config.AttackDistance = v end
-    })
-    FarmTab:AddToggle({
-        Name = "Bring Mobs (Simulation Radius)",
-        Default = true,
-        Callback = function(v) _G.Config.BringMobs = v end
-    })
-    FarmTab:AddSlider({
-        Name = "Farm Distance (Hover Offset)",
-        Min = 4,
-        Max = 20,
-        Default = 9,
-        Callback = function(v) _G.Config.FarmDistance = v end
-    })
-    FarmTab:AddToggle({
-        Name = "Auto Buso Haki (Enhancement)",
-        Default = true,
-        Callback = function(v) _G.Config.AutoBusoHaki = v end
-    })
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "AlphaHubV2_Gui"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.Parent = parentGui
     
-    FarmTab:AddSection({"Level Farming"})
-    FarmTab:AddToggle({
-        Name = "Auto Farm Level (Auto Quest + Mob)",
-        Default = false,
-        Callback = function(v)
-            _G.Config.AutoFarmLevel = v
-            if not v then StopTween() end
+    -- Main Frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 580, 0, 360)
+    MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = ScreenGui
+    
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 8)
+    MainCorner.Parent = MainFrame
+    
+    local MainStroke = Instance.new("UIStroke")
+    MainStroke.Color = Color3.fromRGB(45, 45, 60)
+    MainStroke.Thickness = 1.2
+    MainStroke.Parent = MainFrame
+    
+    -- Dragging logic
+    local dragging, dragInput, dragStart, startPos
+    MainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
         end
-    })
-    FarmTab:AddToggle({
-        Name = "Auto Double Quest",
-        Default = false,
-        Callback = function(v) _G.Config.AutoDoubleQuest = v end
-    })
+    end)
+    MainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
     
-    FarmTab:AddSection({"Select Mob Farming"})
-    local MobDropdown = FarmTab:AddDropdown({
-        Name = "Select Mob",
-        Options = GetSpawnedMobsList(),
-        Default = GetSpawnedMobsList()[1] or "Bandit",
-        Callback = function(v) _G.Config.SelectedMob = v end
-    })
-    FarmTab:AddButton({
-        Name = "Refresh Mobs List",
-        Callback = function()
-            local updated = GetSpawnedMobsList()
-            if MobDropdown and MobDropdown.SetOptions then
-                MobDropdown:SetOptions(updated)
+    -- Top Bar
+    local TopBar = Instance.new("Frame")
+    TopBar.Name = "TopBar"
+    TopBar.Size = UDim2.new(1, 0, 0, 42)
+    TopBar.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+    TopBar.BorderSizePixel = 0
+    TopBar.Parent = MainFrame
+    
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(0, 300, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 14, 0, 0)
+    TitleLabel.Text = "ALPHA // BLOX FRUITS HUB v2"
+    TitleLabel.TextColor3 = Color3.fromRGB(175, 110, 255)
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 14
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Parent = TopBar
+    
+    local SubLabel = Instance.new("TextLabel")
+    SubLabel.Size = UDim2.new(0, 200, 1, 0)
+    SubLabel.Position = UDim2.new(0, 240, 0, 0)
+    SubLabel.Text = "Keyless • " .. SeaName
+    SubLabel.TextColor3 = Color3.fromRGB(120, 120, 150)
+    SubLabel.Font = Enum.Font.Gotham
+    SubLabel.TextSize = 11
+    SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+    SubLabel.BackgroundTransparency = 1
+    SubLabel.Parent = TopBar
+    
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+    CloseBtn.Position = UDim2.new(1, -34, 0, 7)
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 13
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Parent = TopBar
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseBtn
+    CloseBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = false
+    end)
+    
+    -- Floating Reopen Button (So user can always reopen GUI)
+    local FloatingBtn = Instance.new("TextButton")
+    FloatingBtn.Name = "AlphaHubToggle"
+    FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
+    FloatingBtn.Position = UDim2.new(0, 20, 0.5, -25)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    FloatingBtn.Text = "ALPHA"
+    FloatingBtn.TextColor3 = Color3.fromRGB(175, 110, 255)
+    FloatingBtn.Font = Enum.Font.GothamBold
+    FloatingBtn.TextSize = 11
+    FloatingBtn.BorderSizePixel = 0
+    FloatingBtn.Parent = ScreenGui
+    local FloatCorner = Instance.new("UICorner")
+    FloatCorner.CornerRadius = UDim.new(1, 0)
+    FloatCorner.Parent = FloatingBtn
+    local FloatStroke = Instance.new("UIStroke")
+    FloatStroke.Color = Color3.fromRGB(160, 90, 255)
+    FloatStroke.Thickness = 1.5
+    FloatStroke.Parent = FloatingBtn
+    FloatingBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+    
+    -- Left Sidebar
+    local Sidebar = Instance.new("ScrollingFrame")
+    Sidebar.Name = "Sidebar"
+    Sidebar.Size = UDim2.new(0, 140, 1, -42)
+    Sidebar.Position = UDim2.new(0, 0, 0, 42)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+    Sidebar.BorderSizePixel = 0
+    Sidebar.ScrollBarThickness = 2
+    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 360)
+    Sidebar.Parent = MainFrame
+    
+    local SidebarLayout = Instance.new("UIListLayout")
+    SidebarLayout.Padding = UDim.new(0, 4)
+    SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    SidebarLayout.Parent = Sidebar
+    local SidebarPad = Instance.new("UIPadding")
+    SidebarPad.PaddingTop = UDim.new(0, 6)
+    SidebarPad.Parent = Sidebar
+    
+    -- Content Container
+    local ContentHolder = Instance.new("Frame")
+    ContentHolder.Name = "ContentHolder"
+    ContentHolder.Size = UDim2.new(1, -140, 1, -42)
+    ContentHolder.Position = UDim2.new(0, 140, 0, 42)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+    ContentHolder.BorderSizePixel = 0
+    ContentHolder.Parent = MainFrame
+    
+    local Tabs = {}
+    local CurrentActiveTab = nil
+    
+    local function SwitchTab(tabName)
+        for name, page in pairs(Tabs) do
+            page.Page.Visible = (name == tabName)
+            if page.Btn then
+                if name == tabName then
+                    page.Btn.BackgroundColor3 = Color3.fromRGB(140, 70, 255)
+                    page.Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    page.Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+                    page.Btn.TextColor3 = Color3.fromRGB(170, 170, 190)
+                end
             end
         end
-    })
-    FarmTab:AddToggle({
-        Name = "Auto Farm Selected Mob",
-        Default = false,
-        Callback = function(v)
-            _G.Config.FarmSelectedMob = v
-            if not v then StopTween() end
-        end
-    })
+        CurrentActiveTab = tabName
+    end
     
-    -- BOSS FARM TAB
-    BossTab:AddSection({"Select Boss Farming"})
-    local BossDropdown = BossTab:AddDropdown({
-        Name = "Select Boss",
-        Options = GetSpawnedBossesList(),
-        Default = "The Gorilla King",
-        Callback = function(v) _G.Config.SelectedBoss = v end
-    })
-    BossTab:AddButton({
-        Name = "Refresh Bosses List (Scan Active)",
-        Callback = function()
-            local updated = GetSpawnedBossesList()
-            if BossDropdown and BossDropdown.SetOptions then
-                BossDropdown:SetOptions(updated)
+    local function CreateTab(name)
+        local TabBtn = Instance.new("TextButton")
+        TabBtn.Size = UDim2.new(1, -12, 0, 28)
+        TabBtn.Text = name
+        TabBtn.TextColor3 = Color3.fromRGB(170, 170, 190)
+        TabBtn.Font = Enum.Font.GothamMedium
+        TabBtn.TextSize = 11
+        TabBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+        TabBtn.BorderSizePixel = 0
+        TabBtn.Parent = Sidebar
+        local TabBtnCorner = Instance.new("UICorner")
+        TabBtnCorner.CornerRadius = UDim.new(0, 5)
+        TabBtnCorner.Parent = TabBtn
+        
+        local Page = Instance.new("ScrollingFrame")
+        Page.Name = name .. "_Page"
+        Page.Size = UDim2.new(1, 0, 1, 0)
+        Page.BackgroundTransparency = 1
+        Page.BorderSizePixel = 0
+        Page.ScrollBarThickness = 3
+        Page.CanvasSize = UDim2.new(0, 0, 0, 100)
+        Page.Visible = false
+        Page.Parent = ContentHolder
+        
+        local PageLayout = Instance.new("UIListLayout")
+        PageLayout.Padding = UDim.new(0, 6)
+        PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        PageLayout.Parent = Page
+        local PagePad = Instance.new("UIPadding")
+        PagePad.PaddingTop = UDim.new(0, 8)
+        PagePad.PaddingBottom = UDim.new(0, 14)
+        PagePad.Parent = Page
+        
+        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 24)
+        end)
+        
+        TabBtn.MouseButton1Click:Connect(function()
+            SwitchTab(name)
+        end)
+        
+        Tabs[name] = {Btn = TabBtn, Page = Page}
+        
+        local TabAPI = {}
+        
+        function TabAPI:AddSection(secName)
+            local SecFrame = Instance.new("Frame")
+            SecFrame.Size = UDim2.new(1, -16, 0, 24)
+            SecFrame.BackgroundTransparency = 1
+            SecFrame.Parent = Page
+            
+            local SecLabel = Instance.new("TextLabel")
+            SecLabel.Size = UDim2.new(1, 0, 1, 0)
+            SecLabel.Text = secName:upper()
+            SecLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+            SecLabel.Font = Enum.Font.GothamBold
+            SecLabel.TextSize = 10
+            SecLabel.TextXAlignment = Enum.TextXAlignment.Left
+            SecLabel.BackgroundTransparency = 1
+            SecLabel.Parent = SecFrame
+        end
+        
+        function TabAPI:AddToggle(title, defaultVal, callback)
+            local isChecked = defaultVal or false
+            local ToggleFrame = Instance.new("Frame")
+            ToggleFrame.Size = UDim2.new(1, -16, 0, 32)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            ToggleFrame.BorderSizePixel = 0
+            ToggleFrame.Parent = Page
+            local TCorner = Instance.new("UICorner")
+            TCorner.CornerRadius = UDim.new(0, 5)
+            TCorner.Parent = ToggleFrame
+            
+            local TTitle = Instance.new("TextLabel")
+            TTitle.Size = UDim2.new(1, -50, 1, 0)
+            TTitle.Position = UDim2.new(0, 10, 0, 0)
+            TTitle.Text = title
+            TTitle.TextColor3 = Color3.fromRGB(220, 220, 230)
+            TTitle.Font = Enum.Font.Gotham
+            TTitle.TextSize = 11
+            TTitle.TextXAlignment = Enum.TextXAlignment.Left
+            TTitle.BackgroundTransparency = 1
+            TTitle.Parent = ToggleFrame
+            
+            local Switch = Instance.new("TextButton")
+            Switch.Size = UDim2.new(0, 36, 0, 18)
+            Switch.Position = UDim2.new(1, -44, 0.5, -9)
+            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(140, 70, 255) or Color3.fromRGB(45, 45, 55)
+            Switch.Text = ""
+            Switch.BorderSizePixel = 0
+            Switch.Parent = ToggleFrame
+            local SCorner = Instance.new("UICorner")
+            SCorner.CornerRadius = UDim.new(1, 0)
+            SCorner.Parent = Switch
+            
+            local Knob = Instance.new("Frame")
+            Knob.Size = UDim2.new(0, 14, 0, 14)
+            Knob.Position = isChecked and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+            Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            Knob.BorderSizePixel = 0
+            Knob.Parent = Switch
+            local KCorner = Instance.new("UICorner")
+            KCorner.CornerRadius = UDim.new(1, 0)
+            KCorner.Parent = Knob
+            
+            local function UpdateToggle()
+                Switch.BackgroundColor3 = isChecked and Color3.fromRGB(140, 70, 255) or Color3.fromRGB(45, 45, 55)
+                Knob.Position = isChecked and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
             end
+            
+            Switch.MouseButton1Click:Connect(function()
+                isChecked = not isChecked
+                UpdateToggle()
+                if callback then pcall(callback, isChecked) end
+            end)
+            
+            local ToggleAPI = {}
+            function ToggleAPI:Set(val)
+                isChecked = val
+                UpdateToggle()
+                if callback then pcall(callback, isChecked) end
+            end
+            return ToggleAPI
         end
-    })
-    BossTab:AddToggle({
-        Name = "Auto Farm Selected Boss",
-        Default = false,
-        Callback = function(v)
-            _G.Config.FarmSelectedBoss = v
-            if not v then StopTween() end
+        
+        function TabAPI:AddButton(title, callback)
+            local Btn = Instance.new("TextButton")
+            Btn.Size = UDim2.new(1, -16, 0, 30)
+            Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+            Btn.Text = title
+            Btn.TextColor3 = Color3.fromRGB(230, 230, 240)
+            Btn.Font = Enum.Font.GothamMedium
+            Btn.TextSize = 11
+            Btn.BorderSizePixel = 0
+            Btn.Parent = Page
+            local BCorner = Instance.new("UICorner")
+            BCorner.CornerRadius = UDim.new(0, 5)
+            BCorner.Parent = Btn
+            
+            Btn.MouseButton1Click:Connect(function()
+                Btn.BackgroundColor3 = Color3.fromRGB(140, 70, 255)
+                task.wait(0.12)
+                Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+                if callback then pcall(callback) end
+            end)
         end
-    })
-    BossTab:AddToggle({
-        Name = "Auto Farm All Spawned Bosses",
-        Default = false,
-        Callback = function(v)
-            _G.Config.FarmAllBosses = v
-            if not v then StopTween() end
+        
+        function TabAPI:AddDropdown(title, options, defaultVal, callback)
+            local selected = defaultVal or (options and options[1]) or ""
+            local DropFrame = Instance.new("Frame")
+            DropFrame.Size = UDim2.new(1, -16, 0, 34)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            DropFrame.BorderSizePixel = 0
+            DropFrame.ClipsDescendants = true
+            DropFrame.Parent = Page
+            local DCorner = Instance.new("UICorner")
+            DCorner.CornerRadius = UDim.new(0, 5)
+            DCorner.Parent = DropFrame
+            
+            local DTitle = Instance.new("TextLabel")
+            DTitle.Size = UDim2.new(0, 160, 0, 34)
+            DTitle.Position = UDim2.new(0, 10, 0, 0)
+            DTitle.Text = title
+            DTitle.TextColor3 = Color3.fromRGB(210, 210, 220)
+            DTitle.Font = Enum.Font.Gotham
+            DTitle.TextSize = 11
+            DTitle.TextXAlignment = Enum.TextXAlignment.Left
+            DTitle.BackgroundTransparency = 1
+            DTitle.Parent = DropFrame
+            
+            local SelectBtn = Instance.new("TextButton")
+            SelectBtn.Size = UDim2.new(0, 210, 0, 24)
+            SelectBtn.Position = UDim2.new(1, -218, 0, 5)
+            SelectBtn.Text = tostring(selected) .. " v"
+            SelectBtn.TextColor3 = Color3.fromRGB(180, 120, 255)
+            SelectBtn.Font = Enum.Font.GothamMedium
+            SelectBtn.TextSize = 10
+            SelectBtn.BackgroundColor3 = Color3.fromRGB(34, 34, 48)
+            SelectBtn.BorderSizePixel = 0
+            SelectBtn.Parent = DropFrame
+            local SCorner = Instance.new("UICorner")
+            SCorner.CornerRadius = UDim.new(0, 4)
+            SCorner.Parent = SelectBtn
+            
+            local ListScroll = Instance.new("ScrollingFrame")
+            ListScroll.Size = UDim2.new(1, -16, 0, 100)
+            ListScroll.Position = UDim2.new(0, 8, 0, 38)
+            ListScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+            ListScroll.BorderSizePixel = 0
+            ListScroll.ScrollBarThickness = 2
+            ListScroll.Visible = false
+            ListScroll.Parent = DropFrame
+            local LCorner = Instance.new("UICorner")
+            LCorner.CornerRadius = UDim.new(0, 4)
+            LCorner.Parent = ListScroll
+            local LLayout = Instance.new("UIListLayout")
+            LLayout.Padding = UDim.new(0, 2)
+            LLayout.Parent = ListScroll
+            
+            local isOpen = false
+            local function Populate(opts)
+                for _, child in ipairs(ListScroll:GetChildren()) do
+                    if child:IsA("TextButton") then child:Destroy() end
+                end
+                for _, opt in ipairs(opts) do
+                    local OptBtn = Instance.new("TextButton")
+                    OptBtn.Size = UDim2.new(1, 0, 0, 22)
+                    OptBtn.Text = tostring(opt)
+                    OptBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+                    OptBtn.Font = Enum.Font.Gotham
+                    OptBtn.TextSize = 10
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+                    OptBtn.BorderSizePixel = 0
+                    OptBtn.Parent = ListScroll
+                    OptBtn.MouseButton1Click:Connect(function()
+                        selected = opt
+                        SelectBtn.Text = tostring(selected) .. " v"
+                        isOpen = false
+                        DropFrame.Size = UDim2.new(1, -16, 0, 34)
+                        ListScroll.Visible = false
+                        if callback then pcall(callback, selected) end
+                    end)
+                end
+                ListScroll.CanvasSize = UDim2.new(0, 0, 0, #opts * 24)
+            end
+            Populate(options or {})
+            
+            SelectBtn.MouseButton1Click:Connect(function()
+                isOpen = not isOpen
+                if isOpen then
+                    DropFrame.Size = UDim2.new(1, -16, 0, 146)
+                    ListScroll.Visible = true
+                else
+                    DropFrame.Size = UDim2.new(1, -16, 0, 34)
+                    ListScroll.Visible = false
+                end
+            end)
+            
+            local DropAPI = {}
+            function DropAPI:SetOptions(newOpts)
+                Populate(newOpts)
+            end
+            return DropAPI
         end
-    })
-    
-    BossTab:AddSection({"World & Raid Bosses"})
-    BossTab:AddToggle({Name = "Auto Kill Rip Indra", Default = false, Callback = function(v) _G.Config.AutoKillRipIndra = v end})
-    BossTab:AddToggle({Name = "Auto Kill Dough King", Default = false, Callback = function(v) _G.Config.AutoKillDoughKing = v end})
-    BossTab:AddToggle({Name = "Auto Kill Cake Prince", Default = false, Callback = function(v) _G.Config.AutoKillCakePrince = v end})
-    BossTab:AddToggle({Name = "Auto Kill Soul Reaper", Default = false, Callback = function(v) _G.Config.AutoKillSoulReaper = v end})
-    BossTab:AddToggle({Name = "Auto Kill Darkbeard", Default = false, Callback = function(v) _G.Config.AutoKillDarkbeard = v end})
-    BossTab:AddToggle({Name = "Auto Kill Cursed Captain", Default = false, Callback = function(v) _G.Config.AutoKillCursedCaptain = v end})
-    BossTab:AddToggle({Name = "Auto Kill Order (Law)", Default = false, Callback = function(v) _G.Config.AutoKillLaw = v end})
-    
-    -- DUNGEON & RAIDS TAB
-    RaidTab:AddSection({"Raid Controls"})
-    RaidTab:AddDropdown({
-        Name = "Select Raid Chip",
-        Options = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"},
-        Default = "Flame",
-        Callback = function(v) _G.Config.SelectedChip = v end
-    })
-    RaidTab:AddToggle({
-        Name = "Auto Buy Raid Chip",
-        Default = false,
-        Callback = function(v) _G.Config.AutoBuyChip = v end
-    })
-    RaidTab:AddToggle({
-        Name = "Auto Start Raid",
-        Default = false,
-        Callback = function(v) _G.Config.AutoStartRaid = v end
-    })
-    RaidTab:AddToggle({
-        Name = "Auto Farm Raid (Next Island)",
-        Default = false,
-        Callback = function(v) _G.Config.AutoFarmRaid = v end
-    })
-    RaidTab:AddToggle({
-        Name = "Auto Awaken Fruit",
-        Default = false,
-        Callback = function(v) _G.Config.AutoAwaken = v end
-    })
-    
-    -- DEVIL FRUIT TAB
-    FruitTab:AddSection({"Fruit Collection"})
-    FruitTab:AddToggle({
-        Name = "Auto Random Fruit (Gacha Cousin)",
-        Default = false,
-        Callback = function(v) _G.Config.AutoRandomFruit = v end
-    })
-    FruitTab:AddToggle({
-        Name = "Auto Store Fruits in Inventory",
-        Default = true,
-        Callback = function(v) _G.Config.AutoStoreFruit = v end
-    })
-    FruitTab:AddToggle({
-        Name = "Auto Grab Dropped Fruits (Tween)",
-        Default = false,
-        Callback = function(v) _G.Config.AutoGrabFruits = v end
-    })
-    FruitTab:AddToggle({
-        Name = "Fruit ESP (Billboard Markers)",
-        Default = false,
-        Callback = function(v)
-            _G.Config.FruitESP = v
-            if v then UpdateFruitESP() else UpdateFruitESP() end
+        
+        function TabAPI:AddSlider(title, min, max, defaultVal, callback)
+            local current = defaultVal or min
+            local SliderFrame = Instance.new("Frame")
+            SliderFrame.Size = UDim2.new(1, -16, 0, 42)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+            SliderFrame.BorderSizePixel = 0
+            SliderFrame.Parent = Page
+            local SCorner = Instance.new("UICorner")
+            SCorner.CornerRadius = UDim.new(0, 5)
+            SCorner.Parent = SliderFrame
+            
+            local STitle = Instance.new("TextLabel")
+            STitle.Size = UDim2.new(0, 220, 0, 20)
+            STitle.Position = UDim2.new(0, 10, 0, 4)
+            STitle.Text = title
+            STitle.TextColor3 = Color3.fromRGB(210, 210, 220)
+            STitle.Font = Enum.Font.Gotham
+            STitle.TextSize = 11
+            STitle.TextXAlignment = Enum.TextXAlignment.Left
+            STitle.BackgroundTransparency = 1
+            STitle.Parent = SliderFrame
+            
+            local SValue = Instance.new("TextLabel")
+            SValue.Size = UDim2.new(0, 60, 0, 20)
+            SValue.Position = UDim2.new(1, -70, 0, 4)
+            SValue.Text = tostring(current)
+            SValue.TextColor3 = Color3.fromRGB(180, 120, 255)
+            SValue.Font = Enum.Font.GothamBold
+            SValue.TextSize = 11
+            SValue.TextXAlignment = Enum.TextXAlignment.Right
+            SValue.BackgroundTransparency = 1
+            SValue.Parent = SliderFrame
+            
+            local Bar = Instance.new("Frame")
+            Bar.Size = UDim2.new(1, -20, 0, 6)
+            Bar.Position = UDim2.new(0, 10, 0, 28)
+            Bar.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+            Bar.BorderSizePixel = 0
+            Bar.Parent = SliderFrame
+            local BarCorner = Instance.new("UICorner")
+            BarCorner.CornerRadius = UDim.new(1, 0)
+            BarCorner.Parent = Bar
+            
+            local Fill = Instance.new("Frame")
+            local pct = math.clamp((current - min) / (max - min), 0, 1)
+            Fill.Size = UDim2.new(pct, 0, 1, 0)
+            Fill.BackgroundColor3 = Color3.fromRGB(150, 80, 255)
+            Fill.BorderSizePixel = 0
+            Fill.Parent = Bar
+            local FillCorner = Instance.new("UICorner")
+            FillCorner.CornerRadius = UDim.new(1, 0)
+            FillCorner.Parent = Fill
+            
+            local isSliding = false
+            Bar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isSliding = true
+                    local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                    current = math.floor(min + (max - min) * relX)
+                    Fill.Size = UDim2.new(relX, 0, 1, 0)
+                    SValue.Text = tostring(current)
+                    if callback then pcall(callback, current) end
+                end
+            end)
+            UIS.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    isSliding = false
+                end
+            end)
+            UIS.InputChanged:Connect(function(input)
+                if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                    current = math.floor(min + (max - min) * relX)
+                    Fill.Size = UDim2.new(relX, 0, 1, 0)
+                    SValue.Text = tostring(current)
+                    if callback then pcall(callback, current) end
+                end
+            end)
         end
-    })
+        
+        return TabAPI
+    end
     
-    -- SEA EVENTS & MIRAGE TAB
-    SeaTab:AddSection({"Sea Events"})
-    SeaTab:AddToggle({Name = "Auto Kill Sharks", Default = false, Callback = function(v) _G.Config.AutoKillShark = v end})
-    SeaTab:AddToggle({Name = "Auto Kill Terror Shark", Default = false, Callback = function(v) _G.Config.AutoKillTerrorShark = v end})
-    SeaTab:AddToggle({Name = "Auto Kill Sea Beast", Default = false, Callback = function(v) _G.Config.AutoKillSeaBeast = v end})
+    -- Instantiate All Tabs
+    local FarmTab = CreateTab("Main Farm")
+    local BossTab = CreateTab("Boss Farm")
+    local RaidTab = CreateTab("Dungeon & Raids")
+    local FruitTab = CreateTab("Devil Fruit")
+    local SeaTab = CreateTab("Sea Events")
+    local ItemTab = CreateTab("Items & Quests")
+    local StatsTab = CreateTab("Stats Allocator")
+    local ShopTab = CreateTab("Shop")
+    local TeleportTab = CreateTab("Teleports")
+    local MiscTab = CreateTab("Settings")
     
-    SeaTab:AddSection({"Mirage & Kitsune Island"})
-    SeaTab:AddButton({
-        Name = "Check Mirage Island Status",
-        Callback = function()
-            local spawned = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
-            print("[ALPHA HUB] Mirage Island:", spawned and "SPAWNED!" or "NOT Spawned")
-        end
-    })
-    SeaTab:AddButton({
-        Name = "Check Kitsune Island Status",
-        Callback = function()
-            local spawned = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
-            print("[ALPHA HUB] Kitsune Island:", spawned and "SPAWNED!" or "NOT Spawned")
-        end
-    })
-    SeaTab:AddToggle({Name = "Auto Find Blue Gear (Mirage)", Default = false, Callback = function(v) _G.Config.AutoFindGear = v end})
-    SeaTab:AddToggle({Name = "Auto Pull Lever (Temple of Time)", Default = false, Callback = function(v) _G.Config.AutoPullLever = v end})
+    -- MAIN FARM
+    FarmTab:AddSection("Combat Settings")
+    FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v) _G.Config.SelectedWeapon = v end)
+    FarmTab:AddToggle("Fast Attack (RegisterAttack + Hit)", true, function(v) _G.Config.FastAttack = v end)
+    FarmTab:AddSlider("Attack Range (Studs)", 30, 85, 65, function(v) _G.Config.AttackDistance = v end)
+    FarmTab:AddToggle("Bring Mobs (Simulation Radius)", true, function(v) _G.Config.BringMobs = v end)
+    FarmTab:AddSlider("Farm Distance (Hover Offset)", 4, 20, 9, function(v) _G.Config.FarmDistance = v end)
+    FarmTab:AddToggle("Auto Buso Haki (Enhancement)", true, function(v) _G.Config.AutoBusoHaki = v end)
     
-    -- ITEMS & QUESTS TAB
-    ItemTab:AddSection({"Special Weapons & Quests"})
-    ItemTab:AddButton({Name = "Auto Saber Quest", Callback = function() if CommF_ then CommF_:InvokeServer("ProQuestProgress", "RichSon") end end})
-    ItemTab:AddButton({Name = "Auto Bartilo Quest", Callback = function() if CommF_ then CommF_:InvokeServer("BartiloQuestProgress", "GetMission") end end})
-    ItemTab:AddButton({Name = "Travel to Second Sea", Callback = function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end})
-    ItemTab:AddButton({Name = "Travel to Third Sea", Callback = function() if CommF_ then CommF_:InvokeServer("TravelZou") end end})
+    FarmTab:AddSection("Level Farming")
+    FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
+        _G.Config.AutoFarmLevel = v
+        if not v then StopTween() end
+    end)
+    FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
     
-    -- STATS TAB
-    StatsTab:AddSection({"Stats Points Allocator"})
-    StatsTab:AddToggle({Name = "Auto Allocate Stats", Default = false, Callback = function(v) _G.Config.AutoStats = v end})
-    StatsTab:AddSlider({Name = "Points Per Stat", Min = 1, Max = 100, Default = 1, Callback = function(v) _G.Config.StatPoints = v end})
-    StatsTab:AddToggle({Name = "Melee", Default = true, Callback = function(v) _G.Config.Stats.Melee = v end})
-    StatsTab:AddToggle({Name = "Defense", Default = true, Callback = function(v) _G.Config.Stats.Defense = v end})
-    StatsTab:AddToggle({Name = "Sword", Default = false, Callback = function(v) _G.Config.Stats.Sword = v end})
-    StatsTab:AddToggle({Name = "Gun", Default = false, Callback = function(v) _G.Config.Stats.Gun = v end})
-    StatsTab:AddToggle({Name = "Blox Fruit", Default = false, Callback = function(v) _G.Config.Stats.Fruit = v end})
-    StatsTab:AddButton({Name = "Refund Stats (2,500 Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Refund", "2") end end})
-    StatsTab:AddButton({Name = "Reroll Race (3,000 Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Reroll", "2") end end})
+    FarmTab:AddSection("Select Mob Farming")
+    local MobDrop = FarmTab:AddDropdown("Select Mob", GetSpawnedMobsList(), GetSpawnedMobsList()[1] or "Bandit", function(v) _G.Config.SelectedMob = v end)
+    FarmTab:AddButton("Refresh Mobs List", function()
+        local updated = GetSpawnedMobsList()
+        MobDrop:SetOptions(updated)
+    end)
+    FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
+        _G.Config.FarmSelectedMob = v
+        if not v then StopTween() end
+    end)
     
-    -- SHOP TAB
-    ShopTab:AddSection({"Fighting Styles (Melee V1 & V2)"})
-    ShopTab:AddButton({Name = "Buy Black Leg ($150,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end})
-    ShopTab:AddButton({Name = "Buy Electro ($550,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end})
-    ShopTab:AddButton({Name = "Buy Fishman Karate ($750,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end})
-    ShopTab:AddButton({Name = "Buy Dragon Breath (1,500 Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end})
-    ShopTab:AddButton({Name = "Buy Superhuman ($3,000,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end})
-    ShopTab:AddButton({Name = "Buy Death Step ($5M + 5k Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end})
-    ShopTab:AddButton({Name = "Buy Sharkman Karate ($2.5M + 5k Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end})
-    ShopTab:AddButton({Name = "Buy Electric Claw ($3M + 5k Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end})
-    ShopTab:AddButton({Name = "Buy Dragon Talon ($3M + 5k Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end})
-    ShopTab:AddButton({Name = "Buy Godhuman ($5M + 5k Frags)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end})
+    -- BOSS FARM
+    BossTab:AddSection("Select Boss Farming")
+    local BossDrop = BossTab:AddDropdown("Select Boss", GetSpawnedBossesList(), "The Gorilla King", function(v) _G.Config.SelectedBoss = v end)
+    BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
+        local updated = GetSpawnedBossesList()
+        BossDrop:SetOptions(updated)
+    end)
+    BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
+        _G.Config.FarmSelectedBoss = v
+        if not v then StopTween() end
+    end)
+    BossTab:AddToggle("Auto Farm All Spawned Bosses", false, function(v)
+        _G.Config.FarmAllBosses = v
+        if not v then StopTween() end
+    end)
     
-    ShopTab:AddSection({"Abilities & Haki"})
-    ShopTab:AddButton({Name = "Buy Skyjump (Geppo - $10,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end})
-    ShopTab:AddButton({Name = "Buy Enhancement (Buso - $25,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end})
-    ShopTab:AddButton({Name = "Buy Flash Step (Soru - $100,000)", Callback = function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end})
-    ShopTab:AddButton({Name = "Buy Observation Haki ($750,000)", Callback = function() if CommF_ then CommF_:InvokeServer("KenHaki") end end})
+    BossTab:AddSection("World & Raid Bosses")
+    BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v end)
+    BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v end)
+    BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v end)
+    BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v end)
+    BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v end)
+    BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v end)
+    BossTab:AddToggle("Auto Kill Order (Law)", false, function(v) _G.Config.AutoKillLaw = v end)
     
-    -- TELEPORT TAB
-    TeleportTab:AddSection({"Island Teleports"})
+    -- DUNGEON & RAIDS
+    RaidTab:AddSection("Raid Controls")
+    RaidTab:AddDropdown("Select Raid Chip", {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"}, "Flame", function(v) _G.Config.SelectedChip = v end)
+    RaidTab:AddToggle("Auto Buy Raid Chip", false, function(v) _G.Config.AutoBuyChip = v end)
+    RaidTab:AddToggle("Auto Start Raid", false, function(v) _G.Config.AutoStartRaid = v end)
+    RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v end)
+    RaidTab:AddToggle("Auto Awaken Fruit", false, function(v) _G.Config.AutoAwaken = v end)
+    
+    -- DEVIL FRUIT
+    FruitTab:AddSection("Fruit Actions")
+    FruitTab:AddToggle("Auto Random Fruit (Gacha Cousin)", false, function(v) _G.Config.AutoRandomFruit = v end)
+    FruitTab:AddToggle("Auto Store Fruits in Inventory", true, function(v) _G.Config.AutoStoreFruit = v end)
+    FruitTab:AddToggle("Auto Grab Dropped Fruits (Tween)", false, function(v) _G.Config.AutoGrabFruits = v end)
+    FruitTab:AddToggle("Fruit ESP (Billboard Labels)", false, function(v)
+        _G.Config.FruitESP = v
+        UpdateFruitESP()
+    end)
+    
+    -- SEA EVENTS
+    SeaTab:AddSection("Sea Events")
+    SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v end)
+    SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v end)
+    SeaTab:AddToggle("Auto Kill Sea Beast", false, function(v) _G.Config.AutoKillSeaBeast = v end)
+    SeaTab:AddSection("Mirage & Kitsune Island")
+    SeaTab:AddButton("Check Mirage Island Status", function()
+        local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
+        print("[ALPHA HUB] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
+    end)
+    SeaTab:AddButton("Check Kitsune Island Status", function()
+        local s = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
+        print("[ALPHA HUB] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
+    end)
+    SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
+    SeaTab:AddToggle("Auto Pull Lever (Temple of Time)", false, function(v) _G.Config.AutoPullLever = v end)
+    
+    -- ITEMS & QUESTS
+    ItemTab:AddSection("Special Weapons & Quests")
+    ItemTab:AddButton("Auto Saber Quest", function() if CommF_ then CommF_:InvokeServer("ProQuestProgress", "RichSon") end end)
+    ItemTab:AddButton("Auto Bartilo Quest", function() if CommF_ then CommF_:InvokeServer("BartiloQuestProgress", "GetMission") end end)
+    ItemTab:AddButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
+    ItemTab:AddButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+    
+    -- STATS ALLOCATOR
+    StatsTab:AddSection("Stat Points Allocator")
+    StatsTab:AddToggle("Auto Allocate Stats", false, function(v) _G.Config.AutoStats = v end)
+    StatsTab:AddSlider("Points Per Stat", 1, 100, 1, function(v) _G.Config.StatPoints = v end)
+    StatsTab:AddToggle("Melee", true, function(v) _G.Config.Stats.Melee = v end)
+    StatsTab:AddToggle("Defense", true, function(v) _G.Config.Stats.Defense = v end)
+    StatsTab:AddToggle("Sword", false, function(v) _G.Config.Stats.Sword = v end)
+    StatsTab:AddToggle("Gun", false, function(v) _G.Config.Stats.Gun = v end)
+    StatsTab:AddToggle("Blox Fruit", false, function(v) _G.Config.Stats.Fruit = v end)
+    StatsTab:AddButton("Refund Stats (2,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Refund", "2") end end)
+    StatsTab:AddButton("Reroll Race (3,000 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "Reroll", "2") end end)
+    
+    -- SHOP
+    ShopTab:AddSection("Fighting Styles (Melee V1 & V2)")
+    ShopTab:AddButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
+    ShopTab:AddButton("Buy Electro ($550,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
+    ShopTab:AddButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
+    ShopTab:AddButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
+    ShopTab:AddButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
+    ShopTab:AddButton("Buy Death Step ($5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
+    ShopTab:AddButton("Buy Sharkman Karate ($2.5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
+    ShopTab:AddButton("Buy Electric Claw ($3M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
+    ShopTab:AddButton("Buy Dragon Talon ($3M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
+    ShopTab:AddButton("Buy Godhuman ($5M + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
+    ShopTab:AddSection("Abilities & Haki")
+    ShopTab:AddButton("Buy Skyjump (Geppo - $10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
+    ShopTab:AddButton("Buy Enhancement (Buso - $25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
+    ShopTab:AddButton("Buy Flash Step (Soru - $100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
+    ShopTab:AddButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenHaki") end end)
+    
+    -- TELEPORTS
+    TeleportTab:AddSection("Island Teleports")
     local IslandsList = {
         ["Pirate Starter"] = CFrame.new(1059.37, 16.51, 1546.99),
         ["Marine Starter"] = CFrame.new(-2573.39, 6.94, 2059.27),
@@ -1181,87 +1559,73 @@ if RedzLibSuccess and RedzLib then
         ["Tiki Outpost (Sea 3)"] = CFrame.new(-16106.33, 9.21, 440.38),
         ["Temple of Time"] = CFrame.new(28282.57, 14896.85, 105.10)
     }
-    
     local islandKeys = {}
     for k, _ in pairs(IslandsList) do table.insert(islandKeys, k) end
     table.sort(islandKeys)
+    local SelIsland = islandKeys[1]
+    TeleportTab:AddDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
+    TeleportTab:AddButton("Teleport to Selected Island", function()
+        local cf = IslandsList[SelIsland]
+        if cf then TweenTo(cf) end
+    end)
     
-    local SelectedIsland = islandKeys[1]
-    TeleportTab:AddDropdown({
-        Name = "Select Island",
-        Options = islandKeys,
-        Default = islandKeys[1],
-        Callback = function(v) SelectedIsland = v end
-    })
-    TeleportTab:AddButton({
-        Name = "Teleport to Selected Island",
-        Callback = function()
-            local cframe = IslandsList[SelectedIsland]
-            if cframe then TweenTo(cframe) end
-        end
-    })
-    
-    -- MISC & SERVER TAB
-    MiscTab:AddSection({"Server Controls"})
-    MiscTab:AddButton({
-        Name = "Server Hop (Low Population)",
-        Callback = function()
-            local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-            local res = safeRequest({Url = url, Method = "GET"})
-            if res and res.Body then
-                local json = HttpService:JSONDecode(res.Body)
-                if json and json.data then
-                    for _, s in ipairs(json.data) do
-                        if s.playing < s.maxPlayers and s.id ~= game.JobId then
-                            TeleportService:TeleportToPlaceInstance(PlaceId, s.id, LocalPlayer)
-                            break
-                        end
+    -- SETTINGS
+    MiscTab:AddSection("Server Controls")
+    MiscTab:AddButton("Server Hop (Low Population)", function()
+        local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local res = safeRequest({Url = url, Method = "GET"})
+        if res and res.Body then
+            local json = HttpService:JSONDecode(res.Body)
+            if json and json.data then
+                for _, s in ipairs(json.data) do
+                    if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                        TeleportService:TeleportToPlaceInstance(PlaceId, s.id, LocalPlayer)
+                        break
                     end
                 end
             end
         end
-    })
-    MiscTab:AddButton({
-        Name = "Rejoin Current Server",
-        Callback = function()
-            TeleportService:Teleport(PlaceId, LocalPlayer)
-        end
-    })
-    MiscTab:AddToggle({
-        Name = "Anti-AFK",
-        Default = true,
-        Callback = function(v)
-            _G.Config.AntiAFK = v
-            if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
-        end
-    })
-    MiscTab:AddSlider({
-        Name = "Tween Flight Speed",
-        Min = 150,
-        Max = 350,
-        Default = 320,
-        Callback = function(v) _G.Config.TweenSpeed = v end
-    })
-    MiscTab:AddSlider({
-        Name = "WalkSpeed",
-        Min = 16,
-        Max = 250,
-        Default = 16,
-        Callback = function(v)
-            local hum = GetHumanoid()
-            if hum then hum.WalkSpeed = v end
-        end
-    })
-    MiscTab:AddSlider({
-        Name = "JumpPower",
-        Min = 50,
-        Max = 300,
-        Default = 50,
-        Callback = function(v)
-            local hum = GetHumanoid()
-            if hum then hum.JumpPower = v end
-        end
-    })
+    end)
+    MiscTab:AddButton("Rejoin Current Server", function()
+        TeleportService:Teleport(PlaceId, LocalPlayer)
+    end)
+    MiscTab:AddToggle("Anti-AFK", true, function(v)
+        _G.Config.AntiAFK = v
+        if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
+    end)
+    MiscTab:AddSlider("Tween Flight Speed", 150, 350, 320, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
+        local hum = GetHumanoid()
+        if hum then hum.WalkSpeed = v end
+    end)
+    MiscTab:AddSlider("JumpPower", 50, 300, 50, function(v)
+        local hum = GetHumanoid()
+        if hum then hum.JumpPower = v end
+    end)
+    
+    -- Set default active tab
+    SwitchTab("Main Farm")
+end
+
+-- Initialize UI safely with user notification
+local uiSuccess, uiErr = pcall(CreateUI)
+if not uiSuccess then
+    warn("[ALPHA HUB v2 CRITICAL]: UI Error: " .. tostring(uiErr))
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Alpha Hub v2 Error",
+            Text = tostring(uiErr):sub(1, 60),
+            Duration = 10
+        })
+    end)
+else
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "ALPHA HUB v2",
+            Text = "Loaded Successfully! (" .. SeaName .. ")",
+            Duration = 5
+        })
+    end)
 end
 
 print("--------------------------------------------------")
