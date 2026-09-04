@@ -448,8 +448,10 @@ end
 -- HoverLock: locks altitude above enemies or NPCs during combat/interaction
 local function HoverLock(targetCFrame)
     local root = GetRoot()
+    local hum = GetHumanoid()
     if not root or not root.Parent then return end
     EnableNoclip()
+    if hum then hum.PlatformStand = true end
     local bv = GetOrCreateBodyVelocity(root)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)

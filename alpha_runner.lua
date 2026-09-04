@@ -162,16 +162,41 @@ local function StopTween()
     if hum then hum.PlatformStand = false end
 end
 
+-- HoverLock: keeps altitude locked in mid-air
 local function HoverLock(targetCF)
     local root = GetRoot()
+    local hum = GetHum()
     if not root or not root.Parent then return end
     EnableNoclip()
+    if hum then hum.PlatformStand = true end
     local bv = GetOrCreateBodyVelocity(root)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.CFrame = targetCF
+end
+
+-- Equip combat weapon helper
+local function EquipCombatWeapon()
+    local char = GetChar()
+    local hum = GetHum()
+    if not char or not hum then return nil end
+    local equipped = char:FindFirstChildOfClass("Tool")
+    if equipped and (equipped.ToolTip == "Melee" or equipped.ToolTip == "Sword" or not equipped.ToolTip or equipped.ToolTip == "") then
+        return equipped
+    end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and t.ToolTip ~= "Blox Fruit" then
+                hum:EquipTool(t)
+                task.wait(0.2)
+                return t
+            end
+        end
+    end
+    return char:FindFirstChildOfClass("Tool")
 end
 
 local TelemetryState = {
@@ -261,7 +286,6 @@ local function ControlledTweenTo(targetCF, label, expectedSpeed)
         tw:Play()
         tw.Completed:Wait()
         CurrentTween = nil
-        hum.PlatformStand = false
         HoverLock(targetCF)
         return true, "Arrived (Short Direct)"
     end
@@ -338,15 +362,14 @@ local function ControlledTweenTo(targetCF, label, expectedSpeed)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.CFrame = landCF
     
-    hum.PlatformStand = false
-    hum.Sit = false
+    HoverLock(landCF)
     IsTravelingSky = false
     CurrentTween = nil
     
     task.spawn(function()
         task.wait(0.5)
         DisableNoclip()
-        task.wait(4.0)
+        task.wait(5.0)
         if LandingPlatform and LandingPlatform.Parent then
             LandingPlatform:Destroy()
             LandingPlatform = nil
@@ -371,7 +394,7 @@ local function RunAllTests()
     -- TEST 1: Baseline Physics & HoverLock
     TelemetryState.current_test = "TEST_1_HOVER_LOCK"
     LogEvent("TEST_1", "Testing BodyVelocity and HoverLock...")
-    local testPos1 = root.CFrame * CFrame.new(0, 20, 0)
+    local testPos1 = root.CFrame * CFrame.new(0, 15, 0)
     HoverLock(testPos1)
     task.wait(1.5)
     local hoverDist = (root.Position - testPos1.Position).Magnitude
@@ -477,18 +500,53 @@ local function RunAllTests()
         local initialHp = mobTarget.Humanoid.Health
         LogEvent("TEST_5", string.format("Found mob %s with HP %.0f/%.0f. Engaging...", mobTarget.Name, initialHp, mobTarget.Humanoid.MaxHealth))
         
-        local farmPos = mobTarget.HumanoidRootPart.CFrame * CFrame.new(0, 14, 0)
+        -- Equip combat weapon
+        local tool = EquipCombatWeapon()
+        if tool then
+            LogEvent("TEST_5", "Equipped weapon: " .. tool.Name)
+        else
+            LogEvent("TEST_5", "Warning: No weapon tool found in character or backpack")
+        end
+        
+        -- Hover 12 studs above mob
+        local farmPos = mobTarget.HumanoidRootPart.CFrame * CFrame.new(0, 12, 0)
         HoverLock(farmPos)
         task.wait(0.5)
         
+        -- Bring mob under player
+        pcall(function()
+            mobTarget.HumanoidRootPart.CFrame = farmPos * CFrame.new(0, -9, 0)
+            mobTarget.HumanoidRootPart.CanCollide = false
+            mobTarget.Humanoid.WalkSpeed = 0
+        end)
+        
+        -- Get Blox Fruits combat remotes
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        local regAttack = remotes and (remotes:FindFirstChild("RE/RegisterAttack") or remotes:FindFirstChild("RegisterAttack"))
+        local regHit = remotes and (remotes:FindFirstChild("RE/RegisterHit") or remotes:FindFirstChild("RegisterHit"))
+        
+        -- Screen center click via VirtualInputManager
         local vim = game:GetService("VirtualInputManager")
-        for k = 1, 8 do
+        local cam = Workspace.CurrentCamera
+        local cx = cam and math.floor(cam.ViewportSize.X / 2) or 400
+        local cy = cam and math.floor(cam.ViewportSize.Y / 2) or 300
+        
+        for k = 1, 15 do
+            if regAttack and regHit and mobTarget:FindFirstChild("Head") and mobTarget:FindFirstChild("HumanoidRootPart") then
+                pcall(function()
+                    regAttack:FireServer(0)
+                    regHit:FireServer(mobTarget.Head, {{mobTarget, mobTarget.HumanoidRootPart}})
+                end)
+            end
+            if tool then
+                pcall(function() tool:Activate() end)
+            end
             pcall(function()
-                vim:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                task.wait(0.04)
-                vim:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                vim:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+                task.wait(0.02)
+                vim:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
             end)
-            task.wait(0.1)
+            task.wait(0.12)
         end
         task.wait(0.5)
         
