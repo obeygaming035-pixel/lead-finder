@@ -382,7 +382,7 @@ local function GetOrCreateBodyVelocity(root)
     return bv
 end
 
--- Persistent Hover Lock: keeps character rigidly anchored at hover altitude so they NEVER fall into the mob!
+-- Persistent Hover Lock: keeps character locked at farm altitude so you NEVER drop or take damage!
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     if not root or not root.Parent then return end
@@ -428,7 +428,7 @@ local function TweenTo(targetCFrame)
     
     local distance = (targetCFrame.Position - root.Position).Magnitude
     
-    -- Close enough: lock position immediately and maintain hover
+    -- Close enough: lock position immediately
     if distance < 15 then
         StopTween()
         HoverLock(targetCFrame)
@@ -438,13 +438,20 @@ local function TweenTo(targetCFrame)
     local speed = _G.Config.TweenSpeed or 350
     if speed < 280 then speed = 350 end
     
-    -- 1. LOCAL HOVER / SHORT RANGE (<= 250 studs)
+    -- If already moving to almost the exact same target (< 10 studs difference), let it continue
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 10 and CurrentTween then
+        return
+    end
+    
+    CurrentTargetPos = targetCFrame.Position
+    
+    -- 1. SHORT RANGE (<= 250 studs)
     if distance <= 250 then
         EnableNoclip()
         local bv = GetOrCreateBodyVelocity(root)
         local dir = (targetCFrame.Position - root.Position).Unit
-        bv.Velocity = dir * speed -- Physics velocity matches CFrame movement to eliminate snap-back!
-        hum.PlatformStand = true -- Prevents character walking physics from conflicting with flight
+        bv.Velocity = dir * speed
+        hum.PlatformStand = true
         
         local time = distance / speed
         if CurrentTween then CurrentTween:Cancel() end
@@ -457,12 +464,8 @@ local function TweenTo(targetCFrame)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE / CROSS-ISLAND FLIGHT (> 250 studs)
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 30 and IsTravelingSky then
-        return -- Already sky-traveling to this target
-    end
-    
-    CurrentTargetPos = targetCFrame.Position
+    -- 2. LONG RANGE (> 250 studs)
+    if IsTravelingSky then return end
     IsTravelingSky = true
     
     task.spawn(function()
@@ -486,10 +489,9 @@ local function TweenTo(targetCFrame)
         local bv = GetOrCreateBodyVelocity(root)
         hum.PlatformStand = true
         
-        -- High flight altitude: Y = 380+ (immune to water damage, clears all trees/mountains)
+        -- Ascend to sky altitude: Y = 380+ (immune to water, clears all trees/mountains)
         local skyY = math.max(380, math.max(root.Position.Y, targetCFrame.Position.Y) + 70)
         
-        -- Ascend to sky altitude
         if root.Position.Y < (skyY - 30) then
             local upCF = CFrame.new(root.Position.X, skyY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
@@ -816,10 +818,33 @@ local function GetCurrentQuest()
 end
 
 local function HasQuest()
-    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    local mainGui = playerGui and playerGui:FindFirstChild("Main")
-    local questFrame = mainGui and mainGui:FindFirstChild("Quest")
-    return questFrame and questFrame.Visible
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pGui then return false end
+    
+    -- Method 1: Main.Quest visible
+    local main = pGui:FindFirstChild("Main")
+    if main then
+        local q = main:FindFirstChild("Quest")
+        if q and q.Visible then return true end
+    end
+    
+    -- Method 2: Check deep for any visible Quest frame
+    for _, v in ipairs(pGui:GetDescendants()) do
+        if v.Name == "Quest" and v:IsA("Frame") and v.Visible then
+            return true
+        end
+    end
+    
+    -- Method 3: Check Player Data folder
+    local data = LocalPlayer:FindFirstChild("Data")
+    if data then
+        local qVal = data:FindFirstChild("Quest")
+        if qVal and qVal.Value ~= "" and qVal.Value ~= "None" then
+            return true
+        end
+    end
+    
+    return false
 end
 
 --============================== MASTER BOSS DATABASE ==============================
@@ -944,14 +969,33 @@ local function StartAutoFarmLevel()
             if _G.Config.AutoFarmLevel then
                 pcall(function()
                     local questInfo = GetCurrentQuest()
+                    local root = GetRoot()
+                    if not root then return end
+                    
                     if not HasQuest() then
-                        local cf = CommF()
-                        if cf then
+                        -- STEP 1: Travel to Quest NPC if far away
+                        local npcPos = questInfo.Pos.Position
+                        local distToNPC = (npcPos - root.Position).Magnitude
+                        
+                        if distToNPC > 20 then
                             TweenTo(questInfo.Pos * CFrame.new(0, 5, 0))
-                            cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                            task.wait(0.35)
+                            -- Wait until we actually arrive near the Quest NPC before asking for quest!
+                            local t0 = tick()
+                            while (questInfo.Pos.Position - root.Position).Magnitude > 22 and (tick() - t0) < 6 and not HasQuest() and _G.Config.AutoFarmLevel do
+                                task.wait(0.1)
+                            end
+                        end
+                        
+                        -- STEP 2: Once within talking range (<= 25 studs), invoke StartQuest
+                        if (questInfo.Pos.Position - root.Position).Magnitude <= 28 then
+                            local cf = CommF()
+                            if cf then
+                                cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                                task.wait(0.4)
+                            end
                         end
                     else
+                        -- STEP 3: We have the quest! Target the quest mobs!
                         local target = FindEnemy(questInfo.Mob)
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
@@ -961,6 +1005,7 @@ local function StartAutoFarmLevel()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
+                            -- No live mob found: hover at spawn point at 14 studs height
                             local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
                             TweenTo(safePos)
                             HoverLock(safePos)
