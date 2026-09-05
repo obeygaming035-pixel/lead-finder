@@ -320,125 +320,174 @@ local function GetPlayerLevel()
     return 1
 end
 
--- Strict weapon type identifier (handles Blox Fruits where ToolTip is often empty)
+-- ==================== WEAPON TYPE IDENTIFIER & EQUIPPING ====================
+local _nonWeaponNames = {
+    "key", "chalice", "fist of darkness", "flower", "torch", "cup",
+    "microchip", "core", "scroll", "bone", "egg", "ticket"
+}
+
+local function IsNonWeaponItem(name)
+    for _, item in ipairs(_nonWeaponNames) do
+        if name:find(item) then return true end
+    end
+    return false
+end
+
+local function NormalizeWeaponType(targetType)
+    if not targetType then return "Melee" end
+    local lower = tostring(targetType):lower()
+    if lower == "combat" or lower == "melee" or lower == "fightingstyle" then
+        return "Melee"
+    elseif lower == "sword" or lower == "swords" then
+        return "Sword"
+    elseif lower == "gun" or lower == "guns" then
+        return "Gun"
+    elseif lower == "fruit" or lower == "bloxfruit" or lower == "fruits" then
+        return "Fruit"
+    end
+    return targetType
+end
+
 local function IsWeaponType(tool, targetType)
     if not tool or not tool:IsA("Tool") then return false end
+    targetType = NormalizeWeaponType(targetType)
+    
     local tip = tool.ToolTip or ""
     local name = tool.Name:lower()
     
-    -- Known Blox Fruit names (always classified as Fruit regardless of ToolTip)
-    local fruitNames = {
-        "bomb", "spike", "chop", "spring", "smoke", "flame", "falcon", "ice",
-        "sand", "dark", "light", "rubber", "barrier", "magma", "quake",
-        "human", "buddha", "string", "bird", "phoenix", "rumble", "paw",
-        "gravity", "dough", "venom", "shadow", "control", "soul", "dragon",
-        "leopard", "spirit", "portal", "blizzard", "sound", "mammoth",
-        "t-rex", "kitsune", "rocket", "spin", "diamond", "love", "gas"
-    }
-    -- Check if tool name contains a fruit name pattern (e.g. "Bomb-Bomb", "Flame-Flame")
-    local isFruitByName = false
-    for _, fn in ipairs(fruitNames) do
-        if name:find(fn) then isFruitByName = true; break end
-    end
-    if name:find("fruit") then isFruitByName = true end
+    -- Filter out quest items, keys, materials
+    if IsNonWeaponItem(name) then return false end
     
-    -- Known melee/fighting style names
+    -- 1. Trust explicit Blox Fruits ToolTips first
+    if tip == "Melee" or tool:FindFirstChild("Combat") then
+        return targetType == "Melee"
+    elseif tip == "Sword" or tip == "Melee Weapon" then
+        return targetType == "Sword"
+    elseif tip == "Gun" then
+        return targetType == "Gun"
+    elseif tip == "Blox Fruit" then
+        return targetType == "Fruit"
+    end
+    
+    -- 2. Melee / Fighting Style identification
     local meleeStyles = {
         "combat", "black leg", "electro", "water kung fu", "dragon claw",
         "superhuman", "death step", "sharkman karate", "electric claw",
-        "dragon talon", "godhuman", "sanguine art", "karate"
+        "dragon talon", "godhuman", "sanguine art", "karate", "fishman karate"
     }
     local isMeleeByName = false
     for _, m in ipairs(meleeStyles) do
         if name:find(m) then isMeleeByName = true; break end
     end
     
-    -- Known sword names
-    local swordNames = {
-        "cutlass", "katana", "pipe", "dual katana", "iron mace", "bisento",
-        "trident", "pole", "soul cane", "saber", "longsword", "gravity cane",
-        "saddi", "wando", "shisui", "yama", "tushita", "canvander",
-        "rengoku", "buddy sword", "midnight blade", "hallow scythe",
-        "cursed dual katana", "dark blade", "true triple katana",
-        "dragon trident", "soul guitar", "spikey trident"
-    }
-    local isSwordByName = false
-    for _, s in ipairs(swordNames) do
-        if name:find(s) then isSwordByName = true; break end
-    end
-    
-    -- Known gun names
+    -- 3. Gun identification (Soul Guitar is strictly a gun)
     local gunNames = {
         "musket", "flintlock", "refined flintlock", "cannon", "kabucha",
-        "acidum rifle", "serpent bow", "bizarre rifle", "bazooka", "soul guitar"
+        "acidum rifle", "serpent bow", "bizarre rifle", "bazooka", "soul guitar",
+        "slingshot"
     }
     local isGunByName = false
     for _, g in ipairs(gunNames) do
         if name:find(g) then isGunByName = true; break end
     end
     
+    -- 4. Sword identification (exclude Soul Guitar)
+    local swordNames = {
+        "cutlass", "katana", "pipe", "dual katana", "iron mace", "bisento",
+        "trident", "pole", "soul cane", "saber", "longsword", "gravity cane",
+        "saddi", "wando", "shisui", "yama", "tushita", "canvander",
+        "rengoku", "buddy sword", "midnight blade", "hallow scythe",
+        "cursed dual katana", "dark blade", "true triple katana",
+        "dragon trident", "spikey trident", "dark dagger", "koko", "fox lamp",
+        "shark anchor", "dual-headed blade", "warden's sword", "triple katana"
+    }
+    local isSwordByName = false
+    for _, s in ipairs(swordNames) do
+        if name:find(s) then isSwordByName = true; break end
+    end
+    
+    -- 5. Fruit identification (require hyphen or 'fruit' keyword to avoid substring false positives)
+    local isFruitByName = false
+    if name:find("%-") or name:find("fruit") then
+        local fruitRoots = {
+            "bomb", "spike", "chop", "spring", "smoke", "flame", "falcon", "ice",
+            "sand", "dark", "light", "rubber", "barrier", "magma", "quake",
+            "human", "buddha", "string", "bird", "phoenix", "rumble", "paw",
+            "gravity", "dough", "venom", "shadow", "control", "soul", "dragon",
+            "leopard", "spirit", "portal", "blizzard", "sound", "mammoth",
+            "t-rex", "kitsune", "rocket", "spin", "diamond", "love", "gas"
+        }
+        for _, fn in ipairs(fruitRoots) do
+            if name:find(fn .. "%-") or name:find(fn .. " fruit") or name == fn then
+                isFruitByName = true
+                break
+            end
+        end
+    end
+    
     if targetType == "Melee" then
-        if tip == "Melee" or tool:FindFirstChild("Combat") then return true end
-        if isMeleeByName then return true end
-        -- Generic "Tool" with no ToolTip and no specific classification = treat as melee accessory
-        if not isFruitByName and not isSwordByName and not isGunByName and tip == "" and name == "tool" then return true end
-        return false
+        return isMeleeByName
     elseif targetType == "Sword" then
-        if tip == "Sword" or tip == "Melee Weapon" then return true end
-        if isSwordByName then return true end
-        -- Any unrecognized tool with empty tooltip that isn't fruit/melee/gun = default Sword
-        if not isFruitByName and not isMeleeByName and not isGunByName and tip == "" and name ~= "tool" then return true end
-        return false
+        if isGunByName or isFruitByName then return false end
+        return isSwordByName or (tip == "" and not isMeleeByName and name ~= "tool")
     elseif targetType == "Gun" then
-        if tip == "Gun" then return true end
         return isGunByName
     elseif targetType == "Fruit" then
-        if tip == "Blox Fruit" then return true end
-        return isFruitByName
+        return isFruitByName and not isSwordByName and not isGunByName and not isMeleeByName
     end
     return false
 end
 
--- Strictly equip only the chosen weapon type (never equips Fruit if Melee selected)
+local _lastEquipAttempt = 0
 local function EquipWeapon(weaponType)
-    weaponType = weaponType or _G.Config.SelectedWeapon or "Melee"
+    weaponType = NormalizeWeaponType(weaponType or _G.Config.SelectedWeapon or "Melee")
     local char = GetCharacter()
     local bp = LocalPlayer:FindFirstChild("Backpack")
-    if not char or not bp then return end
+    if not char or not bp then return nil end
     
-    -- 1. If currently equipped tool matches targetType, keep it
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return nil end
+    
+    -- 1. Check currently equipped tool
     local currentTool = char:FindFirstChildOfClass("Tool")
     if currentTool then
         if IsWeaponType(currentTool, weaponType) then
             return currentTool
         else
-            -- Wrong weapon currently held in hands (e.g. Fruit held when Melee was selected):
-            -- UNEQUIP IT immediately so it doesn't fire unwanted moves!
-            pcall(function() char.Humanoid:UnequipTools() end)
-            task.wait(0.05)
+            pcall(function() humanoid:UnequipTools() end)
         end
     end
     
-    -- 2. Search Backpack for exact match
+    -- Throttle backpack scans to avoid per-frame overhead
+    local now = tick()
+    if (now - _lastEquipAttempt) < 0.25 then return nil end
+    _lastEquipAttempt = now
+    
+    -- 2. Search backpack
     for _, tool in ipairs(bp:GetChildren()) do
-        if IsWeaponType(tool, weaponType) then
-            char.Humanoid:EquipTool(tool)
+        if tool:IsA("Tool") and IsWeaponType(tool, weaponType) then
+            humanoid:EquipTool(tool)
             return tool
         end
     end
-    
-    -- If not found, DO NOT equip random items!
     return nil
 end
 
--- Auto Buso Haki
+-- Debounced Auto Buso Haki (runs at most once every 3 seconds, non-blocking)
+local _lastBusoCheck = 0
 local function CheckBusoHaki()
     if not _G.Config.AutoBusoHaki then return end
+    local now = tick()
+    if (now - _lastBusoCheck) < 3.0 then return end
+    _lastBusoCheck = now
+    
     local char = GetCharacter()
     if char and not char:FindFirstChild("HasBuso") then
         local cf = CommF()
         if cf then
-            pcall(function() cf:InvokeServer("Buso") end)
+            task.spawn(function()
+                pcall(function() cf:InvokeServer("Buso") end)
+            end)
         end
     end
 end
@@ -564,7 +613,24 @@ local function StopTween()
     CurrentTargetPos = nil
     IsTravelingSky = false
     local hum = GetHumanoid()
-    if hum then hum.PlatformStand = false end
+    if hum then 
+        hum.PlatformStand = false 
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    if FlightBodyVel then
+        pcall(function() FlightBodyVel:Destroy() end)
+        FlightBodyVel = nil
+    end
+    local root = GetRoot()
+    if root then
+        for _, c in ipairs(root:GetChildren()) do
+            if (c:IsA("BodyVelocity") and c.Name == "AlphaFlightBV") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+                pcall(function() c:Destroy() end)
+            end
+        end
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
     if SetTravelHUD then SetTravelHUD(false) end
 end
 
@@ -576,14 +642,20 @@ local function FullResetMovement()
         hum.PlatformStand = false
         hum.Sit = false
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
     end
-    local root = GetRoot()
-    if root then
-        for _, c in ipairs(root:GetChildren()) do
-            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+    local char = GetCharacter()
+    if char then
+        for _, c in ipairs(char:GetDescendants()) do
+            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition")
+                or c:IsA("LinearVelocity") or c:IsA("VectorForce") or c:IsA("AlignPosition") or c:IsA("AlignOrientation") then
                 pcall(function() c:Destroy() end)
             end
         end
+    end
+    local root = GetRoot()
+    if root then
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
@@ -1168,7 +1240,7 @@ local function GetRealGroundPosition(x, y, z)
         table.insert(filterList, LandingPlatform)
     end
     rayParams.FilterDescendantsInstances = filterList
-    rayParams.IgnoreWater = false
+    rayParams.IgnoreWater = true -- Strictly ignore water so Devil Fruit users never touch sea level
     
     local hit = Workspace:Raycast(rayOrigin, rayDir, rayParams)
     if hit and hit.Instance then
@@ -1318,11 +1390,11 @@ local function TweenTo(targetCFrame, destName, forceInstant)
     
     -- Safe speed from Validator auto-tuner (adapts to server rollback detection)
     local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
-    if speed < 160 then speed = 240 end
-    if speed > 270 then speed = 250 end
+    if speed < 180 then speed = 220 end
+    if speed > 260 then speed = 250 end
     
     -- Anti-spam check: already heading to nearly the same spot
-    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and CurrentTween then
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and (CurrentTween or IsTravelingSky) then
         return
     end
     
@@ -1335,17 +1407,23 @@ local function TweenTo(targetCFrame, destName, forceInstant)
     CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 350 studs and not forceInstant): Direct Heartbeat linear move
-    -- Smooth glide on the same island for mob grinding and combat
-    if not forceInstant and distance <= 350 then
+    -- 1. SHORT RANGE (<= 350 studs): Direct Heartbeat linear glide on same island
+    if distance <= 350 then
         EnableNoclip()
         hum.PlatformStand = true
         
         local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        local moveDir = (targetPos - root.Position).Unit
+        bv.Velocity = moveDir * speed
+        root.AssemblyLinearVelocity = moveDir * speed
         
-        local move = HeartbeatMove(root, targetCFrame, speed)
+        local move = HeartbeatMove(root, targetCFrame, speed, function(alpha, curPos)
+            local d = (targetPos - curPos).Unit
+            if root and root.Parent then
+                root.AssemblyLinearVelocity = d * speed
+                if bv and bv.Parent then bv.Velocity = d * speed end
+            end
+        end)
         move.Completed.Connect(nil, function()
             if hum and hum.Parent then hum.PlatformStand = false end
             HoverLock(targetCFrame)
@@ -1353,9 +1431,9 @@ local function TweenTo(targetCFrame, destName, forceInstant)
         return move
     end
     
-    -- 2. LONG RANGE (> 350 studs or forceInstant): INSTANT DIRECT TELEPORT
-    -- Instant CFrame set with terrain pre-streaming, landing platform,
-    -- position reinforcement, and server spawn-point authority.
+    -- 2. LONG RANGE (> 350 studs): TWO-TIER SAFE TRAVEL ENGINE
+    -- Tier 1: Check game's native entrance portals (CommF:InvokeServer("requestEntrance"))
+    -- Tier 2: 3-Phase Heartbeat Sky Cruise (Ascend -> Cruise -> Descend + Ground Snap)
     if IsTravelingSky then return end
     IsTravelingSky = true
     
@@ -1363,7 +1441,7 @@ local function TweenTo(targetCFrame, destName, forceInstant)
         local totalDist = distance
         if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
         
-        -- Step 1: Try requestEntrance portal bypass first (game's own teleport system)
+        -- Tier 1: Try requestEntrance portal bypass first if near an official entrance
         if _G.Config.BypassTeleport then
             local bestPortal = nil
             local bestDist = math.huge
@@ -1377,20 +1455,15 @@ local function TweenTo(targetCFrame, destName, forceInstant)
                 end
             end
             
-            if bestPortal and bestDist < 500 then
-                -- Portal is close to target - use game's built-in teleport
-                print(string.format("[ALPHA TP] Using %s portal (%.0f studs from target)", bestPortal.Name, bestDist))
+            if bestPortal and bestDist < 450 then
                 local cf = CommF()
                 if cf then
-                    pcall(function()
-                        cf:InvokeServer("requestEntrance", bestPortal.Pos)
-                    end)
+                    pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
                     task.wait(0.5)
                     root = GetRoot()
                     if root then
                         local newDist = (targetPos - root.Position).Magnitude
-                        if newDist < 120 then
-                            -- Portal worked! Just short-hop to exact position
+                        if newDist < 150 then
                             StopTween()
                             HoverLock(targetCFrame)
                             if _G.Config.AutoSetSpawn then
@@ -1405,90 +1478,107 @@ local function TweenTo(targetCFrame, destName, forceInstant)
             end
         end
         
-        -- Step 2: Pre-stream destination terrain (critical for instant TP)
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetPos)
-            end
-        end)
-        task.wait(0.3) -- Give streaming a moment to start loading terrain
+        -- Tier 2: 3-Phase Heartbeat Sky Cruise
+        root = GetRoot()
+        hum = GetHumanoid()
+        if not root or not root.Parent or not hum then
+            IsTravelingSky = false
+            return
+        end
         
-        -- Step 3: Create invisible landing platform (prevents falling into void if terrain hasn't loaded)
-        if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
-        LandingPlatform = Instance.new("Part")
-        LandingPlatform.Name = "AlphaLandingPlatform"
-        LandingPlatform.Size = Vector3.new(80, 3, 80)
-        LandingPlatform.CFrame = CFrame.new(targetPos.X, targetPos.Y - 2, targetPos.Z)
-        LandingPlatform.Anchored = true
-        LandingPlatform.CanCollide = true
-        LandingPlatform.Transparency = 1
-        LandingPlatform.Parent = Workspace
-        
-        -- Step 4: Prepare character for teleport
         EnableNoclip()
         hum.PlatformStand = true
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
         hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
         
         local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         
-        -- Step 5: INSTANT TELEPORT - Direct CFrame set
-        local landCF = targetCFrame * CFrame.new(0, 4, 0)
-        root.CFrame = landCF
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        -- Calculate safe cruising altitude above all obstacles, islands, and water
+        local startPos = root.Position
+        local cruiseY = math.max(startPos.Y, targetPos.Y, 260) + 65
+        if cruiseY < 320 and CurrentSea ~= 1 then cruiseY = 320 end
+        if cruiseY < 280 then cruiseY = 280 end
         
-        if SetTravelHUD then SetTravelHUD(true, label, 0, 0, totalDist) end
-        
-        -- Step 6: Position reinforcement loop - hammer CFrame for 2 seconds
-        -- This is the key: keep setting CFrame every frame so the server
-        -- has no chance to rubberband us back. After ~1-2 seconds, the server
-        -- accepts the new position as authoritative.
-        local reinforceStart = tick()
-        local reinforceDuration = 2.0
-        local reinforceConn
-        reinforceConn = RunService.Heartbeat:Connect(function()
-            if not root or not root.Parent then
-                if reinforceConn then reinforceConn:Disconnect() end
-                return
+        -- PHASE 1: Ascend vertically to cruise altitude
+        local ascendDist = math.abs(cruiseY - startPos.Y)
+        if ascendDist > 10 then
+            local ascendTime = ascendDist / math.max(speed, 200)
+            local t0 = tick()
+            local yDir = math.sign(cruiseY - startPos.Y)
+            while (tick() - t0) < ascendTime and root and root.Parent and IsTravelingSky do
+                local alpha = math.clamp((tick() - t0) / ascendTime, 0, 1)
+                local curY = startPos.Y + (cruiseY - startPos.Y) * alpha
+                local curPos = Vector3.new(startPos.X, curY, startPos.Z)
+                root.CFrame = CFrame.new(curPos)
+                root.AssemblyLinearVelocity = Vector3.new(0, yDir * speed, 0)
+                bv.Velocity = root.AssemblyLinearVelocity
+                RunService.Heartbeat:Wait()
             end
-            if (tick() - reinforceStart) < reinforceDuration then
-                root.CFrame = landCF
-                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                if bv and bv.Parent then
-                    bv.Velocity = Vector3.new(0, 0, 0)
-                end
-            else
-                reinforceConn:Disconnect()
-            end
-        end)
-        
-        -- Wait for reinforcement to complete
-        task.wait(reinforceDuration + 0.1)
-        
-        -- Step 7: Stream terrain again now that we're at destination
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetPos)
-            end
-        end)
-        task.wait(0.3)
-        
-        -- Step 8: Try to find real ground and snap to it
-        local realGroundPos = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
-        if realGroundPos then
-            landCF = CFrame.new(targetPos.X, realGroundPos.Y + 3.5, targetPos.Z)
-            root.CFrame = landCF
         end
         
-        -- Step 9: Clean up physics and restore normal humanoid state
+        -- PHASE 2: Horizontal Sky Cruise at cruise altitude
+        local startCruisePos = root.Position
+        local endCruisePos = Vector3.new(targetPos.X, cruiseY, targetPos.Z)
+        local horizDist = (endCruisePos - startCruisePos).Magnitude
+        local cruiseTime = horizDist / math.max(speed, 200)
+        local t1 = tick()
+        local lastStream = 0
+        
+        while (tick() - t1) < cruiseTime and root and root.Parent and IsTravelingSky do
+            local alpha = math.clamp((tick() - t1) / cruiseTime, 0, 1)
+            local curPos = startCruisePos:Lerp(endCruisePos, alpha)
+            local remainingDist = (targetPos - curPos).Magnitude
+            
+            -- Pre-stream chunk ahead every 400 studs
+            if (tick() - lastStream) > 0.8 then
+                lastStream = tick()
+                pcall(function()
+                    if LocalPlayer.RequestStreamAroundAsync then
+                        local lookDir = (endCruisePos - startCruisePos).Unit
+                        LocalPlayer:RequestStreamAroundAsync(curPos + lookDir * 250)
+                    end
+                end)
+            end
+            
+            local moveDir = horizDist > 0.1 and (endCruisePos - startCruisePos).Unit or Vector3.new(0, 0, 1)
+            root.CFrame = CFrame.new(curPos, curPos + moveDir)
+            root.AssemblyLinearVelocity = moveDir * speed
+            bv.Velocity = moveDir * speed
+            
+            if SetTravelHUD then
+                SetTravelHUD(true, label, remainingDist, speed, totalDist)
+            end
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- PHASE 3: Descend safely to destination
+        local topOfDest = root.Position
+        local descendDist = (targetPos - topOfDest).Magnitude
+        local descendTime = math.max(descendDist / math.max(speed, 200), 0.3)
+        local t2 = tick()
+        
+        while (tick() - t2) < descendTime and root and root.Parent and IsTravelingSky do
+            local alpha = math.clamp((tick() - t2) / descendTime, 0, 1)
+            local curPos = topOfDest:Lerp(targetPos, alpha)
+            root.CFrame = CFrame.new(curPos)
+            local downDir = (targetPos - topOfDest).Unit
+            root.AssemblyLinearVelocity = downDir * speed
+            bv.Velocity = downDir * speed
+            RunService.Heartbeat:Wait()
+        end
+        
+        -- Safe Ground Raycast Snap (Strictly Ignoring Water!)
+        local groundPos = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
+        if groundPos then
+            root.CFrame = CFrame.new(targetPos.X, groundPos.Y + 3.5, targetPos.Z)
+        else
+            root.CFrame = targetCFrame * CFrame.new(0, 3.5, 0)
+        end
+        
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         
+        -- Restore Humanoid & Physics
         if hum and hum.Parent then
             hum.PlatformStand = false
             hum.Sit = false
@@ -1496,10 +1586,8 @@ local function TweenTo(targetCFrame, destName, forceInstant)
             hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
             hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
         end
-        
         DisableNoclip()
         
-        -- Step 10: Destroy all body movers so player can walk and fall normally
         if root then
             for _, c in ipairs(root:GetChildren()) do
                 if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
@@ -1509,47 +1597,23 @@ local function TweenTo(targetCFrame, destName, forceInstant)
         end
         FlightBodyVel = nil
         
-        -- Step 11: Set spawn point to cement the position server-side
+        -- Cement Island Spawn Point Server-Side
         if _G.Config.AutoSetSpawn then
             task.spawn(function()
                 task.wait(0.2)
                 local cf = CommF()
-                if cf then
-                    pcall(function() cf:InvokeServer("SetSpawnPoint") end)
-                end
+                if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
             end)
         end
         
+        HoverLock(targetCFrame)
         IsTravelingSky = false
         CurrentTween = nil
         if SetTravelHUD then SetTravelHUD(false) end
-        
-        -- Step 12: Final position reinforcement + cleanup
-        task.spawn(function()
-            -- Keep reinforcing for a few more seconds in background
-            for i = 1, 15 do
-                task.wait(0.2)
-                if root and root.Parent then
-                    local deviation = (root.Position - landCF.Position).Magnitude
-                    if deviation > 50 then
-                        -- Server tried to rubberband - fight it
-                        root.CFrame = landCF
-                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        print("[ALPHA TP] Rubberband intercepted, re-enforcing position!")
-                    end
-                end
-            end
-            -- Clean up landing platform after position is stable
-            task.wait(2)
-            if LandingPlatform and LandingPlatform.Parent then
-                LandingPlatform:Destroy()
-                LandingPlatform = nil
-            end
-        end)
     end)
 end
 
--- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Instant Teleport
+-- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Island Sky Cruise
 local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.AutoFarmLevel = false
     _G.Config.FarmSelectedMob = false
@@ -1557,7 +1621,7 @@ local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.FarmAllBosses = false
     
     StopTween()
-    TweenTo(targetCFrame, islandName or "Selected Island", true)
+    TweenTo(targetCFrame, islandName or "Selected Island", false)
 end
 --============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
@@ -1565,43 +1629,111 @@ local _lastSkillCastTime = 0
 local _skillCycle = {"Z", "X", "C", "V", "F"}
 local _skillCycleIndex = 1
 
+-- Resolve Net Remotes with deep-scan fallback
+local function ResolveCombatRemote(remoteName)
+    local cached = _remoteCache["Combat_" .. remoteName]
+    if cached and cached.Parent then return cached end
+    
+    local net = RS:FindFirstChild("Modules") and RS.Modules:FindFirstChild("Net")
+    if net then
+        local r = net:FindFirstChild(remoteName) or net:FindFirstChild("RE/" .. remoteName)
+        if r then
+            _remoteCache["Combat_" .. remoteName] = r
+            return r
+        end
+        local reFolder = net:FindFirstChild("RE")
+        if reFolder then
+            local r2 = reFolder:FindFirstChild(remoteName)
+            if r2 then
+                _remoteCache["Combat_" .. remoteName] = r2
+                return r2
+            end
+        end
+    end
+    
+    local fallback = GetRemote(remoteName, "RemoteEvent") or GetRemote("RE/" .. remoteName, "RemoteEvent")
+    if fallback then
+        _remoteCache["Combat_" .. remoteName] = fallback
+        return fallback
+    end
+    return nil
+end
+
+local _cachedCFController = nil
+local _cfLookupAttempted = 0
+local function GetCombatController()
+    if _cachedCFController then return _cachedCFController end
+    local now = tick()
+    if (now - _cfLookupAttempted) < 5.0 then return nil end
+    _cfLookupAttempted = now
+    
+    pcall(function()
+        local cfModule = LocalPlayer.PlayerScripts:FindFirstChild("CombatFramework")
+        if cfModule then
+            local cf = require(cfModule)
+            if type(cf) == "table" then
+                if cf.activeController then
+                    _cachedCFController = cf.activeController
+                elseif getupvalues or (debug and debug.getupvalues) then
+                    local guv = getupvalues or debug.getupvalues
+                    for _, val in pairs(guv(cf)) do
+                        if type(val) == "table" and rawget(val, "activeController") then
+                            _cachedCFController = val.activeController
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return _cachedCFController
+end
+
 local function GetBladeHits()
     local targets = {}
     local root = GetRoot()
     if not root then return targets end
     
-    local function CheckPart(folder)
+    local maxDist = math.min(_G.Config.AttackDistance or 60, 60)
+    
+    local function CheckPart(folder, isPlayerFolder)
         if not folder then return end
         for _, v in ipairs(folder:GetChildren()) do
-            if v ~= LocalPlayer.Character and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                local mobRoot = GetMobRoot(v)
-                if mobRoot and (mobRoot.Position - root.Position).Magnitude <= _G.Config.AttackDistance then
-                    table.insert(targets, v)
+            if v ~= LocalPlayer.Character and (not isPlayerFolder or _G.Config.AttackPlayers) then
+                local hum = v:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    local mobRoot = GetMobRoot(v)
+                    if mobRoot and (mobRoot.Position - root.Position).Magnitude <= maxDist then
+                        table.insert(targets, v)
+                        if #targets >= 8 then return end
+                    end
                 end
             end
         end
     end
     
-    CheckPart(Workspace:FindFirstChild("Enemies"))
-    CheckPart(Workspace:FindFirstChild("Characters"))
-    CheckPart(Workspace:FindFirstChild("SeaBeasts"))
-    CheckPart(Workspace:FindFirstChild("SeaMonsters"))
-    CheckPart(Workspace:FindFirstChild("BoatEnemies"))
+    CheckPart(Workspace:FindFirstChild("Enemies"), false)
+    CheckPart(Workspace:FindFirstChild("SeaBeasts"), false)
+    CheckPart(Workspace:FindFirstChild("SeaMonsters"), false)
+    CheckPart(Workspace:FindFirstChild("BoatEnemies"), false)
+    if _G.Config.AttackPlayers then
+        CheckPart(Workspace:FindFirstChild("Characters"), true)
+    end
     return targets
 end
 
--- Fast M1 Clicks (Redz Hub style: 0.015s blazing speed)
+-- Fast M1 Clicks
 local function FastAttack()
     if not _G.Config.FastAttack or not _G.Config.UseM1 then return end
-    if _G.UIInteracting then return end -- Prevent weapon swings while clicking in UI!
+    if _G.UIInteracting or IsTravelingSky then return end
     
     local char = GetCharacter()
     if not char then return end
     
-    -- Strict check: only activate if equipped weapon matches selected weapon
+    local selectedWep = NormalizeWeaponType(_G.Config.SelectedWeapon)
     local tool = char:FindFirstChildOfClass("Tool")
-    if not tool or not IsWeaponType(tool, _G.Config.SelectedWeapon) then
-        EquipWeapon(_G.Config.SelectedWeapon)
+    if not tool or not IsWeaponType(tool, selectedWep) then
+        EquipWeapon(selectedWep)
         return
     end
     
@@ -1612,106 +1744,118 @@ local function FastAttack()
     
     local enemies = GetBladeHits()
     if #enemies > 0 then
-        -- Record pre-attack HP for validation
-        local primaryTarget = enemies[1]
-        local preHP = primaryTarget and primaryTarget:FindFirstChild("Humanoid") and primaryTarget.Humanoid.Health or 0
-        
-        -- CombatFramework Animation & Cooldown Bypass
-        pcall(function()
-            local cfModule = LocalPlayer.PlayerScripts:FindFirstChild("CombatFramework")
-            if cfModule then
-                local cf = require(cfModule)
-                if cf and cf.activeController then
-                    cf.activeController.timeToNextAttack = 0
-                    cf.activeController.attacking = false
-                    cf.activeController.blocking = false
-                    if cf.activeController.humanoid then
-                        cf.activeController.humanoid.AutoRotate = true
-                    end
-                end
+        local controller = GetCombatController()
+        if controller then
+            controller.timeToNextAttack = 0
+            controller.attacking = false
+            controller.blocking = false
+            if controller.humanoid then
+                controller.humanoid.AutoRotate = true
             end
-        end)
+        end
 
-        local regAttack = GetNetRemote("RE/RegisterAttack")
-        local regHit = GetNetRemote("RE/RegisterHit")
+        local regAttack = ResolveCombatRemote("RegisterAttack")
+        local regHit = ResolveCombatRemote("RegisterHit")
         if regAttack and regHit then
             pcall(function()
                 regAttack:FireServer(0)
-                local args = {nil, {}}
-                for i, v in ipairs(enemies) do
-                    local mobRoot = GetMobRoot(v)
-                    if not args[1] then
-                        args[1] = v:FindFirstChild("Head") or mobRoot
+                local hitList = {}
+                local primaryPart = nil
+                
+                for _, v in ipairs(enemies) do
+                    local part = v:FindFirstChild("Head") or GetMobRoot(v)
+                    if part then
+                        if not primaryPart then primaryPart = part end
+                        table.insert(hitList, {v, part})
                     end
-                    args[2][i] = {v, mobRoot or v.PrimaryPart}
                 end
-                if args[1] then
-                    regHit:FireServer(unpack(args))
+                
+                if primaryPart and #hitList > 0 then
+                    regHit:FireServer(primaryPart, hitList)
                 end
             end)
         end
         
-        -- Activate equipped weapon ONLY (never fires if holding fruit by mistake)
-        if tool and _G.Config.UseM1 and not _G.UIInteracting then
-            pcall(function() tool:Activate() end)
-        end
-        
-        -- Verify damage was dealt (non-blocking, runs on next cycle)
-        if primaryTarget and preHP > 0 then
-            task.spawn(function()
-                Validator.VerifyDamage(primaryTarget, preHP)
-            end)
-        end
+        pcall(function() tool:Activate() end)
     end
 end
 
 -- Cast skills with selected weapon ONLY
+local _skillCooldowns = { Z = 0, X = 0, C = 0, V = 0, F = 0 }
+local _skillBaseCooldowns = { Z = 3.5, X = 5.0, C = 8.0, V = 12.0, F = 9.0 }
+
 local function CastNextSkill()
-    if not _G.Config.UseSkills then return end
-    if _G.UIInteracting then return end
+    if not _G.Config.UseSkills or _G.UIInteracting or IsTravelingSky then return end
     
     local now = tick()
-    if (now - _lastSkillCastTime) < 1.0 then return end
+    if (now - _lastSkillCastTime) < 0.5 then return end
     
     local char = GetCharacter()
     if not char then return end
+    local selectedWep = NormalizeWeaponType(_G.Config.SelectedWeapon)
     local tool = char:FindFirstChildOfClass("Tool")
-    if not tool or not IsWeaponType(tool, _G.Config.SelectedWeapon) then
-        EquipWeapon(_G.Config.SelectedWeapon)
+    if not tool or not IsWeaponType(tool, selectedWep) then
+        EquipWeapon(selectedWep)
         return
     end
     
     local enemies = GetBladeHits()
     if #enemies == 0 then return end
     
+    local allowedSkills = { Z = true, X = true }
+    if selectedWep == "Melee" or selectedWep == "Sword" then
+        allowedSkills.C = true
+    elseif selectedWep == "Fruit" then
+        allowedSkills.C = true
+        allowedSkills.V = true
+        allowedSkills.F = true
+    end
+    
     local chosenKey = nil
     for i = 1, #_skillCycle do
         local key = _skillCycle[_skillCycleIndex]
         _skillCycleIndex = (_skillCycleIndex % #_skillCycle) + 1
-        if _G.Config["Skill_" .. key] then
-            chosenKey = key
-            break
+        
+        if allowedSkills[key] and _G.Config["Skill_" .. key] then
+            local lastUsed = _skillCooldowns[key] or 0
+            local baseCD = _skillBaseCooldowns[key] or 4.0
+            if (now - lastUsed) >= baseCD then
+                chosenKey = key
+                break
+            end
         end
     end
     
     if chosenKey then
         _lastSkillCastTime = now
-        local VIM = game:GetService("VirtualInputManager")
-        local keyCode = Enum.KeyCode[chosenKey]
-        if VIM and keyCode then
-            pcall(function()
-                VIM:SendKeyEvent(true, keyCode, false, game)
-                task.wait(0.06)
-                VIM:SendKeyEvent(false, keyCode, false, game)
-            end)
-        elseif keypress and keyrelease then
-            local byte = string.byte(chosenKey)
-            pcall(function()
-                keypress(byte)
-                task.wait(0.06)
-                keyrelease(byte)
-            end)
-        end
+        _skillCooldowns[chosenKey] = now
+        
+        pcall(function()
+            local targetRoot = GetMobRoot(enemies[1])
+            local myRoot = GetRoot()
+            if targetRoot and myRoot then
+                myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
+            end
+        end)
+        
+        task.spawn(function()
+            local VIM = game:GetService("VirtualInputManager")
+            local keyCode = Enum.KeyCode[chosenKey]
+            if VIM and keyCode then
+                pcall(function()
+                    VIM:SendKeyEvent(true, keyCode, false, game)
+                    task.wait(0.05)
+                    VIM:SendKeyEvent(false, keyCode, false, game)
+                end)
+            elseif keypress and keyrelease then
+                local byte = string.byte(chosenKey)
+                pcall(function()
+                    keypress(byte)
+                    task.wait(0.05)
+                    keyrelease(byte)
+                end)
+            end
+        end)
     end
 end
 
@@ -1732,6 +1876,9 @@ local function IsInCombatMode()
         or _G.Config.AutoKillSeaBeast
         or _G.Config.AutoKillTerrorShark
         or _G.Config.AutoKillShark
+        or _G.Config.AutoKillPiranha
+        or _G.Config.AutoKillGhostShip
+        or _G.Config.AutoTrainV4
         or _G.Config.AutoFarmBones
         or _G.Config.AutoRaceV4Trial
         or _G.Config.AutoCakePrinceSummon
@@ -1743,7 +1890,7 @@ local function StartCombatLoop()
         while true do
             local cd = _G.Config.FastAttackSpeed or 0.015
             task.wait(cd)
-            if IsInCombatMode() then
+            if IsInCombatMode() and not IsTravelingSky then
                 if _G.Config.FastAttack and _G.Config.UseM1 then
                     FastAttack()
                 end
@@ -1786,7 +1933,7 @@ local function BringMobsTo(targetMobName, centerCFrame)
     if not enemies then return end
     
     for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == targetMobName and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+        if IsMobMatch(mob.Name, targetMobName) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
             local mobRoot = GetMobRoot(mob)
             if mobRoot then
                 local dist = (mobRoot.Position - centerCFrame.Position).Magnitude
@@ -1874,7 +2021,7 @@ local QuestsDB = {
     {Sea = 3, Min = 1975, Max = 1999, Quest = "HauntedQuest1", Level = 1, Mob = "Reborn Skeleton", Pos = CFrame.new(-8760.12, 141.12, 6050.23)},
     {Sea = 3, Min = 2000, Max = 2024, Quest = "HauntedQuest1", Level = 2, Mob = "Living Zombie", Pos = CFrame.new(-9120.34, 141.12, 5820.45)},
     {Sea = 3, Min = 2025, Max = 2049, Quest = "HauntedQuest2", Level = 1, Mob = "Demonic Soul", Pos = CFrame.new(-9520.45, 172.01, 6120.12)},
-    {Sea = 3, Min = 2050, Max = 2074, Quest = "HauntedQuest2", Level = 2, Mob = "Posessed Mummy", Pos = CFrame.new(-9516.99, 12.01, 6078.47)},
+    {Sea = 3, Min = 2050, Max = 2074, Quest = "HauntedQuest2", Level = 2, Mob = "Possessed Mummy", Pos = CFrame.new(-9516.99, 12.01, 6078.47)},
     {Sea = 3, Min = 2075, Max = 2099, Quest = "NutsIslandQuest", Level = 1, Mob = "Peanut Scout", Pos = CFrame.new(-2120.34, 38.12, -10190.23)},
     {Sea = 3, Min = 2100, Max = 2124, Quest = "NutsIslandQuest", Level = 2, Mob = "Peanut President", Pos = CFrame.new(-2120.34, 38.12, -10520.45)},
     {Sea = 3, Min = 2125, Max = 2149, Quest = "IceCreamIslandQuest", Level = 1, Mob = "Ice Cream Chef", Pos = CFrame.new(-820.12, 65.12, -10940.34)},
@@ -1909,15 +2056,34 @@ local function GetCurrentQuest()
     return best or QuestsDB[1]
 end
 
--- Strictly check if Quest HUD is currently visible and active in game
+-- Helper to resolve true Quest NPC position (Level 1 entry always holds NPC coords)
+local function GetQuestNpcCFrame(questInfo)
+    if not questInfo then return nil end
+    for _, q in ipairs(QuestsDB) do
+        if q.Quest == questInfo.Quest and q.Level == 1 then
+            return q.Pos
+        end
+    end
+    return questInfo.Pos
+end
+
+-- Strictly and authoritatively check if a quest is active
 local function HasQuest()
-    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not pGui then return false end
-    local main = pGui:FindFirstChild("Main")
-    if main then
-        local q = main:FindFirstChild("Quest")
-        if q and q.Visible then
+    local data = LocalPlayer:FindFirstChild("Data")
+    if data then
+        local qVal = data:FindFirstChild("Quest")
+        if qVal and qVal:IsA("StringValue") and qVal.Value ~= "" then
             return true
+        end
+    end
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui then
+        local main = pGui:FindFirstChild("Main")
+        if main then
+            local q = main:FindFirstChild("Quest")
+            if q and q.Visible then
+                return true
+            end
         end
     end
     return false
@@ -2043,6 +2209,16 @@ local function ClearHover()
     FlightBodyVel = nil
 end
 
+-- Robust mob name matcher (handles exact names, stripped level tags, case insensitivity)
+local function IsMobMatch(mobName, targetName)
+    if not mobName or not targetName then return false end
+    if mobName == targetName then return true end
+    local cleanMob = mobName:gsub("%s*%[Lv%.%s*%d+%]%s*$", "")
+    if cleanMob == targetName then return true end
+    if cleanMob:lower() == targetName:lower() then return true end
+    return false
+end
+
 -- Find live enemy by name
 local function FindEnemy(targetName)
     local enemies = Workspace:FindFirstChild("Enemies")
@@ -2051,17 +2227,23 @@ local function FindEnemy(targetName)
     local closest, closestDist = nil, math.huge
     
     for _, mob in ipairs(enemies:GetChildren()) do
-        if (mob.Name == targetName or string.find(mob.Name, targetName)) and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and not Validator.IsMobGlitched(mob) then
-            local dist = root and (mob.HumanoidRootPart.Position - root.Position).Magnitude or 0
-            if dist < closestDist then
-                closestDist = dist
-                closest = mob
+        if mob:IsA("Model") and IsMobMatch(mob.Name, targetName) then
+            local hum = mob:FindFirstChildOfClass("Humanoid")
+            local mRoot = GetMobRoot(mob)
+            if hum and hum.Health > 0 and mRoot and not Validator.IsMobGlitched(mob) then
+                local dist = root and (mRoot.Position - root.Position).Magnitude or 0
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = mob
+                end
             end
         end
     end
     return closest
 end
 --============================== AUTO FARM LEVEL CORE ==============================
+local _lastDesyncRecover = 0
+
 local function StartAutoFarmLevel()
     task.spawn(function()
         task.wait(math.random(5, 15) / 10)
@@ -2074,38 +2256,42 @@ local function StartAutoFarmLevel()
                     if not root then return end
                     
                     if not HasQuest() then
-                        -- STEP 1: Travel to Quest NPC (Auto-Cruise across sea if distant island)
-                        local npcPos = questInfo.Pos.Position
+                        -- STEP 1: Travel to Quest NPC (Level 1 pos in QuestsDB is ALWAYS the NPC)
+                        local npcCF = GetQuestNpcCFrame(questInfo)
+                        local npcPos = npcCF.Position
                         local distToNPC = (npcPos - root.Position).Magnitude
                         
                         if distToNPC > 35 then
-                            TweenTo(questInfo.Pos * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
+                            TweenTo(npcCF * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
                             
-                            -- Dynamic timeout based on distance: never aborts prematurely mid-ocean!
-                            local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
+                            local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
                             local maxWait = (distToNPC / speed) + 12
                             local t0 = tick()
                             
-                            while (questInfo.Pos.Position - root.Position).Magnitude > 40 and (tick() - t0) < maxWait and not HasQuest() and _G.Config.AutoFarmLevel do
+                            while (npcPos - root.Position).Magnitude > 40 and (tick() - t0) < maxWait and not HasQuest() and _G.Config.AutoFarmLevel do
                                 task.wait(0.2)
                             end
                         end
                         
                         -- STEP 2: Talk to Quest NPC within range
-                        if (questInfo.Pos.Position - root.Position).Magnitude <= 45 then
+                        if (npcPos - root.Position).Magnitude <= 45 then
                             local cf = CommF()
                             if cf then
                                 cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                task.wait(0.35)
+                                task.wait(0.4)
                                 if not HasQuest() then
                                     cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                    task.wait(0.35)
+                                    task.wait(0.4)
                                 end
-                                -- If still no quest after 2 attempts while next to NPC: Phantom Desync detected!
+                                -- Debounced Anti-Desync recovery: at most once per 10s
                                 if not HasQuest() and _G.Config.AutoFarmLevel then
-                                    RecoverFromPhantomDesync(questInfo.Pos * CFrame.new(0, 4, 0))
-                                    task.wait(0.3)
-                                    cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                                    local now = tick()
+                                    if (now - _lastDesyncRecover) > 10.0 then
+                                        _lastDesyncRecover = now
+                                        RecoverFromPhantomDesync(npcCF * CFrame.new(0, 4, 0))
+                                        task.wait(0.3)
+                                        cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                                    end
                                 end
                             end
                         end
@@ -2125,15 +2311,14 @@ local function StartAutoFarmLevel()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            -- Mobs not spawned nearby (or player not yet at mob spawn area)
+                            -- Mobs not spawned nearby: travel to mob spawn position so they load!
                             local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
                             local distToSafe = (safePos.Position - root.Position).Magnitude
                             if distToSafe < 15 then
                                 HoverLock(safePos)
                             else
                                 TweenTo(safePos, "Mob Spawn Point")
-                                -- Dynamic wait if crossing islands to reach mob spawn
-                                local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
+                                local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
                                 local maxWait = (distToSafe / speed) + 12
                                 local t0 = tick()
                                 while (safePos.Position - root.Position).Magnitude > 35 and (tick() - t0) < maxWait and HasQuest() and _G.Config.AutoFarmLevel do
@@ -2148,44 +2333,58 @@ local function StartAutoFarmLevel()
     end)
 end
 
---============================== AUTO FARM SELECTED MOB CORE ==============================
+-- Auto Farm Selected Mob Core (Auto-selects spawned mob if empty, travels to spawn if not found)
 local function StartAutoFarmSelectedMob()
     task.spawn(function()
         task.wait(math.random(8, 20) / 10)
         while true do
             task.wait(0.25)
-            if _G.Config.FarmSelectedMob and _G.Config.SelectedMob ~= "" then
-                pcall(function()
-                    local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
-                    local target = FindEnemy(mobName)
-                    local root = GetRoot()
-                    if not root then return end
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        local dist = GetOptimalFarmDistance(target)
-                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        local distToFarm = (farmPos.Position - root.Position).Magnitude
-                        if distToFarm < 15 then
-                            HoverLock(farmPos)
+            if _G.Config.FarmSelectedMob then
+                if not _G.Config.SelectedMob or _G.Config.SelectedMob == "" then
+                    local spawned = GetSpawnedMobsList()
+                    if spawned and #spawned > 0 then
+                        _G.Config.SelectedMob = spawned[1]
+                    end
+                end
+                if _G.Config.SelectedMob and _G.Config.SelectedMob ~= "" then
+                    pcall(function()
+                        local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
+                        local target = FindEnemy(mobName)
+                        local root = GetRoot()
+                        if not root then return end
+                        
+                        if target and target:FindFirstChild("HumanoidRootPart") then
+                            local dist = GetOptimalFarmDistance(target)
+                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            local distToFarm = (farmPos.Position - root.Position).Magnitude
+                            if distToFarm < 15 then
+                                HoverLock(farmPos)
+                            else
+                                TweenTo(farmPos, mobName)
+                            end
+                            EquipWeapon(_G.Config.SelectedWeapon)
+                            BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                         else
-                            TweenTo(farmPos, mobName)
-                        end
-                        EquipWeapon(_G.Config.SelectedWeapon)
-                        BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
-                    else
-                        for _, q in ipairs(QuestsDB) do
-                            if q.Mob == mobName then
-                                local safePos = q.Pos * CFrame.new(0, 35, 0)
+                            -- Find spawn position for this mob from QuestsDB
+                            local mobPos = nil
+                            for _, q in ipairs(QuestsDB) do
+                                if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
+                                    mobPos = q.Pos
+                                    break
+                                end
+                            end
+                            if mobPos then
+                                local safePos = mobPos * CFrame.new(0, 30, 0)
                                 local distToSafe = (safePos.Position - root.Position).Magnitude
                                 if distToSafe < 15 then
                                     HoverLock(safePos)
                                 else
                                     TweenTo(safePos, mobName .. " Spawn")
                                 end
-                                break
                             end
                         end
-                    end
-                end)
+                    end)
+                end
             end
         end
     end)
@@ -2197,7 +2396,14 @@ local function StartAutoFarmSelectedBoss()
         task.wait(math.random(10, 25) / 10)
         while true do
             task.wait(0.3)
-            if _G.Config.FarmSelectedBoss and _G.Config.SelectedBoss ~= "" then
+            if _G.Config.FarmSelectedBoss then
+                if not _G.Config.SelectedBoss or _G.Config.SelectedBoss == "" then
+                    local spawned = GetSpawnedBossesList()
+                    if spawned and #spawned > 0 then
+                        _G.Config.SelectedBoss = spawned[1]
+                    end
+                end
+                if _G.Config.SelectedBoss and _G.Config.SelectedBoss ~= "" then
                 pcall(function()
                     local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
                     local bossData = BossesDB[bossName]
@@ -2232,6 +2438,7 @@ local function StartAutoFarmSelectedBoss()
                         end
                     end
                 end)
+                end
             end
         end
     end)
@@ -2292,6 +2499,14 @@ local function FightRaidBoss(bossName)
         end
         EquipWeapon(_G.Config.SelectedWeapon)
         return true
+    else
+        local bData = BossesDB[bossName]
+        if bData and bData.Sea == CurrentSea then
+            local checkPos = bData.Pos * CFrame.new(0, 35, 0)
+            if (checkPos.Position - root.Position).Magnitude > 25 then
+                TweenTo(checkPos, bossName .. " Spawn Area")
+            end
+        end
     end
     return false
 end
@@ -2990,11 +3205,15 @@ local function StartSpecialBossAndBoneEngine()
                 -- Auto Farm Bones (Sea 3 Haunted Castle)
                 if _G.Config.AutoFarmBones and Sea3 then
                     local enemies = Workspace:FindFirstChild("Enemies")
-                    local boneMobs = {"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy"}
+                    local boneMobs = {"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Possessed Mummy"}
                     local foundMob = false
                     if enemies then
                         for _, mob in ipairs(enemies:GetChildren()) do
-                            if table.find(boneMobs, mob.Name) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                            local isBone = false
+                            for _, bName in ipairs(boneMobs) do
+                                if IsMobMatch(mob.Name, bName) then isBone = true; break end
+                            end
+                            if isBone and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
                                 local mobRoot = GetMobRoot(mob)
                                 if mobRoot then
                                     foundMob = true
@@ -3040,7 +3259,11 @@ local function StartSpecialBossAndBoneEngine()
                     local cakeMobs = {"Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker", "Cocoa Warrior", "Chocolate Bar Battler"}
                     if enemies then
                         for _, mob in ipairs(enemies:GetChildren()) do
-                            if table.find(cakeMobs, mob.Name) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                            local isCake = false
+                            for _, cName in ipairs(cakeMobs) do
+                                if IsMobMatch(mob.Name, cName) then isCake = true; break end
+                            end
+                            if isCake and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
                                 local mobRoot = GetMobRoot(mob)
                                 if mobRoot then
                                     local farmPos = mobRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
@@ -4106,6 +4329,11 @@ local function CreateUI()
             end)
             
             Populate(allOptions)
+            
+            -- Ensure callback is executed on initialization so _G.Config keys are never empty strings
+            if callback and selected ~= "" then
+                pcall(callback, selected)
+            end
             
             local DropAPI = {}
             function DropAPI:SetOptions(newOpts)
