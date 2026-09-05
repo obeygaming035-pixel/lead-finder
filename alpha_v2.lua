@@ -615,6 +615,8 @@ local function HoverLock(targetCFrame)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(100000, 100000, 100000)
     root.CFrame = targetCFrame
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 end
 
 local function StopTween()
@@ -1324,7 +1326,8 @@ local function HeartbeatMove(root, targetCFrame, speed, onStep)
             _activeFlight = nil
             root.CFrame = targetCFrame
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            for _, cb in ipairs(completedCallbacks) do pcall(cb) end
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            for _, cb in ipairs(completedCallbacks) do pcall(cb, Enum.PlaybackState.Completed) end
         end
     end)
     _activeFlight = conn
@@ -1370,30 +1373,22 @@ local function TweenTo(targetCFrame, destName)
     bv.MaxForce = Vector3.new(100000, 100000, 100000)
     EnableNoclip()
 
-    -- 1. Within close range (<= 20 studs): lock immediately
-    if distance <= 20 then
+    -- 1. Close range (<= 25 studs): instant reinforced snap with zero velocity
+    if distance <= 25 then
         if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
         CurrentTween = nil
         CurrentTargetPos = nil
         IsTravelingSky = false
         root.CFrame = targetCFrame
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        HoverLock(targetCFrame)
         if SetTravelHUD then SetTravelHUD(false) end
         return
     end
 
-    -- 2. Same-island close range (<= 150 studs): instant snap!
-    -- Matches top Blox Fruits hubs: local mob farming snaps instantly without tween delays
-    if distance <= 150 then
-        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
-        CurrentTween = nil
-        CurrentTargetPos = nil
-        IsTravelingSky = false
-        root.CFrame = targetCFrame
-        return
-    end
-
-    -- 3. Native server entrance portal bypass
-    if _G.Config.BypassTeleport then
+    -- 2. Native server entrance portal bypass (for long cross-sea portals)
+    if _G.Config.BypassTeleport and distance > 350 then
         local bestPortal = nil
         local bestDist = math.huge
         for _, portal in ipairs(ENTRANCE_PORTALS) do
@@ -1413,7 +1408,9 @@ local function TweenTo(targetCFrame, destName)
                 root = GetRoot()
                 if root and (targetPos - root.Position).Magnitude < 150 then
                     root.CFrame = targetCFrame
+                    root.AssemblyLinearVelocity = Vector3.zero
                     IsTravelingSky = false
+                    HoverLock(targetCFrame)
                     if SetTravelHUD then SetTravelHUD(false) end
                     if _G.Config.AutoSetSpawn then
                         pcall(function() cf:InvokeServer("SetSpawnPoint") end)
@@ -1424,8 +1421,7 @@ local function TweenTo(targetCFrame, destName)
         end
     end
 
-    -- 4. Cross-Island Long Distance Glide (> 150 studs)
-    -- Anti-spam: if already gliding to this exact target, let it continue
+    -- 3. Heartbeat-Driven Physics Glide (Smooth, zero rollback, network replicated)
     if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 15 and CurrentTween then
         return
     end
@@ -1440,26 +1436,48 @@ local function TweenTo(targetCFrame, destName)
     if speed < 180 then speed = 220 end
     if speed > 270 then speed = 250 end
 
-    -- Water safety: during flights across the ocean, keep Y at least 40 so player never touches ocean water!
+    -- Water safety altitude
     local flightCFrame = targetCFrame
     if distance > 250 and targetCFrame.Y < 40 then
         flightCFrame = CFrame.new(targetCFrame.X, 40, targetCFrame.Z)
     end
 
     local dur = distance / speed
-    local twInfo = TweenInfo.new(dur, Enum.EasingStyle.Linear)
-    local tw = TweenService:Create(root, twInfo, {CFrame = flightCFrame})
+    local tw = HeartbeatMove(root, flightCFrame, speed, function(alpha, curPos)
+        if SetTravelHUD then
+            local remDist = (flightCFrame.Position - curPos).Magnitude
+            SetTravelHUD(true, label, remDist, speed, distance)
+        end
+    end)
     CurrentTween = tw
-    tw:Play()
 
     if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
 
+    -- Safety watchdog timeout: prevents IsTravelingSky from hanging
+    task.delay(dur + 2.5, function()
+        if CurrentTargetPos == targetPos and IsTravelingSky then
+            pcall(function() tw:Cancel() end)
+            CurrentTween = nil
+            CurrentTargetPos = nil
+            IsTravelingSky = false
+            local r = GetRoot()
+            if r then
+                r.CFrame = targetCFrame
+                r.AssemblyLinearVelocity = Vector3.zero
+                HoverLock(targetCFrame)
+            end
+            if SetTravelHUD then SetTravelHUD(false) end
+        end
+    end)
+
     tw.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed then
+        if playbackState == nil or playbackState == Enum.PlaybackState.Completed then
             CurrentTween = nil
             CurrentTargetPos = nil
             IsTravelingSky = false
             root.CFrame = targetCFrame
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
             HoverLock(targetCFrame)
             if SetTravelHUD then SetTravelHUD(false) end
 
@@ -2084,6 +2102,12 @@ end
 -- Find live enemy by name
 local function FindEnemy(targetName)
     local enemies = Workspace:FindFirstChild("Enemies")
+    if not enemies or #enemies:GetChildren() == 0 then
+        for _, name in ipairs({"Enemies", "mobs", "Mobs", "Characters", "NPCs"}) do
+            local f = Workspace:FindFirstChild(name)
+            if f and #f:GetChildren() > 0 then enemies = f; break end
+        end
+    end
     if not enemies then return nil end
     local root = GetRoot()
     local closest, closestDist = nil, math.huge
@@ -2523,21 +2547,37 @@ end
 -- 3. Chest ESP & Auto Chest Collection
 local function GetSpawnedChests()
     local chests = {}
-    local function ScanFolder(folder)
-        if not folder then return end
-        for _, c in ipairs(folder:GetChildren()) do
-            if c:IsA("Model") or c:IsA("Part") then
-                if string.find(c.Name, "Chest") or c:FindFirstChild("TouchInterest") then
-                    table.insert(chests, c)
-                end
+    local seen = {}
+    local function Check(c)
+        if not c or seen[c] then return end
+        if c:IsA("Model") or c:IsA("BasePart") then
+            local n = c.Name:lower()
+            if n:find("chest") or c:FindFirstChild("TouchInterest") or c:FindFirstChildWhichIsA("TouchTransmitter", true) then
+                seen[c] = true
+                table.insert(chests, c)
             end
         end
     end
-    ScanFolder(Workspace)
-    local chestsFolder = Workspace:FindFirstChild("Chests")
-    if chestsFolder then ScanFolder(chestsFolder) end
+    for _, c in ipairs(Workspace:GetChildren()) do Check(c) end
+    local chestsFolder = Workspace:FindFirstChild("Chests") or Workspace:FindFirstChild("ChestModels")
+    if chestsFolder then for _, c in ipairs(chestsFolder:GetChildren()) do Check(c) end end
     local map = Workspace:FindFirstChild("Map")
-    if map then ScanFolder(map) end
+    if map then
+        for _, island in ipairs(map:GetChildren()) do
+            Check(island:FindFirstChild("Chests"))
+            for _, sub in ipairs(island:GetChildren()) do Check(sub) end
+        end
+    end
+    local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
+    if worldOrigin then
+        local locs = worldOrigin:FindFirstChild("Locations")
+        if locs then
+            for _, loc in ipairs(locs:GetChildren()) do
+                Check(loc:FindFirstChild("Chests"))
+                for _, sub in ipairs(loc:GetChildren()) do Check(sub) end
+            end
+        end
+    end
     return chests
 end
 
@@ -2702,7 +2742,9 @@ local function StartChestFarmLoop()
                             end
                         end
                         if closest then
-                            TweenTo(closest.CFrame * CFrame.new(0, 2, 0))
+                            TweenTo(closest.CFrame * CFrame.new(0, 1, 0))
+                            local prompt = closest:FindFirstChildWhichIsA("ProximityPrompt", true) or (closest.Parent and closest.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
+                            if prompt then pcall(function() fireproximityprompt(prompt) end) end
                             task.wait(0.2)
                         end
                     end
