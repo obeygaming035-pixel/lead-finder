@@ -1983,6 +1983,29 @@ local function GetSpawnedBossesList()
     return list
 end
 
+-- Alias so both names work (UI uses GetActiveBossesList)
+local GetActiveBossesList = GetSpawnedBossesList
+
+-- ClearHover: stops hover/noclip state and resets player to normal ground physics
+local function ClearHover()
+    StopTween()
+    if FlightBodyVel then
+        pcall(function() FlightBodyVel:Destroy() end)
+        FlightBodyVel = nil
+    end
+    DisableNoclip()
+    local hum = GetHumanoid()
+    if hum then
+        hum.PlatformStand = false
+        hum.Sit = false
+    end
+    local root = GetRoot()
+    if root then
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+end
+
 -- Find live enemy by name
 local function FindEnemy(targetName)
     local enemies = Workspace:FindFirstChild("Enemies")
