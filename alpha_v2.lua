@@ -287,30 +287,78 @@ _G.Config = {
 _G.UIInteracting = false
 
 
---============================== HELPER FUNCTIONS ==============================
+--============================== HELPER FUNCTIONS & FLIGHT STATE ==============================
+-- Universal Flight, Travel & Physics State Variables (scoped across entire file)
+local CurrentTween = nil
+local FlightBodyVel = nil
+local CurrentTargetPos = nil
+local IsTravelingSky = false
+local NoclipConn = nil
+local SetTravelHUD = nil -- Forward declaration for Cockpit HUD
+local LandingPlatform = nil
+local _activeFlight = nil -- Heartbeat flight connection tracker
+
 local function GetMobRoot(mob)
     if not mob then return nil end
-    return mob:FindFirstChild("HumanoidRootPart") 
-        or mob.PrimaryPart 
-        or mob:FindFirstChild("Torso") 
-        or mob:FindFirstChild("UpperTorso") 
-        or mob:FindFirstChild("Head") 
+    return mob:FindFirstChild("HumanoidRootPart")
+        or mob.PrimaryPart
+        or mob:FindFirstChild("Torso")
+        or mob:FindFirstChild("UpperTorso")
+        or mob:FindFirstChild("Head")
         or mob:FindFirstChildWhichIsA("BasePart")
 end
 
 local function GetCharacter()
-    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 and char:FindFirstChild("HumanoidRootPart") then
+        return char
+    end
+    return nil
 end
 
 local function GetRoot()
     local char = GetCharacter()
-    return char:WaitForChild("HumanoidRootPart", 5)
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart")
 end
 
 local function GetHumanoid()
     local char = GetCharacter()
-    return char:WaitForChild("Humanoid", 5)
+    if not char then return nil end
+    return char:FindFirstChild("Humanoid")
 end
+
+-- Global Character Lifecycle: automatically self-heals and resets movement on death and respawn
+local function HookCharacterLifecycle(char)
+    if not char then return end
+    task.spawn(function()
+        local hum = char:WaitForChild("Humanoid", 10)
+        if hum then
+            hum.Died:Connect(function()
+                IsTravelingSky = false
+                CurrentTargetPos = nil
+                if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+                CurrentTween = nil
+                if FlightBodyVel then pcall(function() FlightBodyVel:Destroy() end) end
+                FlightBodyVel = nil
+            end)
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    HookCharacterLifecycle(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    IsTravelingSky = false
+    CurrentTargetPos = nil
+    if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+    CurrentTween = nil
+    if FlightBodyVel then pcall(function() FlightBodyVel:Destroy() end) end
+    FlightBodyVel = nil
+    HookCharacterLifecycle(newChar)
+end)
 
 local function GetPlayerLevel()
     local data = LocalPlayer:FindFirstChild("Data")
@@ -517,14 +565,6 @@ local function GetOptimalFarmDistance(enemy)
 end
 
 --============================== REDZ-GRADE SKY TWEEN & HOVER LOCK ENGINE ==============================
-local CurrentTween = nil
-local FlightBodyVel = nil
-local CurrentTargetPos = nil
-local IsTravelingSky = false
-local NoclipConn = nil
-local SetTravelHUD = nil -- Forward declaration for Cockpit HUD
-local LandingPlatform = nil
-local _activeFlight = nil -- Heartbeat flight connection tracker
 
 local function EnableNoclip()
     if NoclipConn then return end
@@ -544,14 +584,6 @@ local function DisableNoclip()
     if NoclipConn then
         NoclipConn:Disconnect()
         NoclipConn = nil
-    end
-    local char = LocalPlayer.Character
-    if char then
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = true
-            end
-        end
     end
 end
 
@@ -576,28 +608,15 @@ end
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     local hum = GetHumanoid()
-    if not root or not root.Parent then return end
+    if not root or not root.Parent or not hum or hum.Health <= 0 then return end
     EnableNoclip()
-    if hum then hum.PlatformStand = true end
+    hum.PlatformStand = true
     local bv = GetOrCreateBodyVelocity(root)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.CFrame = targetCFrame
-    
-    -- Quick validation: if server rolled back position, re-apply
-    task.spawn(function()
-        task.wait(0.12)
-        if not root or not root.Parent then return end
-        local deviation = (root.Position - targetCFrame.Position).Magnitude
-        if deviation > 20 then
-            -- Re-apply position (server may have rejected it)
-            root.CFrame = targetCFrame
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        end
-    end)
 end
 
 local function StopTween()
@@ -1249,24 +1268,17 @@ local function GetRealGroundPosition(x, y, z)
     return nil, nil
 end
 
--- Phantom Desync Recovery (Forces full physics handshake and jump broadcast)
+-- Position sync refresh (safe, no joint breaks, no impact velocity)
 local function RecoverFromPhantomDesync(expectedCF)
-    print("[ALPHA ANTI-DESYNC] Initiating Phantom Desync Recovery Handshake...")
-    FullResetMovement()
-    task.wait(0.2)
     local root = GetRoot()
     local hum = GetHumanoid()
-    if root and hum then
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        hum.Jump = true
-        root.AssemblyLinearVelocity = Vector3.new(0, 35, 0)
-        task.wait(0.25)
+    if root and hum and hum.Health > 0 then
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         if expectedCF then
-            root.CFrame = expectedCF * CFrame.new(0, 2, 0)
+            root.CFrame = expectedCF
         end
     end
-    task.wait(0.3)
     local cf = CommF()
     if cf then
         pcall(function() cf:InvokeServer("SetSpawnPoint") end)
@@ -1373,10 +1385,10 @@ end
 -- with terrain pre-streaming, landing platform, position reinforcement,
 -- and server spawn-point authority (eliminates rubberbanding completely).
 -- -------------------------------------------------------------------------
-local function TweenTo(targetCFrame, destName, forceInstant)
+local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
-    if not root or not root.Parent or not hum then return end
+    if not root or not root.Parent or not hum or hum.Health <= 0 then return end
     
     local targetPos = targetCFrame.Position
     local distance = (targetPos - root.Position).Magnitude
@@ -1388,227 +1400,148 @@ local function TweenTo(targetCFrame, destName, forceInstant)
         return
     end
     
-    -- Safe speed from Validator auto-tuner (adapts to server rollback detection)
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
-    if speed < 180 then speed = 220 end
-    if speed > 260 then speed = 250 end
-    
-    -- Anti-spam check: already heading to nearly the same spot
+    -- Anti-spam: already moving to nearly the exact same position
     if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and (CurrentTween or IsTravelingSky) then
         return
     end
     
-    StopActiveFlight()
-    if CurrentTween then
-        pcall(function() CurrentTween:Cancel() end)
-        CurrentTween = nil
-    end
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
+    if speed < 180 then speed = 220 end
+    if speed > 270 then speed = 250 end
     
+    StopTween()
     CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 350 studs): Direct Heartbeat linear glide on same island
-    if distance <= 350 then
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        local moveDir = (targetPos - root.Position).Unit
-        bv.Velocity = moveDir * speed
-        root.AssemblyLinearVelocity = moveDir * speed
-        
-        local move = HeartbeatMove(root, targetCFrame, speed, function(alpha, curPos)
-            local d = (targetPos - curPos).Unit
-            if root and root.Parent then
-                root.AssemblyLinearVelocity = d * speed
-                if bv and bv.Parent then bv.Velocity = d * speed end
+    -- Native server entrance portal bypass
+    if _G.Config.BypassTeleport then
+        local bestPortal = nil
+        local bestDist = math.huge
+        for _, portal in ipairs(ENTRANCE_PORTALS) do
+            if portal.Sea == CurrentSea and portal.IsEntrance then
+                local pDist = (targetPos - portal.Pos).Magnitude
+                if pDist < bestDist then
+                    bestDist = pDist
+                    bestPortal = portal
+                end
             end
-        end)
-        move.Completed.Connect(nil, function()
-            if hum and hum.Parent then hum.PlatformStand = false end
-            HoverLock(targetCFrame)
-        end)
-        return move
+        end
+        if bestPortal and bestDist < 450 then
+            local cf = CommF()
+            if cf then
+                pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
+                task.wait(0.5)
+                root = GetRoot()
+                if root and (targetPos - root.Position).Magnitude < 150 then
+                    HoverLock(targetCFrame)
+                    if _G.Config.AutoSetSpawn then
+                        pcall(function() cf:InvokeServer("SetSpawnPoint") end)
+                    end
+                    return
+                end
+            end
+        end
     end
     
-    -- 2. LONG RANGE (> 350 studs): TWO-TIER SAFE TRAVEL ENGINE
-    -- Tier 1: Check game's native entrance portals (CommF:InvokeServer("requestEntrance"))
-    -- Tier 2: 3-Phase Heartbeat Sky Cruise (Ascend -> Cruise -> Descend + Ground Snap)
-    if IsTravelingSky then return end
+    EnableNoclip()
+    hum.PlatformStand = true
+    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    
+    local bv = GetOrCreateBodyVelocity(root)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    
     IsTravelingSky = true
     
+    -- 1. SHORT RANGE (<= 250 studs, e.g. same island mob farm)
+    if distance <= 250 then
+        local dur = distance / speed
+        local tw = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween = tw
+        tw:Play()
+        
+        tw.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                CurrentTween = nil
+                IsTravelingSky = false
+                HoverLock(targetCFrame)
+            end
+        end)
+        return tw
+    end
+    
+    -- 2. LONG RANGE (> 250 studs, cross-island multi-waypoint sky glide)
+    local startPos = root.Position
+    local cruiseY = math.max(startPos.Y, targetPos.Y, 280) + 40
+    if cruiseY < 320 and CurrentSea ~= 1 then cruiseY = 320 end
+    
     task.spawn(function()
-        local totalDist = distance
-        if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
-        
-        -- Tier 1: Try requestEntrance portal bypass first if near an official entrance
-        if _G.Config.BypassTeleport then
-            local bestPortal = nil
-            local bestDist = math.huge
-            for _, portal in ipairs(ENTRANCE_PORTALS) do
-                if portal.Sea == CurrentSea and portal.IsEntrance then
-                    local portalToTarget = (targetPos - portal.Pos).Magnitude
-                    if portalToTarget < bestDist then
-                        bestDist = portalToTarget
-                        bestPortal = portal
-                    end
-                end
-            end
-            
-            if bestPortal and bestDist < 450 then
-                local cf = CommF()
-                if cf then
-                    pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
-                    task.wait(0.5)
-                    root = GetRoot()
-                    if root then
-                        local newDist = (targetPos - root.Position).Magnitude
-                        if newDist < 150 then
-                            StopTween()
-                            HoverLock(targetCFrame)
-                            if _G.Config.AutoSetSpawn then
-                                pcall(function() cf:InvokeServer("SetSpawnPoint") end)
-                            end
-                            IsTravelingSky = false
-                            if SetTravelHUD then SetTravelHUD(false) end
-                            return
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- Tier 2: 3-Phase Heartbeat Sky Cruise
-        root = GetRoot()
-        hum = GetHumanoid()
-        if not root or not root.Parent or not hum then
-            IsTravelingSky = false
-            return
-        end
-        
-        EnableNoclip()
-        hum.PlatformStand = true
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        
-        -- Calculate safe cruising altitude above all obstacles, islands, and water
-        local startPos = root.Position
-        local cruiseY = math.max(startPos.Y, targetPos.Y, 260) + 65
-        if cruiseY < 320 and CurrentSea ~= 1 then cruiseY = 320 end
-        if cruiseY < 280 then cruiseY = 280 end
-        
-        -- PHASE 1: Ascend vertically to cruise altitude
-        local ascendDist = math.abs(cruiseY - startPos.Y)
-        if ascendDist > 10 then
-            local ascendTime = ascendDist / math.max(speed, 200)
+        local function SafeTween(goalCF, dur)
+            if not root or not root.Parent or not IsTravelingSky then return false end
+            local tw = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = goalCF})
+            CurrentTween = tw
+            tw:Play()
+            local completed = false
+            local conn = tw.Completed:Connect(function() completed = true end)
             local t0 = tick()
-            local yDir = math.sign(cruiseY - startPos.Y)
-            while (tick() - t0) < ascendTime and root and root.Parent and IsTravelingSky do
-                local alpha = math.clamp((tick() - t0) / ascendTime, 0, 1)
-                local curY = startPos.Y + (cruiseY - startPos.Y) * alpha
-                local curPos = Vector3.new(startPos.X, curY, startPos.Z)
-                root.CFrame = CFrame.new(curPos)
-                root.AssemblyLinearVelocity = Vector3.new(0, yDir * speed, 0)
-                bv.Velocity = root.AssemblyLinearVelocity
+            while not completed and (tick() - t0) < (dur + 1.2) and root and root.Parent and IsTravelingSky and hum and hum.Health > 0 do
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                if bv and bv.Parent then bv.Velocity = Vector3.new(0, 0, 0) end
+                
+                local rem = (targetPos - root.Position).Magnitude
+                if SetTravelHUD then SetTravelHUD(true, label, rem, speed, distance) end
+                
+                if LocalPlayer.RequestStreamAroundAsync and math.floor(tick() * 2) % 2 == 0 then
+                    pcall(function()
+                        LocalPlayer:RequestStreamAroundAsync(root.Position + (targetPos - root.Position).Unit * 250)
+                    end)
+                end
                 RunService.Heartbeat:Wait()
             end
+            if conn then conn:Disconnect() end
+            if tw then pcall(function() tw:Cancel() end) end
+            CurrentTween = nil
+            return completed
         end
         
-        -- PHASE 2: Horizontal Sky Cruise at cruise altitude
-        local startCruisePos = root.Position
-        local endCruisePos = Vector3.new(targetPos.X, cruiseY, targetPos.Z)
-        local horizDist = (endCruisePos - startCruisePos).Magnitude
-        local cruiseTime = horizDist / math.max(speed, 200)
-        local t1 = tick()
-        local lastStream = 0
+        -- Phase 1: Ascend smoothly to cruise altitude
+        local ascendDist = math.abs(cruiseY - startPos.Y)
+        if ascendDist > 15 then
+            SafeTween(CFrame.new(startPos.X, cruiseY, startPos.Z), ascendDist / speed)
+        end
         
-        while (tick() - t1) < cruiseTime and root and root.Parent and IsTravelingSky do
-            local alpha = math.clamp((tick() - t1) / cruiseTime, 0, 1)
-            local curPos = startCruisePos:Lerp(endCruisePos, alpha)
-            local remainingDist = (targetPos - curPos).Magnitude
+        -- Phase 2: Horizontal sky cruise to coordinates directly above target
+        if IsTravelingSky and root and root.Parent and hum and hum.Health > 0 then
+            local horizDist = (Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude
+            SafeTween(CFrame.new(targetPos.X, cruiseY, targetPos.Z), horizDist / speed)
+        end
+        
+        -- Phase 3: Gentle descent to targetCFrame
+        if IsTravelingSky and root and root.Parent and hum and hum.Health > 0 then
+            local descendDist = (targetPos - root.Position).Magnitude
+            SafeTween(targetCFrame, math.max(descendDist / speed, 0.4))
+        end
+        
+        -- Arrival
+        if root and root.Parent and hum and hum.Health > 0 then
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            HoverLock(targetCFrame)
             
-            -- Pre-stream chunk ahead every 400 studs
-            if (tick() - lastStream) > 0.8 then
-                lastStream = tick()
-                pcall(function()
-                    if LocalPlayer.RequestStreamAroundAsync then
-                        local lookDir = (endCruisePos - startCruisePos).Unit
-                        LocalPlayer:RequestStreamAroundAsync(curPos + lookDir * 250)
-                    end
+            if _G.Config.AutoSetSpawn then
+                task.spawn(function()
+                    task.wait(0.3)
+                    local cf = CommF()
+                    if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
                 end)
             end
-            
-            local moveDir = horizDist > 0.1 and (endCruisePos - startCruisePos).Unit or Vector3.new(0, 0, 1)
-            root.CFrame = CFrame.new(curPos, curPos + moveDir)
-            root.AssemblyLinearVelocity = moveDir * speed
-            bv.Velocity = moveDir * speed
-            
-            if SetTravelHUD then
-                SetTravelHUD(true, label, remainingDist, speed, totalDist)
-            end
-            RunService.Heartbeat:Wait()
         end
         
-        -- PHASE 3: Descend safely to destination
-        local topOfDest = root.Position
-        local descendDist = (targetPos - topOfDest).Magnitude
-        local descendTime = math.max(descendDist / math.max(speed, 200), 0.3)
-        local t2 = tick()
-        
-        while (tick() - t2) < descendTime and root and root.Parent and IsTravelingSky do
-            local alpha = math.clamp((tick() - t2) / descendTime, 0, 1)
-            local curPos = topOfDest:Lerp(targetPos, alpha)
-            root.CFrame = CFrame.new(curPos)
-            local downDir = (targetPos - topOfDest).Unit
-            root.AssemblyLinearVelocity = downDir * speed
-            bv.Velocity = downDir * speed
-            RunService.Heartbeat:Wait()
-        end
-        
-        -- Safe Ground Raycast Snap (Strictly Ignoring Water!)
-        local groundPos = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
-        if groundPos then
-            root.CFrame = CFrame.new(targetPos.X, groundPos.Y + 3.5, targetPos.Z)
-        else
-            root.CFrame = targetCFrame * CFrame.new(0, 3.5, 0)
-        end
-        
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        
-        -- Restore Humanoid & Physics
-        if hum and hum.Parent then
-            hum.PlatformStand = false
-            hum.Sit = false
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
-        end
-        DisableNoclip()
-        
-        if root then
-            for _, c in ipairs(root:GetChildren()) do
-                if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
-                    pcall(function() c:Destroy() end)
-                end
-            end
-        end
-        FlightBodyVel = nil
-        
-        -- Cement Island Spawn Point Server-Side
-        if _G.Config.AutoSetSpawn then
-            task.spawn(function()
-                task.wait(0.2)
-                local cf = CommF()
-                if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
-            end)
-        end
-        
-        HoverLock(targetCFrame)
         IsTravelingSky = false
-        CurrentTween = nil
+        CurrentTargetPos = nil
         if SetTravelHUD then SetTravelHUD(false) end
     end)
 end
@@ -2242,61 +2175,35 @@ local function FindEnemy(targetName)
     return closest
 end
 --============================== AUTO FARM LEVEL CORE ==============================
-local _lastDesyncRecover = 0
-
 local function StartAutoFarmLevel()
     task.spawn(function()
-        task.wait(math.random(5, 15) / 10)
+        task.wait(1.0)
         while true do
             task.wait(0.2)
             if _G.Config.AutoFarmLevel then
                 pcall(function()
-                    local questInfo = GetCurrentQuest()
+                    local char = GetCharacter()
+                    if not char then return end
+                    local hum = GetHumanoid()
                     local root = GetRoot()
-                    if not root then return end
+                    if not hum or hum.Health <= 0 or not root then return end
                     
+                    local questInfo = GetCurrentQuest()
                     if not HasQuest() then
-                        -- STEP 1: Travel to Quest NPC (Level 1 pos in QuestsDB is ALWAYS the NPC)
                         local npcCF = GetQuestNpcCFrame(questInfo)
-                        local npcPos = npcCF.Position
-                        local distToNPC = (npcPos - root.Position).Magnitude
+                        local distToNPC = (npcCF.Position - root.Position).Magnitude
                         
-                        if distToNPC > 35 then
+                        if distToNPC > 30 then
                             TweenTo(npcCF * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
-                            
-                            local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
-                            local maxWait = (distToNPC / speed) + 12
-                            local t0 = tick()
-                            
-                            while (npcPos - root.Position).Magnitude > 40 and (tick() - t0) < maxWait and not HasQuest() and _G.Config.AutoFarmLevel do
-                                task.wait(0.2)
-                            end
-                        end
-                        
-                        -- STEP 2: Talk to Quest NPC within range
-                        if (npcPos - root.Position).Magnitude <= 45 then
+                        else
+                            HoverLock(npcCF * CFrame.new(0, 4, 0))
                             local cf = CommF()
                             if cf then
                                 cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                task.wait(0.4)
-                                if not HasQuest() then
-                                    cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                    task.wait(0.4)
-                                end
-                                -- Debounced Anti-Desync recovery: at most once per 10s
-                                if not HasQuest() and _G.Config.AutoFarmLevel then
-                                    local now = tick()
-                                    if (now - _lastDesyncRecover) > 10.0 then
-                                        _lastDesyncRecover = now
-                                        RecoverFromPhantomDesync(npcCF * CFrame.new(0, 4, 0))
-                                        task.wait(0.3)
-                                        cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                    end
-                                end
+                                task.wait(0.5)
                             end
                         end
                     else
-                        -- STEP 3: Quest active! Farm quest mobs!
                         local target = FindEnemy(questInfo.Mob)
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
@@ -2311,19 +2218,12 @@ local function StartAutoFarmLevel()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            -- Mobs not spawned nearby: travel to mob spawn position so they load!
                             local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
                             local distToSafe = (safePos.Position - root.Position).Magnitude
                             if distToSafe < 15 then
                                 HoverLock(safePos)
                             else
                                 TweenTo(safePos, "Mob Spawn Point")
-                                local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
-                                local maxWait = (distToSafe / speed) + 12
-                                local t0 = tick()
-                                while (safePos.Position - root.Position).Magnitude > 35 and (tick() - t0) < maxWait and HasQuest() and _G.Config.AutoFarmLevel do
-                                    task.wait(0.2)
-                                end
                             end
                         end
                     end
@@ -2333,25 +2233,29 @@ local function StartAutoFarmLevel()
     end)
 end
 
--- Auto Farm Selected Mob Core (Auto-selects spawned mob if empty, travels to spawn if not found)
+-- Auto Farm Selected Mob Core
 local function StartAutoFarmSelectedMob()
     task.spawn(function()
-        task.wait(math.random(8, 20) / 10)
+        task.wait(1.0)
         while true do
             task.wait(0.25)
             if _G.Config.FarmSelectedMob then
-                if not _G.Config.SelectedMob or _G.Config.SelectedMob == "" then
-                    local spawned = GetSpawnedMobsList()
-                    if spawned and #spawned > 0 then
-                        _G.Config.SelectedMob = spawned[1]
+                pcall(function()
+                    local char = GetCharacter()
+                    if not char then return end
+                    local hum = GetHumanoid()
+                    local root = GetRoot()
+                    if not hum or hum.Health <= 0 or not root then return end
+                    
+                    if not _G.Config.SelectedMob or _G.Config.SelectedMob == "" then
+                        local spawned = GetSpawnedMobsList()
+                        if spawned and #spawned > 0 then
+                            _G.Config.SelectedMob = spawned[1]
+                        end
                     end
-                end
-                if _G.Config.SelectedMob and _G.Config.SelectedMob ~= "" then
-                    pcall(function()
+                    if _G.Config.SelectedMob and _G.Config.SelectedMob ~= "" then
                         local mobName = _G.Config.SelectedMob:gsub("^%[Spawned%] ", "")
                         local target = FindEnemy(mobName)
-                        local root = GetRoot()
-                        if not root then return end
                         
                         if target and target:FindFirstChild("HumanoidRootPart") then
                             local dist = GetOptimalFarmDistance(target)
@@ -2365,7 +2269,6 @@ local function StartAutoFarmSelectedMob()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                         else
-                            -- Find spawn position for this mob from QuestsDB
                             local mobPos = nil
                             for _, q in ipairs(QuestsDB) do
                                 if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
@@ -2383,14 +2286,13 @@ local function StartAutoFarmSelectedMob()
                                 end
                             end
                         end
-                    end)
-                end
+                    end
+                end)
             end
         end
     end)
 end
 
---============================== AUTO FARM SELECTED BOSS CORE ==============================
 local function StartAutoFarmSelectedBoss()
     task.spawn(function()
         task.wait(math.random(10, 25) / 10)
@@ -4508,6 +4410,7 @@ local function CreateUI()
     
     FarmTab:AddSection("Selected Mob Farming")
     local mobList = GetSpawnedMobsList()
+    if mobList and mobList[1] then _G.Config.SelectedMob = mobList[1] end
     local MobDrop = FarmTab:AddSearchDropdown("Select Mob (" .. SeaName .. ")", mobList, mobList[1], function(v) _G.Config.SelectedMob = v end)
     FarmTab:AddButton("Refresh Mobs List (" .. SeaName .. ")", function()
         local updated = GetSpawnedMobsList()
@@ -4521,6 +4424,7 @@ local function CreateUI()
     -- ==================== 2. BOSS FARM TAB ====================
     BossTab:AddSection("Boss Selection")
     local bossList = GetActiveBossesList()
+    if bossList and bossList[1] then _G.Config.SelectedBoss = bossList[1] end
     local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v) _G.Config.SelectedBoss = v end)
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
         local updated = GetActiveBossesList()
