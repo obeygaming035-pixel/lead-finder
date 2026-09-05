@@ -120,8 +120,56 @@ local function GetNetRemote(subName)
             return r
         end
     end
-    return nil
 end
+
+--============================== AUTO SELECT TEAM (PIRATES) ==============================
+-- Ensures character is spawned into the world immediately after game load or crash recovery
+local function AutoSelectPirates()
+    task.spawn(function()
+        for attempt = 1, 20 do
+            if LocalPlayer.Team ~= nil and tostring(LocalPlayer.Team) ~= "Neutral" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                break
+            end
+            
+            -- Method 1: Direct Server Remote (CommF_ SetTeam)
+            pcall(function()
+                local cf = CommF()
+                if cf then
+                    cf:InvokeServer("SetTeam", "Pirates")
+                end
+            end)
+            
+            -- Method 2: Client UI Button Click Simulation
+            pcall(function()
+                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if pGui then
+                    for _, gui in ipairs(pGui:GetChildren()) do
+                        for _, desc in ipairs(gui:GetDescendants()) do
+                            if desc:IsA("TextButton") or desc:IsA("ImageButton") then
+                                local txt = (desc:IsA("TextButton") and desc.Text or ""):lower()
+                                local name = desc.Name:lower()
+                                if (txt:find("pirate") or name:find("pirate")) and desc.Visible then
+                                    if getconnections then
+                                        for _, c in pairs(getconnections(desc.Activated)) do c:Fire() end
+                                        for _, c in pairs(getconnections(desc.MouseButton1Click)) do c:Fire() end
+                                    elseif firesignal then
+                                        firesignal(desc.MouseButton1Click)
+                                        firesignal(desc.Activated)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            task.wait(0.6)
+        end
+    end)
+end
+
+-- Run auto-team selection immediately
+AutoSelectPirates()
 
 --============================== CONFIGURATION ==============================
 _G.Config = {
@@ -135,19 +183,26 @@ _G.Config = {
     SelectedBoss = "",
     SelectedWeapon = "Melee", -- Melee | Sword | Gun | Fruit
     BringMobs = true,
+    AutoChestFarm = false,
     
     -- Farm Distance Settings
     AdaptiveBossDistance = true,
-    MobFarmDistance = 14, -- Normal mobs distance set to 14 studs as requested
-    BossFarmDistance = 20, -- Boss distance set to 20 studs
+    MobFarmDistance = 14,
+    BossFarmDistance = 20,
     FarmDistance = 14,
-    TweenSpeed = 250, -- Redz Safe Speed (240 studs/s prevents server rollback) -- Redz Flight Speed (350 studs/s)
+    TweenSpeed = 240,
+    
+    -- Teleport & Movement Engine
+    BypassTeleport = true,
+    AutoSetSpawn = true,
+    WaypointFlight = true,
+    AntiDesync = true,
     
     -- Combat Mode (M1 vs Skills)
     UseM1 = true,
     FastAttack = true,
-    FastAttackSpeed = 0.015, -- Super Fast clicks (Redz style)
-    AttackDistance = 120, -- Increased kill aura range to 120 studs as requested
+    FastAttackSpeed = 0.015,
+    AttackDistance = 120,
     AutoBusoHaki = true,
     AutoKenHaki = false,
     
@@ -168,26 +223,27 @@ _G.Config = {
     AutoKillCursedCaptain = false,
     AutoKillLaw = false,
     
-    -- Items & Quests
-    AutoSaber = false,
-    AutoPole = false,
-    AutoRengoku = false,
-    AutoDragonTrident = false,
-    AutoYama = false,
-    AutoTushita = false,
-    AutoCDK = false,
-    AutoSoulGuitar = false,
-    AutoBartilo = false,
-    AutoSecondSea = false,
-    AutoThirdSea = false,
+    -- Special Events & Summoners
+    AutoFarmBones = false,
+    AutoRollBones = false,
+    AutoSummonSoulReaper = false,
+    AutoCakePrinceSummon = false,
+    AutoDoughKingSummon = false,
     
     -- Sea Events & Mirage
     AutoKillShark = false,
     AutoKillTerrorShark = false,
     AutoKillPiranha = false,
     AutoKillSeaBeast = false,
+    AutoKillGhostShip = false,
     AutoFindGear = false,
     AutoPullLever = false,
+    AutoKitsuneEmber = false,
+    
+    -- Race V4 System
+    AutoRaceV4Trial = false,
+    AutoInsertGear = false,
+    AutoTrainV4 = false,
     
     -- Dungeon / Raids
     SelectedChip = "Flame",
@@ -195,12 +251,21 @@ _G.Config = {
     AutoStartRaid = false,
     AutoFarmRaid = false,
     AutoAwaken = false,
+    AutoLawRaid = false,
     
     -- Devil Fruit
     AutoRandomFruit = false,
     AutoStoreFruit = false,
     AutoGrabFruits = false,
+    
+    -- Visuals & ESP
+    PlayerESP = false,
     FruitESP = false,
+    ChestESP = false,
+    FlowerESP = false,
+    MirageESP = false,
+    SeaEventESP = false,
+    Fullbright = false,
     
     -- Stats
     AutoStats = false,
@@ -221,7 +286,18 @@ _G.Config = {
 -- Global input isolation guard: when user interacts with UI, combat clicks are muted!
 _G.UIInteracting = false
 
+
 --============================== HELPER FUNCTIONS ==============================
+local function GetMobRoot(mob)
+    if not mob then return nil end
+    return mob:FindFirstChild("HumanoidRootPart") 
+        or mob.PrimaryPart 
+        or mob:FindFirstChild("Torso") 
+        or mob:FindFirstChild("UpperTorso") 
+        or mob:FindFirstChild("Head") 
+        or mob:FindFirstChildWhichIsA("BasePart")
+end
+
 local function GetCharacter()
     return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 end
@@ -446,6 +522,7 @@ local function GetOrCreateBodyVelocity(root)
 end
 
 -- HoverLock: locks altitude above enemies or NPCs during combat/interaction
+-- Enhanced with position validation and retry logic for unattended operation
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     local hum = GetHumanoid()
@@ -458,6 +535,19 @@ local function HoverLock(targetCFrame)
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     root.CFrame = targetCFrame
+    
+    -- Quick validation: if server rolled back position, re-apply
+    task.spawn(function()
+        task.wait(0.12)
+        if not root or not root.Parent then return end
+        local deviation = (root.Position - targetCFrame.Position).Magnitude
+        if deviation > 20 then
+            -- Re-apply position (server may have rejected it)
+            root.CFrame = targetCFrame
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+    end)
 end
 
 local function StopTween()
@@ -491,22 +581,720 @@ local function FullResetMovement()
     end
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
+--============================== SMART RUNTIME VALIDATOR (SELF-HEALING ENGINE) ==============================
+-- Continuously analyses every action and auto-corrects. Designed for unattended overnight operation.
+-- Validates: position accuracy, damage registration, stuck states, death recovery, speed tuning, quest completion.
+
+local Validator = {
+    -- Speed Auto-Tuner state
+    CurrentSafeSpeed = _G.Config.TweenSpeed or 250,
+    RollbackCount = 0,
+    LastRollbackReset = tick(),
+    MinSpeed = 180,
+    SpeedStep = 20,
+    RollbackResetInterval = 300, -- Reset rollback counter after 5 min of stability
+    
+    -- Stuck Detection state
+    PositionHistory = {},
+    MaxHistorySize = 6,
+    StuckThreshold = 3, -- studs: if moved less than this across all samples, we're stuck
+    StuckCheckInterval = 5, -- seconds between checks
+    ConsecutiveStuckCount = 0,
+    MaxStuckBeforeReset = 3, -- After 3 consecutive stuck detections (15s), force reset
+    
+    -- Damage Verification state
+    FailedDamageAttempts = {}, -- [mobName] = count
+    MaxFailedDamage = 5, -- Skip mob after this many failed hits
+    GlitchedMobs = {}, -- Set of mob instance IDs confirmed glitched
+    
+    -- Death Recovery state
+    WasFarmingBeforeDeath = false,
+    FarmStateBeforeDeath = {},
+    DeathCount = 0,
+    LastDeathTime = 0,
+    
+    -- Quest Completion Verification
+    LastQuestLevel = 0,
+    QuestCheckPending = false,
+    
+    -- Position Validation
+    LastValidatedPosition = nil,
+    ValidationFailCount = 0,
+    MaxValidationFails = 3,
+    
+    -- Runtime Stats
+    TotalRollbacks = 0,
+    TotalStuckResets = 0,
+    TotalDeathRecoveries = 0,
+    TotalGlitchedMobsSkipped = 0,
+    StartTime = tick(),
+}
+
+-- ==================== POSITION VALIDATION ====================
+-- Called after HoverLock / TweenTo completion to verify server accepted the position
+function Validator.ValidatePosition(expectedCF, tolerance)
+    tolerance = tolerance or 25
+    local root = GetRoot()
+    if not root or not root.Parent then return true end -- Can't validate without root
+    
+    task.wait(0.15) -- Give server time to acknowledge or rollback
+    
+    local actualPos = root.Position
+    local expectedPos = expectedCF.Position
+    local deviation = (actualPos - expectedPos).Magnitude
+    
+    if deviation > tolerance then
+        -- ROLLBACK DETECTED!
+        Validator.RollbackCount = Validator.RollbackCount + 1
+        Validator.TotalRollbacks = Validator.TotalRollbacks + 1
+        Validator.ValidationFailCount = Validator.ValidationFailCount + 1
+        
+        -- Auto-tune speed downward
+        if Validator.RollbackCount >= 2 then
+            local newSpeed = math.max(Validator.CurrentSafeSpeed - Validator.SpeedStep, Validator.MinSpeed)
+            if newSpeed ~= Validator.CurrentSafeSpeed then
+                Validator.CurrentSafeSpeed = newSpeed
+                _G.Config.TweenSpeed = newSpeed
+                print("[VALIDATOR] Speed reduced to " .. newSpeed .. " studs/s (rollback #" .. Validator.TotalRollbacks .. ")")
+            end
+            Validator.RollbackCount = 0
+        end
+        
+        -- If too many consecutive validation fails, do a full reset
+        if Validator.ValidationFailCount >= Validator.MaxValidationFails then
+            print("[VALIDATOR] Multiple rollbacks detected — performing full movement reset")
+            FullResetMovement()
+            Validator.ValidationFailCount = 0
+            task.wait(1)
+        end
+        
+        return false
+    end
+    
+    -- Position accepted by server
+    Validator.ValidationFailCount = 0
+    Validator.LastValidatedPosition = actualPos
+    return true
+end
+
+-- ==================== SPEED AUTO-TUNER ====================
+-- Periodically resets rollback counter if stable, allowing speed to recover
+function Validator.SpeedAutoTunerTick()
+    local now = tick()
+    if (now - Validator.LastRollbackReset) > Validator.RollbackResetInterval then
+        Validator.LastRollbackReset = now
+        Validator.RollbackCount = 0
+        -- Gradually try to recover speed (increase by half a step)
+        if Validator.CurrentSafeSpeed < (_G.Config.TweenSpeed or 250) then
+            local recovered = math.min(Validator.CurrentSafeSpeed + 10, 250)
+            Validator.CurrentSafeSpeed = recovered
+            _G.Config.TweenSpeed = recovered
+            print("[VALIDATOR] Speed recovery: " .. recovered .. " studs/s (stable for 5 min)")
+        end
+    end
+end
+
+-- ==================== DAMAGE VERIFICATION ====================
+-- Check if an attack actually dealt damage to a target
+function Validator.VerifyDamage(target, preHP)
+    if not target or not target.Parent then return true end -- Target died/despawned = success
+    local hum = target:FindFirstChild("Humanoid")
+    if not hum then return true end
+    
+    task.wait(0.1) -- Brief wait for damage to register server-side
+    
+    local postHP = hum.Health
+    if postHP >= preHP and preHP > 0 then
+        -- No damage dealt
+        local mobKey = target.Name .. "_" .. tostring(target:GetDebugId())
+        Validator.FailedDamageAttempts[mobKey] = (Validator.FailedDamageAttempts[mobKey] or 0) + 1
+        
+        if Validator.FailedDamageAttempts[mobKey] >= Validator.MaxFailedDamage then
+            -- Mark as glitched — skip this specific mob instance
+            Validator.GlitchedMobs[tostring(target:GetDebugId())] = true
+            Validator.TotalGlitchedMobsSkipped = Validator.TotalGlitchedMobsSkipped + 1
+            print("[VALIDATOR] Mob '" .. target.Name .. "' marked GLITCHED (no damage after " .. Validator.MaxFailedDamage .. " hits) — skipping")
+            return false
+        end
+        return false
+    end
+    
+    -- Damage confirmed — reset fail counter for this mob
+    local mobKey = target.Name .. "_" .. tostring(target:GetDebugId())
+    Validator.FailedDamageAttempts[mobKey] = 0
+    return true
+end
+
+-- Check if a mob is known-glitched (should be skipped)
+function Validator.IsMobGlitched(target)
+    if not target then return false end
+    return Validator.GlitchedMobs[tostring(target:GetDebugId())] == true
+end
+
+-- ==================== STUCK DETECTION ====================
+-- Records position samples and detects if player is stuck
+function Validator.RecordPosition()
+    local root = GetRoot()
+    if not root or not root.Parent then return end
+    
+    table.insert(Validator.PositionHistory, {
+        pos = root.Position,
+        time = tick()
+    })
+    
+    -- Keep history bounded
+    while #Validator.PositionHistory > Validator.MaxHistorySize do
+        table.remove(Validator.PositionHistory, 1)
+    end
+end
+
+function Validator.IsStuck()
+    if #Validator.PositionHistory < Validator.MaxHistorySize then return false end
+    
+    -- Check if any farming mode is actually active
+    local isFarming = _G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses
+    if not isFarming then
+        Validator.ConsecutiveStuckCount = 0
+        return false
+    end
+    
+    -- Calculate total displacement across all samples
+    local totalDisplacement = 0
+    for i = 2, #Validator.PositionHistory do
+        totalDisplacement = totalDisplacement + (Validator.PositionHistory[i].pos - Validator.PositionHistory[i-1].pos).Magnitude
+    end
+    
+    if totalDisplacement < Validator.StuckThreshold then
+        Validator.ConsecutiveStuckCount = Validator.ConsecutiveStuckCount + 1
+        if Validator.ConsecutiveStuckCount >= Validator.MaxStuckBeforeReset then
+            return true
+        end
+    else
+        Validator.ConsecutiveStuckCount = 0
+    end
+    
+    return false
+end
+
+function Validator.HandleStuck()
+    Validator.TotalStuckResets = Validator.TotalStuckResets + 1
+    Validator.ConsecutiveStuckCount = 0
+    Validator.PositionHistory = {}
+    
+    print("[VALIDATOR] STUCK DETECTED — Force resetting movement (reset #" .. Validator.TotalStuckResets .. ")")
+    
+    -- Full reset and small random displacement to unstick
     FullResetMovement()
+    task.wait(0.5)
+    
+    local root = GetRoot()
+    if root and root.Parent then
+        -- Small random displacement to break free from stuck geometry
+        root.CFrame = root.CFrame * CFrame.new(math.random(-5, 5), 15, math.random(-5, 5))
+    end
+    
+    task.wait(1)
+end
+
+-- ==================== DEATH RECOVERY ====================
+-- Saves farming state before death and auto-resumes after respawn
+function Validator.SaveFarmState()
+    Validator.FarmStateBeforeDeath = {
+        AutoFarmLevel = _G.Config.AutoFarmLevel,
+        FarmSelectedMob = _G.Config.FarmSelectedMob,
+        FarmSelectedBoss = _G.Config.FarmSelectedBoss,
+        FarmAllBosses = _G.Config.FarmAllBosses,
+        SelectedMob = _G.Config.SelectedMob,
+        SelectedBoss = _G.Config.SelectedBoss,
+        SelectedWeapon = _G.Config.SelectedWeapon,
+    }
+    Validator.WasFarmingBeforeDeath = (
+        _G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or
+        _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses
+    )
+end
+
+function Validator.RestoreFarmState()
+    if not Validator.WasFarmingBeforeDeath then return end
+    
+    local saved = Validator.FarmStateBeforeDeath
+    if not saved then return end
+    
+    -- Restore all saved farming states
+    _G.Config.AutoFarmLevel = saved.AutoFarmLevel or false
+    _G.Config.FarmSelectedMob = saved.FarmSelectedMob or false
+    _G.Config.FarmSelectedBoss = saved.FarmSelectedBoss or false
+    _G.Config.FarmAllBosses = saved.FarmAllBosses or false
+    _G.Config.SelectedMob = saved.SelectedMob or ""
+    _G.Config.SelectedBoss = saved.SelectedBoss or ""
+    _G.Config.SelectedWeapon = saved.SelectedWeapon or "Melee"
+    
+    Validator.WasFarmingBeforeDeath = false
+    Validator.DeathCount = Validator.DeathCount + 1
+    Validator.TotalDeathRecoveries = Validator.TotalDeathRecoveries + 1
+    
+    print("[VALIDATOR] Death #" .. Validator.DeathCount .. " — Auto-resuming farming in 3 seconds...")
+end
+
+-- ==================== QUEST COMPLETION VALIDATOR ====================
+function Validator.CheckQuestCompletion()
+    local currentLevel = GetPlayerLevel()
+    if Validator.LastQuestLevel == 0 then
+        Validator.LastQuestLevel = currentLevel
+    end
+    
+    -- If level increased, quest definitely completed
+    if currentLevel > Validator.LastQuestLevel then
+        Validator.LastQuestLevel = currentLevel
+        print("[VALIDATOR] Level UP! Now Lv." .. currentLevel .. " — Quest chain advancing")
+        return true
+    end
+    
+    return false
+end
+
+-- ==================== RUNTIME STATS ====================
+function Validator.GetStats()
+    local uptime = tick() - Validator.StartTime
+    local hours = math.floor(uptime / 3600)
+    local mins = math.floor((uptime % 3600) / 60)
+    return string.format(
+        "Uptime: %dh %dm | Speed: %d studs/s | Rollbacks: %d | Stuck Resets: %d | Deaths: %d | Glitched Mobs Skipped: %d",
+        hours, mins, Validator.CurrentSafeSpeed, Validator.TotalRollbacks,
+        Validator.TotalStuckResets, Validator.TotalDeathRecoveries, Validator.TotalGlitchedMobsSkipped
+    )
+end
+
+-- ==================== ENHANCED CHARACTER ADDED (DEATH RECOVERY) ====================
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    -- Save state BEFORE reset (we capture this on Humanoid.Died, but also here as failsafe)
+    FullResetMovement()
+    
+    -- Clear glitched mob cache on respawn (new instances)
+    Validator.GlitchedMobs = {}
+    Validator.FailedDamageAttempts = {}
+    Validator.PositionHistory = {}
+    Validator.ConsecutiveStuckCount = 0
+    
+    -- Wait for character to fully load
+    task.spawn(function()
+        local hum = newChar:WaitForChild("Humanoid", 10)
+        local root = newChar:WaitForChild("HumanoidRootPart", 10)
+        if not hum or not root then return end
+        
+        -- Connect death listener for NEXT death
+        hum.Died:Connect(function()
+            Validator.SaveFarmState()
+            Validator.LastDeathTime = tick()
+        end)
+        
+        -- Auto-resume farming after respawn (staggered delay to let game settle)
+        task.wait(3 + math.random() * 2)
+        Validator.RestoreFarmState()
+    end)
 end)
 
+-- Connect initial character's death listener
+pcall(function()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.Died:Connect(function()
+                Validator.SaveFarmState()
+                Validator.LastDeathTime = tick()
+            end)
+        end
+    end
+end)
+
+-- ==================== BACKGROUND VALIDATOR LOOPS ====================
+-- Stuck Detection Loop
+task.spawn(function()
+    task.wait(10) -- Let everything initialize first
+    while true do
+        task.wait(Validator.StuckCheckInterval)
+        pcall(function()
+            Validator.RecordPosition()
+            if Validator.IsStuck() then
+                Validator.HandleStuck()
+            end
+        end)
+    end
+end)
+
+-- Speed Auto-Tuner Loop
+task.spawn(function()
+    task.wait(15)
+    while true do
+        task.wait(30)
+        pcall(function()
+            Validator.SpeedAutoTunerTick()
+        end)
+    end
+end)
+
+-- Quest Completion Monitor Loop
+task.spawn(function()
+    task.wait(20)
+    while true do
+        task.wait(10)
+        pcall(function()
+            Validator.CheckQuestCompletion()
+        end)
+    end
+end)
+
+-- Runtime Stats Logger (prints every 5 minutes)
+task.spawn(function()
+    task.wait(60)
+    while true do
+        task.wait(300)
+        pcall(function()
+            print("[VALIDATOR STATS] " .. Validator.GetStats())
+        end)
+    end
+end)
+
+--============================== AUTONOMOUS IPC BRIDGE (AI LIVE CONNECTION) ==============================
+-- Connects the in-game script to the AI and host tools via alpha_bridge files
+local IPC_BRIDGE_DIR = "alpha_bridge"
+local IPC_TELEMETRY_FILE = IPC_BRIDGE_DIR .. "/telemetry.json"
+local IPC_EVENTS_FILE = IPC_BRIDGE_DIR .. "/events.log"
+local IPC_COMMAND_FILE = IPC_BRIDGE_DIR .. "/command.json"
+local IPC_EVAL_FILE = IPC_BRIDGE_DIR .. "/eval_result.json"
+
+local function SafeWriteFile(filename, content)
+    if writefile then
+        pcall(function() writefile(filename, content) end)
+    end
+end
+
+local function SafeAppendFile(filename, content)
+    if appendfile then
+        pcall(function() appendfile(filename, content) end)
+    elseif writefile and isfile and readfile then
+        pcall(function()
+            local existing = isfile(filename) and readfile(filename) or ""
+            writefile(filename, existing .. content)
+        end)
+    end
+end
+
+local function LogBridgeEvent(tag, msg)
+    local line = string.format("[%s] [%s] %s\n", os.date("%X"), tag, tostring(msg))
+    SafeAppendFile(IPC_EVENTS_FILE, line)
+    print("[BRIDGE] " .. line)
+end
+
+-- Telemetry Streaming Loop (Runs every 2 seconds)
+task.spawn(function()
+    task.wait(3)
+    while true do
+        task.wait(2.0)
+        pcall(function()
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local pos = root and root.Position or Vector3.new(0, 0, 0)
+            
+            local telemData = {
+                timestamp = tick(),
+                player = LocalPlayer.Name,
+                level = GetPlayerLevel(),
+                health = hum and math.floor(hum.Health) or 0,
+                max_health = hum and math.floor(hum.MaxHealth) or 0,
+                position = {
+                    x = math.floor(pos.X * 10) / 10,
+                    y = math.floor(pos.Y * 10) / 10,
+                    z = math.floor(pos.Z * 10) / 10
+                },
+                altitude = math.floor(pos.Y),
+                has_quest = HasQuest(),
+                auto_farm_level = _G.Config.AutoFarmLevel,
+                selected_weapon = _G.Config.SelectedWeapon,
+                safe_speed = Validator.CurrentSafeSpeed,
+                rollbacks = Validator.TotalRollbacks,
+                stuck_resets = Validator.TotalStuckResets,
+                deaths = Validator.DeathCount,
+                glitched_mobs_skipped = Validator.TotalGlitchedMobsSkipped,
+                is_traveling_sky = IsTravelingSky,
+                stats = Validator.GetStats()
+            }
+            
+            SafeWriteFile(IPC_TELEMETRY_FILE, HttpService:JSONEncode(telemData))
+        end)
+    end
+end)
+
+-- Command Listener Loop (Polls every 0.4 seconds, ignores past commands)
+task.spawn(function()
+    -- Initialize to current time so stale commands from disk NEVER trigger on launch!
+    local lastCmdTimestamp = tick() * 1000
+    task.wait(2)
+    while true do
+        task.wait(0.4)
+        pcall(function()
+            if isfile and isfile(IPC_COMMAND_FILE) and readfile then
+                local ok, cmdData = pcall(function()
+                    return HttpService:JSONDecode(readfile(IPC_COMMAND_FILE))
+                end)
+                if ok and type(cmdData) == "table" and cmdData.timestamp and cmdData.timestamp > lastCmdTimestamp then
+                    lastCmdTimestamp = cmdData.timestamp
+                    LogBridgeEvent("CMD", "AI dispatched command: " .. tostring(cmdData.cmd))
+                    -- Immediately clear command file so it can NEVER trigger twice
+                    SafeWriteFile(IPC_COMMAND_FILE, "{}")
+                    
+                    if cmdData.cmd == "reload" then
+                        LogBridgeEvent("RELOAD", "Hot-reloading latest script from AI...")
+                        StopTween()
+                        DisableNoclip()
+                        local path = isfile("alpha_bridge/latest_script.lua") and "alpha_bridge/latest_script.lua" or "alpha_v2.lua"
+                        if isfile(path) then
+                            loadstring(readfile(path))()
+                        end
+                    elseif cmdData.cmd == "set_speed" and cmdData.speed then
+                        local spd = tonumber(cmdData.speed)
+                        if spd and spd >= 150 and spd <= 300 then
+                            Validator.CurrentSafeSpeed = spd
+                            _G.Config.TweenSpeed = spd
+                            LogBridgeEvent("SPEED", "Safe speed updated by AI to: " .. spd)
+                        end
+                    elseif cmdData.cmd == "set_config" and cmdData.key then
+                        _G.Config[cmdData.key] = cmdData.value
+                        LogBridgeEvent("CONFIG", "Config updated by AI: " .. tostring(cmdData.key) .. " = " .. tostring(cmdData.value))
+                    elseif cmdData.cmd == "reset_movement" then
+                        FullResetMovement()
+                        LogBridgeEvent("MOVE", "Full movement reset executed by AI command")
+                    elseif cmdData.cmd == "start_farm" then
+                        _G.Config.AutoFarmLevel = true
+                        LogBridgeEvent("FARM", "AutoFarmLevel enabled by AI command")
+                    elseif cmdData.cmd == "stop_farm" then
+                        _G.Config.AutoFarmLevel = false
+                        StopTween()
+                        FullResetMovement()
+                        LogBridgeEvent("FARM", "AutoFarmLevel disabled by AI command")
+                    elseif cmdData.cmd == "eval" and cmdData.code then
+                        local fn, err = loadstring(cmdData.code)
+                        if fn then
+                            local okEval, resEval = pcall(fn)
+                            SafeWriteFile(IPC_EVAL_FILE, HttpService:JSONEncode({success = okEval, result = tostring(resEval)}))
+                            LogBridgeEvent("EVAL", "Eval executed: " .. tostring(okEval))
+                        else
+                            SafeWriteFile(IPC_EVAL_FILE, HttpService:JSONEncode({success = false, error = tostring(err)}))
+                            LogBridgeEvent("EVAL", "Eval error: " .. tostring(err))
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+LogBridgeEvent("INIT", "Autonomous IPC Bridge connected to AI agent successfully")
+
+--============================== NATIVE ENTRANCE PORTALS & BYPASS MATRIX ==============================
+-- Blox Fruits official server entrance positions for CommF_:InvokeServer("requestEntrance", Vector3.new(...))
+local ENTRANCE_PORTALS = {
+    -- SEA 1 (PlaceId 2753915549)
+    { Name = "Pirate Starter", Pos = Vector3.new(1059.37, 16.51, 1546.99), Sea = 1 },
+    { Name = "Marine Starter", Pos = Vector3.new(-2573.39, 6.94, 2059.27), Sea = 1 },
+    { Name = "Middle Town", Pos = Vector3.new(-655.82, 7.84, 1588.65), Sea = 1 },
+    { Name = "Jungle", Pos = Vector3.new(-1612.33, 36.85, 149.13), Sea = 1 },
+    { Name = "Pirate Village", Pos = Vector3.new(-1181.39, 4.75, 3843.43), Sea = 1 },
+    { Name = "Desert", Pos = Vector3.new(1094.11, 6.44, 4192.89), Sea = 1 },
+    { Name = "Snow Island", Pos = Vector3.new(1384.81, 87.27, -1298.47), Sea = 1 },
+    { Name = "Marineford", Pos = Vector3.new(-5035.79, 28.65, 4324.96), Sea = 1 },
+    { Name = "Sky 1 (Lower Skylands)", Pos = Vector3.new(-4839.53, 717.67, -2619.44), Sea = 1 },
+    { Name = "Sky 2 (Upper Skylands)", Pos = Vector3.new(-7894.62, 5545.49, -380.41), Sea = 1 },
+    { Name = "Prison", Pos = Vector3.new(4875.33, 5.65, 735.45), Sea = 1 },
+    { Name = "Colosseum", Pos = Vector3.new(-1427.62, 7.28, -2792.77), Sea = 1 },
+    { Name = "Magma Village", Pos = Vector3.new(-5247.72, 8.57, 8504.68), Sea = 1 },
+    { Name = "Underwater City Entrance", Pos = Vector3.new(61163.85, 11.68, 1819.78), Sea = 1, IsEntrance = true },
+    { Name = "Underwater City Exit", Pos = Vector3.new(3864.69, 6.74, -1926.21), Sea = 1, IsEntrance = true },
+    { Name = "Fountain City", Pos = Vector3.new(5127.13, 59.50, 4105.45), Sea = 1 },
+    
+    -- SEA 2 (PlaceId 4442272183)
+    { Name = "Cafe (Safe Zone)", Pos = Vector3.new(-380.48, 77.22, 255.83), Sea = 2, IsEntrance = true },
+    { Name = "Mansion (Swan)", Pos = Vector3.new(2284.91, 15.15, 905.51), Sea = 2, IsEntrance = true },
+    { Name = "Kingdom of Rose", Pos = Vector3.new(878.01, 121.98, 1235.35), Sea = 2 },
+    { Name = "Green Zone", Pos = Vector3.new(-2448.53, 73.02, -3210.63), Sea = 2 },
+    { Name = "Graveyard", Pos = Vector3.new(-5418.89, 48.52, -774.75), Sea = 2 },
+    { Name = "Snow Mountain", Pos = Vector3.new(608.24, 401.52, -5372.46), Sea = 2 },
+    { Name = "Hot and Cold", Pos = Vector3.new(-6026.96, 15.96, -5071.29), Sea = 2 },
+    { Name = "Cursed Ship Interior", Pos = Vector3.new(923.21, 126.98, 32852.83), Sea = 2, IsEntrance = true },
+    { Name = "Cursed Ship Exit", Pos = Vector3.new(-6508.56, 89.03, -132.84), Sea = 2, IsEntrance = true },
+    { Name = "Ice Castle", Pos = Vector3.new(5422.31, 28.25, -6767.13), Sea = 2 },
+    { Name = "Forgotten Island", Pos = Vector3.new(-3054.44, 237.15, -10142.82), Sea = 2 },
+    { Name = "Dark Arena", Pos = Vector3.new(3780.03, 22.65, -3498.94), Sea = 2 },
+
+    -- SEA 3 (PlaceId 7449423635)
+    { Name = "Port Town", Pos = Vector3.new(-290.74, 6.73, 5343.55), Sea = 3 },
+    { Name = "Hydra Island", Pos = Vector3.new(5229.93, 1004.28, -325.23), Sea = 3, IsEntrance = true },
+    { Name = "Great Tree", Pos = Vector3.new(2281.54, 442.20, -12543.08), Sea = 3, IsEntrance = true },
+    { Name = "Floating Turtle Mansion", Pos = Vector3.new(-12463.87, 374.91, -7523.77), Sea = 3, IsEntrance = true },
+    { Name = "Castle on the Sea", Pos = Vector3.new(-5035.43, 314.52, -2917.48), Sea = 3, IsEntrance = true },
+    { Name = "Haunted Castle", Pos = Vector3.new(-9516.99, 142.01, 6078.47), Sea = 3, IsEntrance = true },
+    { Name = "Peanut Island", Pos = Vector3.new(-2062.73, 50.32, -10232.22), Sea = 3 },
+    { Name = "Ice Cream Island", Pos = Vector3.new(-902.59, 79.92, -10988.69), Sea = 3 },
+    { Name = "Cake Island", Pos = Vector3.new(-2100.12, 70.12, -12150.34), Sea = 3 },
+    { Name = "Chocolate Island", Pos = Vector3.new(141.52, 34.21, -12608.45), Sea = 3 },
+    { Name = "Candy Island", Pos = Vector3.new(-1149.29, 23.63, -14445.61), Sea = 3 },
+    { Name = "Tiki Outpost", Pos = Vector3.new(-16106.33, 9.21, 440.38), Sea = 3 },
+    { Name = "Temple of Time", Pos = Vector3.new(28282.57, 14896.85, 105.10), Sea = 3, IsEntrance = true },
+    { Name = "Beautiful Pirate", Pos = Vector3.new(5314.58, 22.18, -125.94), Sea = 3, IsEntrance = true }
+}
+
+-- Raycast downwards to detect real server-replicated terrain/geometry
+local function GetRealGroundPosition(x, y, z)
+    local rayOrigin = Vector3.new(x, math.max(y + 60, 220), z)
+    local rayDir = Vector3.new(0, -500, 0)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = RaycastFilterType.Exclude
+    local filterList = {}
+    if LocalPlayer.Character then
+        table.insert(filterList, LocalPlayer.Character)
+    end
+    if LandingPlatform and LandingPlatform.Parent then
+        table.insert(filterList, LandingPlatform)
+    end
+    rayParams.FilterDescendantsInstances = filterList
+    rayParams.IgnoreWater = false
+    
+    local hit = Workspace:Raycast(rayOrigin, rayDir, rayParams)
+    if hit and hit.Instance then
+        return hit.Position, hit.Instance
+    end
+    return nil, nil
+end
+
+-- Phantom Desync Recovery (Forces full physics handshake and jump broadcast)
+local function RecoverFromPhantomDesync(expectedCF)
+    print("[ALPHA ANTI-DESYNC] Initiating Phantom Desync Recovery Handshake...")
+    FullResetMovement()
+    task.wait(0.2)
+    local root = GetRoot()
+    local hum = GetHumanoid()
+    if root and hum then
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        hum.Jump = true
+        root.AssemblyLinearVelocity = Vector3.new(0, 35, 0)
+        task.wait(0.25)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        if expectedCF then
+            root.CFrame = expectedCF * CFrame.new(0, 2, 0)
+        end
+    end
+    task.wait(0.3)
+    local cf = CommF()
+    if cf then
+        pcall(function() cf:InvokeServer("SetSpawnPoint") end)
+    end
+end
+
+-- Multi-Waypoint Sky Cruise (Maintains continuous stream chunk bubble)
+local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, totalDist)
+    local root = GetRoot()
+    if not root then return false end
+    
+    local horizontalStart = Vector3.new(startPos.X, cruiseY, startPos.Z)
+    local horizontalDest = Vector3.new(destPos.X, cruiseY, destPos.Z)
+    local totalHorizontalDist = (horizontalDest - horizontalStart).Magnitude
+    
+    if totalHorizontalDist <= 350 or not _G.Config.WaypointFlight then
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(destPos)
+            end
+        end)
+        local tw = TweenService:Create(root, TweenInfo.new(totalHorizontalDist / speed, Enum.EasingStyle.Linear), {
+            CFrame = CFrame.new(horizontalDest)
+        })
+        CurrentTween = tw
+        tw:Play()
+        tw.Completed:Wait()
+        CurrentTween = nil
+        return true
+    end
+    
+    local dir = (horizontalDest - horizontalStart).Unit
+    local waypoints = {}
+    local distAcc = 350
+    while distAcc < totalHorizontalDist do
+        table.insert(waypoints, horizontalStart + (dir * distAcc))
+        distAcc = distAcc + 350
+    end
+    table.insert(waypoints, horizontalDest)
+    
+    for idx, wp in ipairs(waypoints) do
+        if not IsTravelingSky or not root or not root.Parent then
+            return false
+        end
+        
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(wp)
+            end
+        end)
+        
+        local wpDist = (wp - root.Position).Magnitude
+        local segTime = wpDist / speed
+        local segTween = TweenService:Create(root, TweenInfo.new(segTime, Enum.EasingStyle.Linear), {
+            CFrame = CFrame.new(wp)
+        })
+        CurrentTween = segTween
+        segTween:Play()
+        
+        local lastPos = root.Position
+        local rollbackDetected = false
+        local wpConn
+        wpConn = RunService.Heartbeat:Connect(function()
+            if not IsTravelingSky or not root or not root.Parent then
+                if wpConn then wpConn:Disconnect() end
+                return
+            end
+            local curPos = root.Position
+            if (curPos - wp).Magnitude > (lastPos - wp).Magnitude + 35 then
+                rollbackDetected = true
+            end
+            lastPos = curPos
+            
+            if SetTravelHUD then
+                local curRem = (destPos - curPos).Magnitude
+                SetTravelHUD(true, label, curRem, speed, totalDist)
+            end
+        end)
+        
+        segTween.Completed:Wait()
+        if wpConn then wpConn:Disconnect() end
+        
+        if rollbackDetected and _G.Config.AntiDesync then
+            print("[ALPHA SKYWAY] Server rollback intercepted! Stabilizing and resuming...")
+            local bv = GetOrCreateBodyVelocity(root)
+            bv.Velocity = Vector3.new(0, 0, 0)
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            task.wait(0.3)
+            speed = math.max(speed - 15, 200)
+        end
+    end
+    
+    return true
+end
+
 -- -------------------------------------------------------------------------
--- UNIFIED AUTO-CRUISE TWEEN ENGINE (Redz Hub Standard)
--- Short distance (<= 150 studs): Direct straight-line farm tween.
--- Long distance (> 150 studs): Auto-Cruise over ocean at Y=230-280, pre-streaming,
--- and clean landing on solid ground without rubberbanding!
+-- UNIFIED AUTO-CRUISE TWEEN & BYPASS ENGINE (Redz Hub + Hoho Bypass Standard)
+-- Short distance (<= 120 studs): Direct linear farm tween.
+-- Long distance (> 120 studs): Native requestEntrance portal bypass,
+-- multi-waypoint sky cruise with continuous chunk streaming, and
+-- Solid Ground Raycast Snapping with server spawn-point authority!
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum then return end
     
-    local distance = (targetCFrame.Position - root.Position).Magnitude
+    local targetPos = targetCFrame.Position
+    local distance = (targetPos - root.Position).Magnitude
     
     -- Within reach: lock position immediately
     if distance < 15 then
@@ -515,13 +1303,13 @@ local function TweenTo(targetCFrame, destName)
         return
     end
     
-    -- Safe Blox Fruits speed limit: 250 studs/s (prevents server position rollback)
-    local speed = _G.Config.TweenSpeed or 250
-    if speed < 150 then speed = 250 end
-    if speed > 275 then speed = 260 end
+    -- Safe speed from Validator auto-tuner (adapts to server rollback detection)
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 240
+    if speed < 160 then speed = 240 end
+    if speed > 270 then speed = 250 end
     
     -- Anti-spam check: already heading to nearly the same spot
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 and CurrentTween then
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and CurrentTween then
         return
     end
     
@@ -530,11 +1318,11 @@ local function TweenTo(targetCFrame, destName)
         CurrentTween = nil
     end
     
-    CurrentTargetPos = targetCFrame.Position
+    CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween
-    if distance <= 150 then
+    -- 1. SHORT RANGE (<= 120 studs): Direct linear farm tween
+    if distance <= 120 then
         EnableNoclip()
         hum.PlatformStand = true
         
@@ -553,7 +1341,7 @@ local function TweenTo(targetCFrame, destName)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 150 studs): Auto-Cruise Cross-Island Flight
+    -- 2. LONG RANGE (> 120 studs): Auto-Cruise Cross-Island Flight with Portal Bypass
     if IsTravelingSky then return end
     IsTravelingSky = true
     
@@ -561,19 +1349,62 @@ local function TweenTo(targetCFrame, destName)
         local totalDist = distance
         if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
         
-        -- Pre-stream destination chunks immediately so terrain loads
+        -- Native Entrance Portal Shortcut Check (Bypass Engine)
+        if _G.Config.BypassTeleport and distance > 1200 then
+            local bestPortal = nil
+            local bestSaving = 0
+            for _, portal in ipairs(ENTRANCE_PORTALS) do
+                if portal.Sea == CurrentSea and portal.IsEntrance then
+                    local portalToTarget = (targetPos - portal.Pos).Magnitude
+                    local saving = distance - portalToTarget
+                    if saving > 800 and saving > bestSaving then
+                        bestSaving = saving
+                        bestPortal = portal
+                    end
+                end
+            end
+            
+            if bestPortal then
+                print(string.format("[ALPHA BYPASS] Taking %s portal shortcut (saves %d studs)!", bestPortal.Name, math.floor(bestSaving)))
+                local cf = CommF()
+                if cf then
+                    pcall(function()
+                        cf:InvokeServer("requestEntrance", bestPortal.Pos)
+                    end)
+                    task.wait(0.35)
+                    root = GetRoot()
+                    if root then
+                        local newDist = (targetPos - root.Position).Magnitude
+                        if newDist < 80 then
+                            StopTween()
+                            HoverLock(targetCFrame)
+                            if _G.Config.AutoSetSpawn then
+                                pcall(function() cf:InvokeServer("SetSpawnPoint") end)
+                            end
+                            IsTravelingSky = false
+                            if SetTravelHUD then SetTravelHUD(false) end
+                            return
+                        end
+                        distance = newDist
+                        totalDist = newDist
+                    end
+                end
+            end
+        end
+        
+        -- Pre-stream destination chunks immediately
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+                LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
         end)
         
-        -- Create solid invisible landing platform so player NEVER falls into water or through unstreamed terrain
+        -- Create solid invisible staging platform so character never falls into void
         if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
         LandingPlatform = Instance.new("Part")
         LandingPlatform.Name = "AlphaLandingPlatform"
         LandingPlatform.Size = Vector3.new(60, 2, 60)
-        LandingPlatform.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
+        LandingPlatform.CFrame = CFrame.new(targetPos.X, targetPos.Y - 1, targetPos.Z)
         LandingPlatform.Anchored = true
         LandingPlatform.CanCollide = true
         LandingPlatform.Transparency = 1
@@ -581,20 +1412,22 @@ local function TweenTo(targetCFrame, destName)
         
         EnableNoclip()
         hum.PlatformStand = true
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
         
         local bv = GetOrCreateBodyVelocity(root)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        -- Safe Cruise Altitude: Y = 230 to 280 (far above all water, trees, mountains; never stacks to 500!)
-        local cruiseY = 240
-        if targetCFrame.Position.Y > 200 then
-            cruiseY = targetCFrame.Position.Y + 45
+        -- Safe Cruise Altitude: Y = 240 to 280
+        local cruiseY = 245
+        if targetPos.Y > 200 then
+            cruiseY = targetPos.Y + 45
         elseif root.Position.Y > 200 then
-            cruiseY = math.max(root.Position.Y, 240)
+            cruiseY = math.max(root.Position.Y, 245)
         end
         
-        -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
+        -- Step 1: Smooth vertical ascent to cruise altitude
         if root.Position.Y < (cruiseY - 20) then
             local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
             local upDist = (upCF.Position - root.Position).Magnitude
@@ -609,27 +1442,8 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Step 2: Cruise horizontally across sky to target X, Z
-        local skyTargetCF = CFrame.new(targetCFrame.Position.X, cruiseY, targetCFrame.Position.Z)
-        local hDist = (skyTargetCF.Position - root.Position).Magnitude
-        if hDist > 20 then
-            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
-            CurrentTween = hTween
-            hTween:Play()
-            
-            local monConn
-            monConn = RunService.Heartbeat:Connect(function()
-                if not IsTravelingSky or not root or not root.Parent then
-                    if monConn then monConn:Disconnect() end
-                    return
-                end
-                local curDist = (targetCFrame.Position - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
-            end)
-            
-            hTween.Completed:Wait()
-            if monConn then monConn:Disconnect() end
-        end
+        -- Step 2: Waypoint Sky Cruise to target X, Z
+        local cruiseOk = WaypointSkyCruise(root.Position, targetPos, cruiseY, speed, label, totalDist)
         
         if not root or not root.Parent or not IsTravelingSky then
             if SetTravelHUD then SetTravelHUD(false) end
@@ -639,40 +1453,60 @@ local function TweenTo(targetCFrame, destName)
         -- Pre-stream terrain again directly above destination
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+                LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
         end)
         
-        -- Step 3: Descend directly to target position + 3.5 studs above ground
-        local landCF = targetCFrame * CFrame.new(0, 3.5, 0)
-        local downDist = (landCF.Position - root.Position).Magnitude
-        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
+        -- Step 3: Descend directly onto island with Solid Ground Raycast Snapping
+        local realGroundPos, groundPart = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
+        local finalLandCF = targetCFrame * CFrame.new(0, 3.2, 0)
+        if realGroundPos then
+            finalLandCF = CFrame.new(targetPos.X, realGroundPos.Y + 3.2, targetPos.Z)
+        end
+        
+        local downDist = (finalLandCF.Position - root.Position).Magnitude
+        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = finalLandCF})
         CurrentTween = downTween
         downTween:Play()
         downTween.Completed:Wait()
         
-        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding):
-        -- Keep BodyVelocity active with zero velocity for stability
+        -- Clean Safe Arrival & Touchdown Stabilization
         local finalBv = GetOrCreateBodyVelocity(root)
         finalBv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        root.CFrame = landCF
+        root.CFrame = finalLandCF
         
+        -- Ground Authority Handshake
         if hum and hum.Parent then
             hum.PlatformStand = false
             hum.Sit = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        end
+        
+        -- Auto Set Spawn Point on arrival
+        if _G.Config.AutoSetSpawn then
+            task.spawn(function()
+                task.wait(0.2)
+                local cf = CommF()
+                if cf then
+                    pcall(function() cf:InvokeServer("SetSpawnPoint") end)
+                end
+            end)
         end
         
         IsTravelingSky = false
         CurrentTween = nil
         if SetTravelHUD then SetTravelHUD(false) end
         
-        -- Hold platform for 4 seconds so terrain geometry completely loads and server acknowledges position
+        -- Validate arrival position with server
         task.spawn(function()
-            task.wait(0.5)
+            task.wait(0.3)
             DisableNoclip()
-            task.wait(3.5)
+            Validator.ValidatePosition(finalLandCF, 40)
+            task.wait(2.5)
             if LandingPlatform and LandingPlatform.Parent then
                 LandingPlatform:Destroy()
                 LandingPlatform = nil
@@ -705,8 +1539,9 @@ local function GetBladeHits()
     local function CheckPart(folder)
         if not folder then return end
         for _, v in ipairs(folder:GetChildren()) do
-            if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                if (v.HumanoidRootPart.Position - root.Position).Magnitude <= _G.Config.AttackDistance then
+            if v ~= LocalPlayer.Character and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                local mobRoot = GetMobRoot(v)
+                if mobRoot and (mobRoot.Position - root.Position).Magnitude <= _G.Config.AttackDistance then
                     table.insert(targets, v)
                 end
             end
@@ -715,6 +1550,9 @@ local function GetBladeHits()
     
     CheckPart(Workspace:FindFirstChild("Enemies"))
     CheckPart(Workspace:FindFirstChild("Characters"))
+    CheckPart(Workspace:FindFirstChild("SeaBeasts"))
+    CheckPart(Workspace:FindFirstChild("SeaMonsters"))
+    CheckPart(Workspace:FindFirstChild("BoatEnemies"))
     return targets
 end
 
@@ -740,6 +1578,26 @@ local function FastAttack()
     
     local enemies = GetBladeHits()
     if #enemies > 0 then
+        -- Record pre-attack HP for validation
+        local primaryTarget = enemies[1]
+        local preHP = primaryTarget and primaryTarget:FindFirstChild("Humanoid") and primaryTarget.Humanoid.Health or 0
+        
+        -- CombatFramework Animation & Cooldown Bypass
+        pcall(function()
+            local cfModule = LocalPlayer.PlayerScripts:FindFirstChild("CombatFramework")
+            if cfModule then
+                local cf = require(cfModule)
+                if cf and cf.activeController then
+                    cf.activeController.timeToNextAttack = 0
+                    cf.activeController.attacking = false
+                    cf.activeController.blocking = false
+                    if cf.activeController.humanoid then
+                        cf.activeController.humanoid.AutoRotate = true
+                    end
+                end
+            end
+        end)
+
         local regAttack = GetNetRemote("RE/RegisterAttack")
         local regHit = GetNetRemote("RE/RegisterHit")
         if regAttack and regHit then
@@ -747,18 +1605,28 @@ local function FastAttack()
                 regAttack:FireServer(0)
                 local args = {nil, {}}
                 for i, v in ipairs(enemies) do
-                    if not args[1] and v:FindFirstChild("Head") then
-                        args[1] = v.Head
+                    local mobRoot = GetMobRoot(v)
+                    if not args[1] then
+                        args[1] = v:FindFirstChild("Head") or mobRoot
                     end
-                    args[2][i] = {v, v.HumanoidRootPart}
+                    args[2][i] = {v, mobRoot or v.PrimaryPart}
                 end
-                regHit:FireServer(unpack(args))
+                if args[1] then
+                    regHit:FireServer(unpack(args))
+                end
             end)
         end
         
         -- Activate equipped weapon ONLY (never fires if holding fruit by mistake)
         if tool and _G.Config.UseM1 and not _G.UIInteracting then
             pcall(function() tool:Activate() end)
+        end
+        
+        -- Verify damage was dealt (non-blocking, runs on next cycle)
+        if primaryTarget and preHP > 0 then
+            task.spawn(function()
+                Validator.VerifyDamage(primaryTarget, preHP)
+            end)
         end
     end
 end
@@ -813,12 +1681,35 @@ local function CastNextSkill()
     end
 end
 
+local function IsInCombatMode()
+    return _G.Config.AutoFarmLevel
+        or _G.Config.FarmSelectedMob
+        or _G.Config.FarmSelectedBoss
+        or _G.Config.FarmAllBosses
+        or _G.Config.AutoKillRipIndra
+        or _G.Config.AutoKillDoughKing
+        or _G.Config.AutoKillCakePrince
+        or _G.Config.AutoKillSoulReaper
+        or _G.Config.AutoKillDarkbeard
+        or _G.Config.AutoKillCursedCaptain
+        or _G.Config.AutoKillLaw
+        or _G.Config.AutoLawRaid
+        or _G.Config.AutoFarmRaid
+        or _G.Config.AutoKillSeaBeast
+        or _G.Config.AutoKillTerrorShark
+        or _G.Config.AutoKillShark
+        or _G.Config.AutoFarmBones
+        or _G.Config.AutoRaceV4Trial
+        or _G.Config.AutoCakePrinceSummon
+        or _G.Config.AutoDoughKingSummon
+end
+
 local function StartCombatLoop()
     task.spawn(function()
         while true do
             local cd = _G.Config.FastAttackSpeed or 0.015
             task.wait(cd)
-            if _G.Config.AutoFarmLevel or _G.Config.FarmSelectedMob or _G.Config.FarmSelectedBoss or _G.Config.FarmAllBosses then
+            if IsInCombatMode() then
                 if _G.Config.FastAttack and _G.Config.UseM1 then
                     FastAttack()
                 end
@@ -861,12 +1752,17 @@ local function BringMobsTo(targetMobName, centerCFrame)
     if not enemies then return end
     
     for _, mob in ipairs(enemies:GetChildren()) do
-        if mob.Name == targetMobName and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-            local dist = (mob.HumanoidRootPart.Position - centerCFrame.Position).Magnitude
-            if dist < 260 and dist > 4 then
-                mob.HumanoidRootPart.CFrame = centerCFrame
-                mob.HumanoidRootPart.CanCollide = false
-                mob.Humanoid.WalkSpeed = 0
+        if mob.Name == targetMobName and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+            local mobRoot = GetMobRoot(mob)
+            if mobRoot then
+                local dist = (mobRoot.Position - centerCFrame.Position).Magnitude
+                if dist < 140 and dist > 4 then
+                    mobRoot.CFrame = centerCFrame
+                    for _, p in ipairs(mob:GetDescendants()) do
+                        if p:IsA("BasePart") then p.CanCollide = false end
+                    end
+                    mob.Humanoid.WalkSpeed = 0
+                end
             end
         end
     end
@@ -1095,7 +1991,7 @@ local function FindEnemy(targetName)
     local closest, closestDist = nil, math.huge
     
     for _, mob in ipairs(enemies:GetChildren()) do
-        if (mob.Name == targetName or string.find(mob.Name, targetName)) and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+        if (mob.Name == targetName or string.find(mob.Name, targetName)) and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and not Validator.IsMobGlitched(mob) then
             local dist = root and (mob.HumanoidRootPart.Position - root.Position).Magnitude or 0
             if dist < closestDist then
                 closestDist = dist
@@ -1126,7 +2022,7 @@ local function StartAutoFarmLevel()
                             TweenTo(questInfo.Pos * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
                             
                             -- Dynamic timeout based on distance: never aborts prematurely mid-ocean!
-                            local speed = _G.Config.TweenSpeed or 250
+                            local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
                             local maxWait = (distToNPC / speed) + 12
                             local t0 = tick()
                             
@@ -1143,7 +2039,13 @@ local function StartAutoFarmLevel()
                                 task.wait(0.35)
                                 if not HasQuest() then
                                     cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                    task.wait(0.25)
+                                    task.wait(0.35)
+                                end
+                                -- If still no quest after 2 attempts while next to NPC: Phantom Desync detected!
+                                if not HasQuest() and _G.Config.AutoFarmLevel then
+                                    RecoverFromPhantomDesync(questInfo.Pos * CFrame.new(0, 4, 0))
+                                    task.wait(0.3)
+                                    cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
                                 end
                             end
                         end
@@ -1171,7 +2073,7 @@ local function StartAutoFarmLevel()
                             else
                                 TweenTo(safePos, "Mob Spawn Point")
                                 -- Dynamic wait if crossing islands to reach mob spawn
-                                local speed = _G.Config.TweenSpeed or 250
+                                local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
                                 local maxWait = (distToSafe / speed) + 12
                                 local t0 = tick()
                                 while (safePos.Position - root.Position).Magnitude > 35 and (tick() - t0) < maxWait and HasQuest() and _G.Config.AutoFarmLevel do
@@ -1411,44 +2313,311 @@ local function StartDevilFruitLoops()
     end)
 end
 
--- Fruit ESP (randomized billboard names)
-local FruitESPTable = {}
-local function UpdateFruitESP()
-    for _, bill in pairs(FruitESPTable) do
-        if bill and bill.Parent then bill:Destroy() end
+--============================== FULL VISUALS & ESP SUITE ==============================
+local ESPFolder = {}
+local function ClearESP(category)
+    if ESPFolder[category] then
+        for _, obj in pairs(ESPFolder[category]) do
+            if obj and obj.Parent then pcall(function() obj:Destroy() end) end
+        end
+        ESPFolder[category] = {}
+    else
+        ESPFolder[category] = {}
     end
-    FruitESPTable = {}
-    
+end
+
+-- 1. Player ESP
+local function UpdatePlayerESP()
+    ClearESP("Players")
+    if not _G.Config.PlayerESP then return end
+    local root = GetRoot()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
+            local pHrp = plr.Character.HumanoidRootPart
+            local pHum = plr.Character.Humanoid
+            local dist = root and math.floor((pHrp.Position - root.Position).Magnitude) or 0
+            
+            local bill = Instance.new("BillboardGui")
+            bill.Name = RNG()
+            bill.Adornee = pHrp
+            bill.Size = UDim2.new(0, 150, 0, 48)
+            bill.StudsOffset = Vector3.new(0, 3.5, 0)
+            bill.AlwaysOnTop = true
+            bill.Parent = pHrp
+            
+            local isMarine = (plr.Team and plr.Team.Name:find("Marine"))
+            local teamColor = isMarine and Color3.fromRGB(0, 175, 255) or Color3.fromRGB(255, 55, 75)
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 0, 18)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = (isMarine and "🛡️ " or "🏴‍☠️ ") .. plr.DisplayName .. " (@" .. plr.Name .. ")"
+            nameLabel.TextColor3 = teamColor
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 11
+            nameLabel.Parent = bill
+            
+            local hpLabel = Instance.new("TextLabel")
+            hpLabel.Size = UDim2.new(1, 0, 0, 14)
+            hpLabel.Position = UDim2.new(0, 0, 0, 18)
+            hpLabel.BackgroundTransparency = 1
+            hpLabel.Text = "HP: " .. math.floor(pHum.Health) .. "/" .. math.floor(pHum.MaxHealth) .. " • " .. dist .. " studs"
+            hpLabel.TextColor3 = Color3.fromRGB(100, 255, 130)
+            hpLabel.Font = Enum.Font.GothamMedium
+            hpLabel.TextSize = 10
+            hpLabel.Parent = bill
+            
+            table.insert(ESPFolder["Players"], bill)
+        end
+    end
+end
+
+-- 2. Fruit ESP with Rarity Coding
+local function GetFruitColor(name)
+    local lower = name:lower()
+    if lower:find("kitsune") or lower:find("dragon") or lower:find("leopard") or lower:find("t-rex") or lower:find("mammoth") or lower:find("dough") or lower:find("venom") or lower:find("spirit") or lower:find("shadow") then
+        return Color3.fromRGB(255, 45, 95) -- Mythical Red/Pink
+    elseif lower:find("blizzard") or lower:find("portal") or lower:find("rumble") or lower:find("buddha") or lower:find("phoenix") or lower:find("sound") or lower:find("quake") then
+        return Color3.fromRGB(200, 50, 255) -- Legendary Magenta
+    elseif lower:find("magma") or lower:find("ghost") or lower:find("light") or lower:find("dark") or lower:find("ice") then
+        return Color3.fromRGB(0, 215, 255) -- Rare Cyan
+    else
+        return Color3.fromRGB(180, 180, 195) -- Common Gray
+    end
+end
+
+local function UpdateFruitESP()
+    ClearESP("Fruits")
     if not _G.Config.FruitESP then return end
+    local root = GetRoot()
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or obj.ToolTip == "Blox Fruit") and obj:FindFirstChild("Handle") then
+            local dist = root and math.floor((obj.Handle.Position - root.Position).Magnitude) or 0
             local bill = Instance.new("BillboardGui")
-            bill.Name = RNG() -- Random name instead of "AlphaFruitESP"
+            bill.Name = RNG()
             bill.Adornee = obj.Handle
-            bill.Size = UDim2.new(0, 100, 0, 30)
-            bill.StudsOffset = Vector3.new(0, 2, 0)
+            bill.Size = UDim2.new(0, 130, 0, 34)
+            bill.StudsOffset = Vector3.new(0, 2.5, 0)
             bill.AlwaysOnTop = true
             bill.Parent = obj.Handle
             
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
-            label.Text = "[Fruit] " .. obj.Name
-            label.TextColor3 = Color3.fromRGB(255, 100, 100)
+            label.Text = "🍇 " .. obj.Name .. "\n[" .. dist .. " studs]"
+            label.TextColor3 = GetFruitColor(obj.Name)
             label.Font = Enum.Font.GothamBold
-            label.TextSize = 13
+            label.TextSize = 11
             label.Parent = bill
-            table.insert(FruitESPTable, bill)
+            table.insert(ESPFolder["Fruits"], bill)
         end
     end
 end
 
-local function StartFruitESPLoop()
+-- 3. Chest ESP & Auto Chest Collection
+local function GetSpawnedChests()
+    local chests = {}
+    local function ScanFolder(folder)
+        if not folder then return end
+        for _, c in ipairs(folder:GetChildren()) do
+            if c:IsA("Model") or c:IsA("Part") then
+                if string.find(c.Name, "Chest") or c:FindFirstChild("TouchInterest") then
+                    table.insert(chests, c)
+                end
+            end
+        end
+    end
+    ScanFolder(Workspace)
+    local chestsFolder = Workspace:FindFirstChild("Chests")
+    if chestsFolder then ScanFolder(chestsFolder) end
+    local map = Workspace:FindFirstChild("Map")
+    if map then ScanFolder(map) end
+    return chests
+end
+
+local function UpdateChestESP()
+    ClearESP("Chests")
+    if not _G.Config.ChestESP then return end
+    local root = GetRoot()
+    for _, chest in ipairs(GetSpawnedChests()) do
+        local part = chest:IsA("BasePart") and chest or chest:FindFirstChildWhichIsA("BasePart")
+        if part then
+            local dist = root and math.floor((part.Position - root.Position).Magnitude) or 0
+            local bill = Instance.new("BillboardGui")
+            bill.Name = RNG()
+            bill.Adornee = part
+            bill.Size = UDim2.new(0, 100, 0, 24)
+            bill.StudsOffset = Vector3.new(0, 2, 0)
+            bill.AlwaysOnTop = true
+            bill.Parent = part
+            
+            local label = Instance.new("TextLabel")
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.BackgroundTransparency = 1
+            label.Text = "🪙 " .. chest.Name .. " [" .. dist .. "m]"
+            label.TextColor3 = Color3.fromRGB(255, 215, 0)
+            label.Font = Enum.Font.GothamMedium
+            label.TextSize = 10
+            label.Parent = bill
+            table.insert(ESPFolder["Chests"], bill)
+        end
+    end
+end
+
+-- 4. Flower ESP (Bartilo Quest)
+local function UpdateFlowerESP()
+    ClearESP("Flowers")
+    if not _G.Config.FlowerESP then return end
+    local root = GetRoot()
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if string.find(obj.Name:lower(), "flower") then
+            local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
+            if part then
+                local dist = root and math.floor((part.Position - root.Position).Magnitude) or 0
+                local bill = Instance.new("BillboardGui")
+                bill.Name = RNG()
+                bill.Adornee = part
+                bill.Size = UDim2.new(0, 110, 0, 26)
+                bill.StudsOffset = Vector3.new(0, 2, 0)
+                bill.AlwaysOnTop = true
+                bill.Parent = part
+                
+                local col = obj.Name:find("1") and Color3.fromRGB(0, 150, 255) or (obj.Name:find("2") and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(255, 220, 0))
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "🌸 " .. obj.Name .. " [" .. dist .. "m]"
+                label.TextColor3 = col
+                label.Font = Enum.Font.GothamBold
+                label.TextSize = 11
+                label.Parent = bill
+                table.insert(ESPFolder["Flowers"], bill)
+            end
+        end
+    end
+end
+
+-- 5. Mirage Island & Sea Events ESP
+local function UpdateSeaEventESP()
+    ClearESP("SeaEvents")
+    if not _G.Config.MirageESP and not _G.Config.SeaEventESP then return end
+    local root = GetRoot()
+    
+    if _G.Config.MirageESP then
+        local mirage = Workspace:FindFirstChild("Mirage Island") or (Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin.Locations:FindFirstChild("Mirage Island"))
+        if mirage then
+            local part = mirage:IsA("BasePart") and mirage or mirage:FindFirstChildWhichIsA("BasePart")
+            if part then
+                local dist = root and math.floor((part.Position - root.Position).Magnitude) or 0
+                local bill = Instance.new("BillboardGui")
+                bill.Name = RNG()
+                bill.Adornee = part
+                bill.Size = UDim2.new(0, 170, 0, 40)
+                bill.StudsOffset = Vector3.new(0, 60, 0)
+                bill.AlwaysOnTop = true
+                bill.Parent = part
+                
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = "🌙 MIRAGE ISLAND ACTIVE!\n[" .. dist .. " studs]"
+                label.TextColor3 = Color3.fromRGB(150, 110, 255)
+                label.Font = Enum.Font.GothamBold
+                label.TextSize = 12
+                label.Parent = bill
+                table.insert(ESPFolder["SeaEvents"], bill)
+            end
+        end
+    end
+    
+    if _G.Config.SeaEventESP then
+        local function CheckSeaMob(mob, icon, col)
+            if mob and mob:FindFirstChild("HumanoidRootPart") then
+                local dist = root and math.floor((mob.HumanoidRootPart.Position - root.Position).Magnitude) or 0
+                local bill = Instance.new("BillboardGui")
+                bill.Name = RNG()
+                bill.Adornee = mob.HumanoidRootPart
+                bill.Size = UDim2.new(0, 150, 0, 36)
+                bill.StudsOffset = Vector3.new(0, 18, 0)
+                bill.AlwaysOnTop = true
+                bill.Parent = mob.HumanoidRootPart
+                
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = icon .. " " .. mob.Name .. "\n[" .. dist .. " studs]"
+                label.TextColor3 = col
+                label.Font = Enum.Font.GothamBold
+                label.TextSize = 11
+                label.Parent = bill
+                table.insert(ESPFolder["SeaEvents"], bill)
+            end
+        end
+        
+        local sbFolder = Workspace:FindFirstChild("SeaBeasts")
+        if sbFolder then
+            for _, sb in ipairs(sbFolder:GetChildren()) do
+                CheckSeaMob(sb, "🐉", Color3.fromRGB(0, 230, 255))
+            end
+        end
+        local enemies = Workspace:FindFirstChild("Enemies")
+        if enemies then
+            for _, mob in ipairs(enemies:GetChildren()) do
+                if string.find(mob.Name, "SeaBeast") or string.find(mob.Name, "Sea Beast") then
+                    CheckSeaMob(mob, "🐉", Color3.fromRGB(0, 230, 255))
+                elseif string.find(mob.Name, "Terror Shark") then
+                    CheckSeaMob(mob, "🦈", Color3.fromRGB(255, 45, 95))
+                end
+            end
+        end
+    end
+end
+
+local function StartChestFarmLoop()
     task.spawn(function()
-        task.wait(math.random(30, 50) / 10)
+        task.wait(2)
         while true do
-            task.wait(3 + math.random() * 1)
-            if _G.Config.FruitESP then UpdateFruitESP() end
+            task.wait(0.3)
+            if _G.Config.AutoChestFarm then
+                pcall(function()
+                    local chests = GetSpawnedChests()
+                    local root = GetRoot()
+                    if root and #chests > 0 then
+                        local closest = nil
+                        local minDist = math.huge
+                        for _, c in ipairs(chests) do
+                            local part = c:IsA("BasePart") and c or c:FindFirstChildWhichIsA("BasePart")
+                            if part then
+                                local d = (part.Position - root.Position).Magnitude
+                                if d < minDist then
+                                    minDist = d
+                                    closest = part
+                                end
+                            end
+                        end
+                        if closest then
+                            TweenTo(closest.CFrame * CFrame.new(0, 2, 0))
+                            task.wait(0.2)
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+end
+
+local function StartESPLoops()
+    task.spawn(function()
+        task.wait(2)
+        while true do
+            task.wait(2.5)
+            pcall(function()
+                if _G.Config.PlayerESP then UpdatePlayerESP() else ClearESP("Players") end
+                if _G.Config.FruitESP then UpdateFruitESP() else ClearESP("Fruits") end
+                if _G.Config.ChestESP then UpdateChestESP() else ClearESP("Chests") end
+                if _G.Config.FlowerESP then UpdateFlowerESP() else ClearESP("Flowers") end
+                if _G.Config.MirageESP or _G.Config.SeaEventESP then UpdateSeaEventESP() else ClearESP("SeaEvents") end
+            end)
         end
     end)
 end
@@ -1463,12 +2632,16 @@ local function StartAutoStatsLoop()
                 local cf = CommF()
                 if cf then
                     pcall(function()
-                        local pts = _G.Config.StatPoints or 1
-                        if _G.Config.Stats.Melee then cf:InvokeServer("AddPoint", "Melee", pts) end
-                        if _G.Config.Stats.Defense then cf:InvokeServer("AddPoint", "Defense", pts) end
-                        if _G.Config.Stats.Sword then cf:InvokeServer("AddPoint", "Sword", pts) end
-                        if _G.Config.Stats.Gun then cf:InvokeServer("AddPoint", "Gun", pts) end
-                        if _G.Config.Stats.Fruit then cf:InvokeServer("AddPoint", "Demon Fruit", pts) end
+                        local data = LocalPlayer:FindFirstChild("Data")
+                        local ptsAvail = (data and data:FindFirstChild("Points") and data.Points.Value) or 0
+                        if ptsAvail > 0 then
+                            local pts = math.min(_G.Config.StatPoints or 1, ptsAvail)
+                            if _G.Config.Stats.Melee then cf:InvokeServer("AddPoint", "Melee", pts) end
+                            if _G.Config.Stats.Defense then cf:InvokeServer("AddPoint", "Defense", pts) end
+                            if _G.Config.Stats.Sword then cf:InvokeServer("AddPoint", "Sword", pts) end
+                            if _G.Config.Stats.Gun then cf:InvokeServer("AddPoint", "Gun", pts) end
+                            if _G.Config.Stats.Fruit then cf:InvokeServer("AddPoint", "Demon Fruit", pts) end
+                        end
                     end)
                 end
             end
@@ -1476,29 +2649,205 @@ local function StartAutoStatsLoop()
     end)
 end
 
---============================== DUNGEONS & RAIDS ==============================
-local function StartDungeonRaidLoop()
+--============================== ADVANCED RAIDS & DUNGEONS ENGINE ==============================
+local function StartAdvancedRaidEngine()
     task.spawn(function()
-        task.wait(math.random(20, 40) / 10)
+        task.wait(2.5)
         while true do
-            task.wait(1.5 + math.random() * 0.5)
+            task.wait(1.5)
             pcall(function()
                 local cf = CommF()
-                if _G.Config.AutoBuyChip and cf then
+                if not cf then return end
+                
+                -- Auto Buy Raid Chip
+                if _G.Config.AutoBuyChip then
                     cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip)
                 end
-                if _G.Config.AutoStartRaid and cf then
+                
+                -- Auto Start Raid
+                if _G.Config.AutoStartRaid then
                     cf:InvokeServer("RaidsNpc", "Start")
                 end
+                
+                -- Auto Farm Raid & Next Island Transition
                 if _G.Config.AutoFarmRaid then
                     local enemies = Workspace:FindFirstChild("Enemies")
+                    local hasMobs = false
                     if enemies then
                         for _, mob in ipairs(enemies:GetChildren()) do
                             if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0)
+                                hasMobs = true
+                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                                 TweenTo(farmPos)
                                 EquipWeapon(_G.Config.SelectedWeapon)
                                 break
+                            end
+                        end
+                    end
+                    
+                    if not hasMobs then
+                        local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
+                        if locs then
+                            for i = 1, 5 do
+                                local island = locs:FindFirstChild("Island " .. i) or locs:FindFirstChild("Island" .. i)
+                                if island then
+                                    local root = GetRoot()
+                                    if root and (island.Position - root.Position).Magnitude > 250 then
+                                        TweenTo(island.CFrame * CFrame.new(0, 45, 0))
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Auto Awaken Fruit
+                if _G.Config.AutoAwaken then
+                    cf:InvokeServer("Awakener", "Check")
+                    cf:InvokeServer("Awakener", "Awaken")
+                end
+                
+                -- Auto Law / Order Raid
+                if _G.Config.AutoLawRaid then
+                    cf:InvokeServer("BlackbeardReward", "LawChip")
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        local order = enemies:FindFirstChild("Order")
+                        if order and order:FindFirstChild("HumanoidRootPart") and order:FindFirstChild("Humanoid") and order.Humanoid.Health > 0 then
+                            local farmPos = order.HumanoidRootPart.CFrame * CFrame.new(0, 25, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            TweenTo(farmPos)
+                            EquipWeapon(_G.Config.SelectedWeapon)
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+--============================== COMPLETE SEA EVENTS & MIRAGE ENGINE ==============================
+local function CheckIslandSpawn(islandName)
+    local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
+    if locs and locs:FindFirstChild(islandName) then return true end
+    if Workspace:FindFirstChild(islandName) then return true end
+    return false
+end
+
+local function StartSeaEventsEngine()
+    task.spawn(function()
+        task.wait(2.0)
+        while true do
+            task.wait(0.35)
+            pcall(function()
+                local root = GetRoot()
+                if not root then return end
+                
+                -- 1. Auto Kill Sea Beast (Safe hover 65 studs above water to evade water blast)
+                if _G.Config.AutoKillSeaBeast then
+                    local targetSB = nil
+                    local sbFolder = Workspace:FindFirstChild("SeaBeasts")
+                    if sbFolder then
+                        for _, sb in ipairs(sbFolder:GetChildren()) do
+                            if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChild("Humanoid") and sb.Humanoid.Health > 0 then
+                                targetSB = sb
+                                break
+                            end
+                        end
+                    end
+                    if not targetSB then
+                        local enemies = Workspace:FindFirstChild("Enemies")
+                        if enemies then
+                            for _, mob in ipairs(enemies:GetChildren()) do
+                                if (string.find(mob.Name, "SeaBeast") or string.find(mob.Name, "Sea Beast")) and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                    targetSB = mob
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    
+                    if targetSB then
+                        local farmPos = targetSB.HumanoidRootPart.CFrame * CFrame.new(0, 65, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local distToFarm = (farmPos.Position - root.Position).Magnitude
+                        if distToFarm < 20 then
+                            HoverLock(farmPos)
+                        else
+                            TweenTo(farmPos)
+                        end
+                        EquipWeapon(_G.Config.SelectedWeapon)
+                        return
+                    end
+                end
+                
+                -- 2. Auto Kill Terror Shark (Safe hover 38 studs to evade bite hitboxes)
+                if _G.Config.AutoKillTerrorShark then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        local ts = enemies:FindFirstChild("Terror Shark")
+                        if ts and ts:FindFirstChild("HumanoidRootPart") and ts:FindFirstChild("Humanoid") and ts.Humanoid.Health > 0 then
+                            local farmPos = ts.HumanoidRootPart.CFrame * CFrame.new(0, 38, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            local distToFarm = (farmPos.Position - root.Position).Magnitude
+                            if distToFarm < 16 then
+                                HoverLock(farmPos)
+                            else
+                                TweenTo(farmPos)
+                            end
+                            EquipWeapon(_G.Config.SelectedWeapon)
+                            return
+                        end
+                    end
+                end
+                
+                -- 3. Auto Kill Sharks & Piranhas
+                if _G.Config.AutoKillShark then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if (string.find(mob.Name, "Shark") or string.find(mob.Name, "Piranha")) and mob.Name ~= "Terror Shark" and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, 22, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                TweenTo(farmPos)
+                                EquipWeapon(_G.Config.SelectedWeapon)
+                                return
+                            end
+                        end
+                    end
+                end
+                
+                -- 4. Auto Mirage Blue Gear
+                if _G.Config.AutoFindGear then
+                    local mirage = Workspace:FindFirstChild("Mirage Island") or (Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin.Locations:FindFirstChild("Mirage Island"))
+                    if mirage then
+                        for _, v in ipairs(mirage:GetDescendants()) do
+                            if v:IsA("BasePart") and (v.Name == "Gear" or v.Name == "BlueGear" or string.find(v.Name:lower(), "gear")) then
+                                TweenTo(v.CFrame * CFrame.new(0, 2, 0))
+                                task.wait(0.5)
+                                local prompt = v:FindFirstChildWhichIsA("ProximityPrompt") or (v.Parent and v.Parent:FindFirstChildWhichIsA("ProximityPrompt"))
+                                if prompt and fireproximityprompt then
+                                    fireproximityprompt(prompt)
+                                end
+                                return
+                            end
+                        end
+                    end
+                end
+                
+                -- 5. Auto Kitsune Azure Embers
+                if _G.Config.AutoKitsuneEmber then
+                    local kitsune = Workspace:FindFirstChild("Kitsune Island") or (Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin.Locations:FindFirstChild("Kitsune Island"))
+                    if kitsune then
+                        for _, ember in ipairs(Workspace:GetChildren()) do
+                            if ember.Name == "Ember" or ember.Name == "AzureEmber" or string.find(ember.Name, "Ember") then
+                                local part = ember:IsA("BasePart") and ember or ember:FindFirstChildWhichIsA("BasePart")
+                                if part then
+                                    TweenTo(part.CFrame)
+                                    task.wait(0.3)
+                                    local prompt = ember:FindFirstChildWhichIsA("ProximityPrompt")
+                                    if prompt and fireproximityprompt then
+                                        fireproximityprompt(prompt)
+                                    end
+                                    break
+                                end
                             end
                         end
                     end
@@ -1508,12 +2857,176 @@ local function StartDungeonRaidLoop()
     end)
 end
 
---============================== SEA EVENTS & MIRAGE ==============================
-local function CheckIslandSpawn(islandName)
-    local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-    if locs and locs:FindFirstChild(islandName) then return true end
-    if Workspace:FindFirstChild(islandName) then return true end
-    return false
+--============================== RACE V4 AWAKENING ENGINE ==============================
+local function StartRaceV4Engine()
+    task.spawn(function()
+        task.wait(2.5)
+        while true do
+            task.wait(1.0)
+            pcall(function()
+                local root = GetRoot()
+                if not root then return end
+                
+                -- Auto Pull Lever (Temple of Time)
+                if _G.Config.AutoPullLever then
+                    local tot = Workspace:FindFirstChild("TempleOfTime") or (Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("TempleOfTime"))
+                    local lever = tot and (tot:FindFirstChild("Lever") or tot:FindFirstChild("SecretLever"))
+                    if lever then
+                        local part = lever:IsA("BasePart") and lever or lever:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            TweenTo(part.CFrame * CFrame.new(0, 2, 0))
+                            task.wait(0.5)
+                            local prompt = lever:FindFirstChildWhichIsA("ProximityPrompt")
+                            if prompt and fireproximityprompt then fireproximityprompt(prompt) end
+                        end
+                    end
+                end
+                
+                -- Auto Complete Trial
+                if _G.Config.AutoRaceV4Trial then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                TweenTo(farmPos)
+                                EquipWeapon(_G.Config.SelectedWeapon)
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                -- Auto Insert Gear into Ancient Clock
+                if _G.Config.AutoInsertGear then
+                    local clock = Workspace:FindFirstChild("AncientClock") or (Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("AncientClock"))
+                    if clock then
+                        local part = clock:IsA("BasePart") and clock or clock:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            TweenTo(part.CFrame * CFrame.new(0, 3, 0))
+                            task.wait(0.5)
+                            local prompt = clock:FindFirstChildWhichIsA("ProximityPrompt")
+                            if prompt and fireproximityprompt then fireproximityprompt(prompt) end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+--============================== BONES & SPECIAL EVENTS ENGINE ==============================
+local function StartSpecialBossAndBoneEngine()
+    task.spawn(function()
+        task.wait(2.2)
+        while true do
+            task.wait(0.8)
+            pcall(function()
+                local cf = CommF()
+                if not cf then return end
+                local root = GetRoot()
+                if not root then return end
+                
+                -- Auto Farm Bones (Sea 3 Haunted Castle)
+                if _G.Config.AutoFarmBones and Sea3 then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    local boneMobs = {"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy"}
+                    local foundMob = false
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if table.find(boneMobs, mob.Name) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local mobRoot = GetMobRoot(mob)
+                                if mobRoot then
+                                    foundMob = true
+                                    local farmPos = mobRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                    TweenTo(farmPos, mob.Name)
+                                    EquipWeapon(_G.Config.SelectedWeapon)
+                                    BringMobsTo(mob.Name, mobRoot.CFrame)
+                                    return
+                                end
+                            end
+                        end
+                    end
+                    if not foundMob then
+                        TweenTo(CFrame.new(-9516.99, 142.01, 6078.47), "Haunted Castle")
+                    end
+                end
+                
+                -- Auto Roll Bones at Death King (Verified >= 50 Bones)
+                if _G.Config.AutoRollBones and Sea3 then
+                    local data = LocalPlayer:FindFirstChild("Data")
+                    local bones = (data and data:FindFirstChild("Bones") and data.Bones.Value) or 0
+                    if bones >= 50 then
+                        cf:InvokeServer("Bones", "Buy", 1)
+                    end
+                end
+                
+                -- Auto Summon Soul Reaper
+                if _G.Config.AutoSummonSoulReaper and Sea3 then
+                    local bp = LocalPlayer:FindFirstChild("Backpack")
+                    local char = GetCharacter()
+                    local hasEssence = (bp and bp:FindFirstChild("Hallow Essence")) or (char and char:FindFirstChild("Hallow Essence"))
+                    if hasEssence then
+                        if bp:FindFirstChild("Hallow Essence") then
+                            bp["Hallow Essence"].Parent = char
+                        end
+                        TweenTo(CFrame.new(-9516.99, 172.01, 6078.47), "Soul Reaper Altar")
+                    end
+                end
+                
+                -- Auto Cake Prince / Dough King Mobs Farm
+                if (_G.Config.AutoCakePrinceSummon or _G.Config.AutoDoughKingSummon) and Sea3 then
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    local cakeMobs = {"Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker", "Cocoa Warrior", "Chocolate Bar Battler"}
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if table.find(cakeMobs, mob.Name) and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local mobRoot = GetMobRoot(mob)
+                                if mobRoot then
+                                    local farmPos = mobRoot.CFrame * CFrame.new(0, 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                                    TweenTo(farmPos, mob.Name)
+                                    EquipWeapon(_G.Config.SelectedWeapon)
+                                    BringMobsTo(mob.Name, mobRoot.CFrame)
+                                    return
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+--============================== AUTO HAKI ENGINE ==============================
+local function StartHakiLoop()
+    task.spawn(function()
+        task.wait(1.5)
+        while true do
+            task.wait(2.0)
+            pcall(function()
+                local char = GetCharacter()
+                if not char then return end
+                local cf = CommF()
+                
+                -- Auto Buso Haki
+                if _G.Config.AutoBusoHaki and cf then
+                    local hasBuso = char:FindFirstChild("HasBuso") or char:FindFirstChild("Buso")
+                    if not hasBuso then
+                        cf:InvokeServer("Buso")
+                    end
+                end
+                
+                -- Auto Ken Haki
+                if _G.Config.AutoKenHaki and cf then
+                    local vision = char:FindFirstChild("Vision") or (LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("VisionGui"))
+                    if not vision then
+                        cf:InvokeServer("KenHaki")
+                    end
+                end
+            end)
+        end
+    end)
 end
 
 --============================== ANTI-AFK ==============================
@@ -1527,13 +3040,12 @@ local function EnableAntiAFK()
 end
 if _G.Config.AntiAFK then EnableAntiAFK() end
 
+
 --============================== STEALTH UI FRAMEWORK (REDZ 3D CYBER EDITION) ==============================
 -- All GUI elements use randomized names via GenerateGUID
 -- Full input isolation: Active = true on all containers so clicks NEVER register into the 3D game world!
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
-
--- Tactile Audio Feedback for 3D UI
 local SoundService = game:GetService("SoundService")
 local function PlayClickSound()
     pcall(function()
@@ -1565,15 +3077,18 @@ local function CreateUI()
     ScreenGui.Parent = parentGui
     
     -- -------------------------------------------------------------
-    -- 3D COCKPIT TRAVEL HUD (Lowered to Y = 75 with Live Progress Bar)
+    -- 3D COCKPIT TRAVEL HUD (Live Progress Bar & Flight Stats)
     -- -------------------------------------------------------------
+    local MainFrame = nil -- Forward declaration so Travel HUD can dock directly above MainFrame
     local TravelFrame = Instance.new("Frame")
     TravelFrame.Name = RNG()
-    TravelFrame.Size = UDim2.new(0, 360, 0, 56)
-    TravelFrame.Position = UDim2.new(0.5, -180, 0, -90) -- Hidden above screen
-    TravelFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 22)
+    TravelFrame.Size = UDim2.new(0, 370, 0, 58)
+    TravelFrame.Position = UDim2.new(0.5, -185, 0.5, -280)
+    TravelFrame.BackgroundColor3 = Color3.fromRGB(12, 13, 20)
     TravelFrame.BorderSizePixel = 0
     TravelFrame.Active = true
+    TravelFrame.Selectable = true
+    TravelFrame.Visible = false
     TravelFrame.ZIndex = 60
     TravelFrame.Parent = ScreenGui
     
@@ -1582,14 +3097,14 @@ local function CreateUI()
     TravelCorner.Parent = TravelFrame
     
     local TravelStroke = Instance.new("UIStroke")
-    TravelStroke.Color = Color3.fromRGB(255, 42, 95)
+    TravelStroke.Color = Color3.fromRGB(0, 230, 255)
     TravelStroke.Thickness = 1.6
     TravelStroke.Parent = TravelFrame
     
     local TravelGrad = Instance.new("UIGradient")
     TravelGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 26, 38)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 12, 18))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 28, 42)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 12, 18))
     }
     TravelGrad.Rotation = 90
     TravelGrad.Parent = TravelFrame
@@ -1610,7 +3125,7 @@ local function CreateUI()
     TravelDist.Size = UDim2.new(1, -95, 0, 16)
     TravelDist.Position = UDim2.new(0, 14, 0, 26)
     TravelDist.Text = "Distance: 0 studs • Speed: 250 studs/s"
-    TravelDist.TextColor3 = Color3.fromRGB(180, 180, 205)
+    TravelDist.TextColor3 = Color3.fromRGB(170, 190, 220)
     TravelDist.Font = Enum.Font.Gotham
     TravelDist.TextSize = 10
     TravelDist.TextXAlignment = Enum.TextXAlignment.Left
@@ -1618,11 +3133,10 @@ local function CreateUI()
     TravelDist.ZIndex = 61
     TravelDist.Parent = TravelFrame
     
-    -- Live Journey Progress Bar
     local TravelProgressBar = Instance.new("Frame")
     TravelProgressBar.Size = UDim2.new(1, -110, 0, 4)
     TravelProgressBar.Position = UDim2.new(0, 14, 0, 44)
-    TravelProgressBar.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+    TravelProgressBar.BackgroundColor3 = Color3.fromRGB(30, 35, 50)
     TravelProgressBar.BorderSizePixel = 0
     TravelProgressBar.ZIndex = 61
     TravelProgressBar.Parent = TravelFrame
@@ -1632,7 +3146,7 @@ local function CreateUI()
     
     local TravelProgressFill = Instance.new("Frame")
     TravelProgressFill.Size = UDim2.new(0, 0, 1, 0)
-    TravelProgressFill.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    TravelProgressFill.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
     TravelProgressFill.BorderSizePixel = 0
     TravelProgressFill.ZIndex = 62
     TravelProgressFill.Parent = TravelProgressBar
@@ -1641,13 +3155,13 @@ local function CreateUI()
     TPBFCorner.Parent = TravelProgressFill
     
     local CancelFlightBtn = Instance.new("TextButton")
-    CancelFlightBtn.Size = UDim2.new(0, 74, 0, 32)
-    CancelFlightBtn.Position = UDim2.new(1, -84, 0.5, -16)
+    CancelFlightBtn.Size = UDim2.new(0, 76, 0, 32)
+    CancelFlightBtn.Position = UDim2.new(1, -86, 0.5, -16)
     CancelFlightBtn.Text = "✕ CANCEL"
     CancelFlightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     CancelFlightBtn.Font = Enum.Font.GothamBold
     CancelFlightBtn.TextSize = 10
-    CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(220, 35, 70)
+    CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(230, 40, 75)
     CancelFlightBtn.BorderSizePixel = 0
     CancelFlightBtn.Active = true
     CancelFlightBtn.ZIndex = 62
@@ -1661,27 +3175,75 @@ local function CreateUI()
         StopTween()
     end)
     
+    -- Draggable functionality for Travel HUD
+    local travelDragging, travelDragInput, travelDragStart, travelStartPos
+    local travelHasCustomPos = false
+    TravelFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            travelDragging = true
+            travelDragStart = input.Position
+            travelStartPos = TravelFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    travelDragging = false
+                end
+            end)
+        end
+    end)
+    TravelFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            travelDragInput = input
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if input == travelDragInput and travelDragging then
+            local delta = input.Position - travelDragStart
+            travelHasCustomPos = true
+            TravelFrame.Position = UDim2.new(travelStartPos.X.Scale, travelStartPos.X.Offset + delta.X, travelStartPos.Y.Scale, travelStartPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    local function GetDockedTravelPos()
+        if MainFrame then
+            local ox = MainFrame.Position.X.Offset + math.floor((MainFrame.Size.X.Offset - 370) / 2)
+            local oy = MainFrame.Position.Y.Offset - 66
+            return UDim2.new(MainFrame.Position.X.Scale, ox, MainFrame.Position.Y.Scale, oy)
+        end
+        return UDim2.new(0.5, -185, 0.5, -256)
+    end
+    
     local isTravelHUDActive = false
     SetTravelHUD = function(visible, destName, curDist, spd, totalDist)
         if visible then
             TravelTitle.Text = "✈️ FLYING TO: " .. tostring(destName or "TARGET"):upper()
             TravelDist.Text = "Distance: " .. math.floor(curDist or 0) .. " studs • Speed: " .. math.floor(spd or 250) .. " studs/s"
-            
             if totalDist and totalDist > 0 then
                 local pct = math.clamp(1 - ((curDist or 0) / totalDist), 0, 1)
                 TravelProgressFill.Size = UDim2.new(pct, 0, 1, 0)
             end
-            
             if not isTravelHUDActive then
                 isTravelHUDActive = true
-                -- Lowered down to Y = 75 (~1.5 inches down, fully below Roblox header)
-                TweenService:Create(TravelFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -180, 0, 75)}):Play()
+                TravelFrame.Visible = true
+                local targetPos = travelHasCustomPos and TravelFrame.Position or GetDockedTravelPos()
+                if not travelHasCustomPos then
+                    TravelFrame.Position = UDim2.new(targetPos.X.Scale, targetPos.X.Offset, targetPos.Y.Scale, targetPos.Y.Offset - 25)
+                    TweenService:Create(TravelFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+                end
             end
         else
             if isTravelHUDActive then
                 isTravelHUDActive = false
                 TravelProgressFill.Size = UDim2.new(0, 0, 1, 0)
-                TweenService:Create(TravelFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -180, 0, -90)}):Play()
+                if not travelHasCustomPos then
+                    local hidePos = UDim2.new(TravelFrame.Position.X.Scale, TravelFrame.Position.X.Offset, TravelFrame.Position.Y.Scale, TravelFrame.Position.Y.Offset - 30)
+                    local tw = TweenService:Create(TravelFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = hidePos})
+                    tw:Play()
+                    tw.Completed:Connect(function()
+                        if not isTravelHUDActive then TravelFrame.Visible = false end
+                    end)
+                else
+                    TravelFrame.Visible = false
+                end
             end
         end
     end
@@ -1691,9 +3253,9 @@ local function CreateUI()
     -- -------------------------------------------------------------
     local ShadowFrame = Instance.new("Frame")
     ShadowFrame.Name = RNG()
-    ShadowFrame.Size = UDim2.new(0, 610, 0, 385)
-    ShadowFrame.Position = UDim2.new(0.5, -295, 0.5, -180) -- 5px 3D offset
-    ShadowFrame.BackgroundColor3 = Color3.fromRGB(4, 4, 7)
+    ShadowFrame.Size = UDim2.new(0, 614, 0, 394)
+    ShadowFrame.Position = UDim2.new(0.5, -297, 0.5, -182)
+    ShadowFrame.BackgroundColor3 = Color3.fromRGB(3, 4, 6)
     ShadowFrame.BackgroundTransparency = 0.35
     ShadowFrame.BorderSizePixel = 0
     ShadowFrame.Parent = ScreenGui
@@ -1702,24 +3264,24 @@ local function CreateUI()
     ShadowCorner.Parent = ShadowFrame
     
     -- -------------------------------------------------------------
-    -- MAIN CONTAINER (3D Obsidian Cyber Glass)
+    -- MAIN CONTAINER (3D Obsidian Cyber Glassmorphism)
     -- -------------------------------------------------------------
-    local MainFrame = Instance.new("Frame")
+    MainFrame = Instance.new("Frame")
     MainFrame.Name = RNG()
-    MainFrame.Size = UDim2.new(0, 600, 0, 375)
-    MainFrame.Position = UDim2.new(0.5, -300, 0.5, -187)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 16)
+    MainFrame.Size = UDim2.new(0, 600, 0, 380)
+    MainFrame.Position = UDim2.new(0.5, -300, 0.5, -190)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(11, 12, 17)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
-    MainFrame.Active = true -- Input isolation
+    MainFrame.Active = true
     MainFrame.Parent = ScreenGui
     
     -- Smooth 3D Entrance Bounce Animation on load
     MainFrame.Size = UDim2.new(0, 520, 0, 320)
     MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
     TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 600, 0, 375),
-        Position = UDim2.new(0.5, -300, 0.5, -187)
+        Size = UDim2.new(0, 600, 0, 380),
+        Position = UDim2.new(0.5, -300, 0.5, -190)
     }):Play()
     
     local function SyncShadow()
@@ -1738,16 +3300,33 @@ local function CreateUI()
     MainCorner.Parent = MainFrame
     
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(255, 42, 95)
+    MainStroke.Color = Color3.fromRGB(0, 230, 255)
     MainStroke.Thickness = 1.6
-    MainStroke.Transparency = 0.2
+    MainStroke.Transparency = 0.15
     MainStroke.Parent = MainFrame
+    
+    -- Dynamic rotating glowing border effect
+    local StrokeGrad = Instance.new("UIGradient")
+    StrokeGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 235, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 45, 95)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 235, 255))
+    }
+    StrokeGrad.Parent = MainStroke
+    
+    task.spawn(function()
+        local rot = 0
+        while MainStroke.Parent do
+            rot = (rot + 2) % 360
+            StrokeGrad.Rotation = rot
+            task.wait(0.03)
+        end
+    end)
     
     -- 3D Top Bevel Highlight Line
     local TopHighlight = Instance.new("Frame")
     TopHighlight.Size = UDim2.new(1, 0, 0, 1)
-    TopHighlight.Position = UDim2.new(0, 0, 0, 0)
-    TopHighlight.BackgroundColor3 = Color3.fromRGB(255, 120, 160)
+    TopHighlight.BackgroundColor3 = Color3.fromRGB(150, 240, 255)
     TopHighlight.BackgroundTransparency = 0.5
     TopHighlight.BorderSizePixel = 0
     TopHighlight.ZIndex = 10
@@ -1774,6 +3353,9 @@ local function CreateUI()
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            if not travelHasCustomPos and TravelFrame and TravelFrame.Visible then
+                TravelFrame.Position = GetDockedTravelPos()
+            end
         end
     end)
     
@@ -1781,21 +3363,21 @@ local function CreateUI()
     local TopBar = Instance.new("Frame")
     TopBar.Name = RNG()
     TopBar.Size = UDim2.new(1, 0, 0, 44)
-    TopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+    TopBar.BackgroundColor3 = Color3.fromRGB(16, 18, 26)
     TopBar.BorderSizePixel = 0
     TopBar.Active = true
     TopBar.Parent = MainFrame
     
     local TopBarGrad = Instance.new("UIGradient")
     TopBarGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 28, 40)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 16, 24))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 28, 40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 16, 22))
     }
     TopBarGrad.Rotation = 90
     TopBarGrad.Parent = TopBar
     
     local TopStroke = Instance.new("UIStroke")
-    TopStroke.Color = Color3.fromRGB(38, 38, 54)
+    TopStroke.Color = Color3.fromRGB(34, 38, 54)
     TopStroke.Thickness = 1
     TopStroke.Parent = TopBar
     
@@ -1803,7 +3385,7 @@ local function CreateUI()
     local LogoBadge = Instance.new("Frame")
     LogoBadge.Size = UDim2.new(0, 26, 0, 26)
     LogoBadge.Position = UDim2.new(0, 12, 0, 9)
-    LogoBadge.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    LogoBadge.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
     LogoBadge.BorderSizePixel = 0
     LogoBadge.Parent = TopBar
     local LBCorner = Instance.new("UICorner")
@@ -1812,7 +3394,7 @@ local function CreateUI()
     local LBLabel = Instance.new("TextLabel")
     LBLabel.Size = UDim2.new(1, 0, 1, 0)
     LBLabel.Text = "α"
-    LBLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LBLabel.TextColor3 = Color3.fromRGB(10, 12, 18)
     LBLabel.Font = Enum.Font.GothamBold
     LBLabel.TextSize = 16
     LBLabel.BackgroundTransparency = 1
@@ -1821,7 +3403,7 @@ local function CreateUI()
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Size = UDim2.new(0, 220, 1, 0)
     TitleLabel.Position = UDim2.new(0, 46, 0, 0)
-    TitleLabel.Text = "ALPHA // 3D CYBER HUB"
+    TitleLabel.Text = "ALPHA // 3D CYBER EDITION"
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 13
@@ -1830,38 +3412,103 @@ local function CreateUI()
     TitleLabel.Active = true
     TitleLabel.Parent = TopBar
     
-    -- Sea Status Pill Badge
+    -- Status Pill Badges
     local SeaBadge = Instance.new("Frame")
     SeaBadge.Size = UDim2.new(0, 95, 0, 22)
-    SeaBadge.Position = UDim2.new(0, 245, 0, 11)
-    SeaBadge.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    SeaBadge.Position = UDim2.new(0, 246, 0, 11)
+    SeaBadge.BackgroundColor3 = Color3.fromRGB(22, 26, 38)
     SeaBadge.BorderSizePixel = 0
     SeaBadge.Parent = TopBar
     local SBCorner = Instance.new("UICorner")
     SBCorner.CornerRadius = UDim.new(1, 0)
     SBCorner.Parent = SeaBadge
     local SBStroke = Instance.new("UIStroke")
-    SBStroke.Color = Color3.fromRGB(255, 45, 95)
+    SBStroke.Color = Color3.fromRGB(0, 210, 255)
     SBStroke.Thickness = 1
     SBStroke.Transparency = 0.4
     SBStroke.Parent = SeaBadge
     local SBLabel = Instance.new("TextLabel")
     SBLabel.Size = UDim2.new(1, 0, 1, 0)
     SBLabel.Text = "🌊 " .. SeaName
-    SBLabel.TextColor3 = Color3.fromRGB(255, 90, 135)
+    SBLabel.TextColor3 = Color3.fromRGB(0, 230, 255)
     SBLabel.Font = Enum.Font.GothamBold
     SBLabel.TextSize = 10
     SBLabel.BackgroundTransparency = 1
     SBLabel.Parent = SeaBadge
     
+    -- Live Performance Monitor Badge (FPS & Ping)
+    local PerfBadge = Instance.new("Frame")
+    PerfBadge.Size = UDim2.new(0, 138, 0, 22)
+    PerfBadge.Position = UDim2.new(0, 348, 0, 11)
+    PerfBadge.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+    PerfBadge.BorderSizePixel = 0
+    PerfBadge.Parent = TopBar
+    local PBCorner = Instance.new("UICorner")
+    PBCorner.CornerRadius = UDim.new(1, 0)
+    PBCorner.Parent = PerfBadge
+    local PBStroke = Instance.new("UIStroke")
+    PBStroke.Color = Color3.fromRGB(0, 230, 160)
+    PBStroke.Thickness = 1
+    PBStroke.Transparency = 0.4
+    PBStroke.Parent = PerfBadge
+    local PBLabel = Instance.new("TextLabel")
+    PBLabel.Size = UDim2.new(1, 0, 1, 0)
+    PBLabel.Text = "🟢 60 FPS | 40ms"
+    PBLabel.TextColor3 = Color3.fromRGB(0, 240, 180)
+    PBLabel.Font = Enum.Font.GothamBold
+    PBLabel.TextSize = 10
+    PBLabel.BackgroundTransparency = 1
+    PBLabel.Parent = PerfBadge
+    
+    task.spawn(function()
+        local lastTime = tick()
+        local frameCount = 0
+        local currentFPS = 60
+        
+        RunService.RenderStepped:Connect(function()
+            frameCount = frameCount + 1
+            local now = tick()
+            if (now - lastTime) >= 0.5 then
+                currentFPS = math.floor(frameCount / (now - lastTime))
+                frameCount = 0
+                lastTime = now
+                
+                local ping = 45
+                pcall(function()
+                    local statsService = game:GetService("Stats")
+                    local netStats = statsService.Network.ServerStatsItem
+                    if netStats and netStats["Data Ping"] then
+                        ping = math.floor(netStats["Data Ping"]:GetValue())
+                    elseif LocalPlayer.GetNetworkPing then
+                        ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+                    end
+                end)
+                
+                local icon = "🟢"
+                local col = Color3.fromRGB(0, 240, 180)
+                if currentFPS < 30 or ping > 180 then
+                    icon = "🔴"
+                    col = Color3.fromRGB(255, 75, 95)
+                elseif currentFPS < 45 or ping > 110 then
+                    icon = "🟡"
+                    col = Color3.fromRGB(255, 200, 50)
+                end
+                
+                PBLabel.Text = string.format("%s %d FPS | %dms", icon, currentFPS, ping)
+                PBLabel.TextColor3 = col
+                PBStroke.Color = col
+            end
+        end)
+    end)
+    
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(0, 28, 0, 28)
     CloseBtn.Position = UDim2.new(1, -36, 0, 8)
     CloseBtn.Text = "✕"
-    CloseBtn.TextColor3 = Color3.fromRGB(230, 230, 240)
+    CloseBtn.TextColor3 = Color3.fromRGB(220, 220, 235)
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 12
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(38, 22, 32)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(34, 22, 30)
     CloseBtn.BorderSizePixel = 0
     CloseBtn.Active = true
     CloseBtn.Parent = TopBar
@@ -1870,12 +3517,13 @@ local function CreateUI()
     CloseCorner.Parent = CloseBtn
     
     CloseBtn.MouseEnter:Connect(function()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(220, 35, 70)}):Play()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(225, 35, 70)}):Play()
     end)
     CloseBtn.MouseLeave:Connect(function()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(38, 22, 32)}):Play()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 30)}):Play()
     end)
     CloseBtn.MouseButton1Click:Connect(function()
+        PlayClickSound()
         TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
             Size = UDim2.new(0, 520, 0, 320),
             Position = UDim2.new(0.5, -260, 0.5, -160)
@@ -1884,14 +3532,14 @@ local function CreateUI()
         MainFrame.Visible = false
     end)
     
-    -- Floating Reopen Button with continuous breathing neon pulse
+    -- Floating Draggable Cyber Orb Button
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = RNG()
     FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
     FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
-    FloatingBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 24)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(14, 16, 24)
     FloatingBtn.Text = "ALPHA"
-    FloatingBtn.TextColor3 = Color3.fromRGB(255, 50, 100)
+    FloatingBtn.TextColor3 = Color3.fromRGB(0, 235, 255)
     FloatingBtn.Font = Enum.Font.GothamBold
     FloatingBtn.TextSize = 11
     FloatingBtn.BorderSizePixel = 0
@@ -1901,12 +3549,12 @@ local function CreateUI()
     FloatCorner.CornerRadius = UDim.new(1, 0)
     FloatCorner.Parent = FloatingBtn
     local FloatStroke = Instance.new("UIStroke")
-    FloatStroke.Color = Color3.fromRGB(255, 45, 95)
+    FloatStroke.Color = Color3.fromRGB(0, 230, 255)
     FloatStroke.Thickness = 2
     FloatStroke.Parent = FloatingBtn
     
     task.spawn(function()
-        while true do
+        while FloatStroke.Parent do
             TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65}):Play()
             task.wait(1.2)
             TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
@@ -1937,13 +3585,14 @@ local function CreateUI()
         end
     end)
     FloatingBtn.MouseButton1Click:Connect(function()
+        PlayClickSound()
         if not MainFrame.Visible then
             MainFrame.Visible = true
             MainFrame.Size = UDim2.new(0, 520, 0, 320)
             MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
             TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, 600, 0, 375),
-                Position = UDim2.new(0.5, -300, 0.5, -187)
+                Size = UDim2.new(0, 600, 0, 380),
+                Position = UDim2.new(0.5, -300, 0.5, -190)
             }):Play()
         else
             MainFrame.Visible = false
@@ -1955,10 +3604,10 @@ local function CreateUI()
     Sidebar.Name = RNG()
     Sidebar.Size = UDim2.new(0, 145, 1, -44)
     Sidebar.Position = UDim2.new(0, 0, 0, 44)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(13, 15, 22)
     Sidebar.BorderSizePixel = 0
     Sidebar.ScrollBarThickness = 2
-    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 390)
+    Sidebar.CanvasSize = UDim2.new(0, 0, 0, 440)
     Sidebar.Active = true
     Sidebar.Parent = MainFrame
     
@@ -1976,19 +3625,20 @@ local function CreateUI()
     ContentHolder.Name = RNG()
     ContentHolder.Size = UDim2.new(1, -145, 1, -44)
     ContentHolder.Position = UDim2.new(0, 145, 0, 44)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(11, 11, 16)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(11, 12, 17)
     ContentHolder.BorderSizePixel = 0
     ContentHolder.Active = true
     ContentHolder.Parent = MainFrame
-local Tabs = {}
+    
+    local Tabs = {}
     local CurrentActiveTab = nil
     
-    -- Smooth animated sliding tab indicator on sidebar
+    -- Sliding Tab Indicator
     local TabIndicator = Instance.new("Frame")
     TabIndicator.Name = "ActiveTabIndicator"
     TabIndicator.Size = UDim2.new(0, 4, 0, 24)
     TabIndicator.Position = UDim2.new(0, 2, 0, 8)
-    TabIndicator.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+    TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
     TabIndicator.BorderSizePixel = 0
     TabIndicator.ZIndex = 5
     TabIndicator.Parent = Sidebar
@@ -2004,8 +3654,7 @@ local Tabs = {}
                 page.Page.Visible = true
                 TweenService:Create(page.Page, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
                 if page.Btn then
-                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(255, 42, 95), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
-                    -- Slide tab indicator smoothly to active tab button position
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0, 200, 240), TextColor3 = Color3.fromRGB(10, 12, 18)}):Play()
                     TweenService:Create(TabIndicator, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                         Position = UDim2.new(0, 2, 0, page.Btn.Position.Y.Offset + 2)
                     }):Play()
@@ -2013,7 +3662,7 @@ local Tabs = {}
             else
                 page.Page.Visible = false
                 if page.Btn then
-                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(22, 22, 30), TextColor3 = Color3.fromRGB(160, 160, 180)}):Play()
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(20, 22, 30), TextColor3 = Color3.fromRGB(150, 160, 180)}):Play()
                 end
             end
         end
@@ -2024,10 +3673,10 @@ local Tabs = {}
         local TabBtn = Instance.new("TextButton")
         TabBtn.Size = UDim2.new(1, -12, 0, 28)
         TabBtn.Text = name
-        TabBtn.TextColor3 = Color3.fromRGB(160, 160, 180)
+        TabBtn.TextColor3 = Color3.fromRGB(150, 160, 180)
         TabBtn.Font = Enum.Font.GothamMedium
         TabBtn.TextSize = 11
-        TabBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+        TabBtn.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
         TabBtn.BorderSizePixel = 0
         TabBtn.Active = true
         TabBtn.Parent = Sidebar
@@ -2035,15 +3684,14 @@ local Tabs = {}
         TabBtnCorner.CornerRadius = UDim.new(0, 5)
         TabBtnCorner.Parent = TabBtn
         
-        -- Micro hover animation for tab buttons
         TabBtn.MouseEnter:Connect(function()
             if CurrentActiveTab ~= name then
-                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 30, 42), TextColor3 = Color3.fromRGB(210, 210, 230)}):Play()
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(28, 32, 44), TextColor3 = Color3.fromRGB(210, 220, 240)}):Play()
             end
         end)
         TabBtn.MouseLeave:Connect(function()
             if CurrentActiveTab ~= name then
-                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 30), TextColor3 = Color3.fromRGB(160, 160, 180)}):Play()
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 30), TextColor3 = Color3.fromRGB(150, 160, 180)}):Play()
             end
         end)
         
@@ -2090,7 +3738,7 @@ local Tabs = {}
             local SecLabel = Instance.new("TextLabel")
             SecLabel.Size = UDim2.new(1, 0, 1, 0)
             SecLabel.Text = "• " .. secName:upper()
-            SecLabel.TextColor3 = Color3.fromRGB(255, 60, 110)
+            SecLabel.TextColor3 = Color3.fromRGB(0, 230, 255)
             SecLabel.Font = Enum.Font.GothamBold
             SecLabel.TextSize = 10
             SecLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -2102,7 +3750,7 @@ local Tabs = {}
         function TabAPI:AddNotice(text, color)
             local NFrame = Instance.new("Frame")
             NFrame.Size = UDim2.new(1, -16, 0, 32)
-            NFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+            NFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
             NFrame.BorderSizePixel = 0
             NFrame.Parent = Page
             local NCorner = Instance.new("UICorner")
@@ -2130,7 +3778,7 @@ local Tabs = {}
             local isChecked = defaultVal or false
             local ToggleFrame = Instance.new("Frame")
             ToggleFrame.Size = UDim2.new(1, -16, 0, 34)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
             ToggleFrame.BorderSizePixel = 0
             ToggleFrame.Active = true
             ToggleFrame.Parent = Page
@@ -2139,7 +3787,7 @@ local Tabs = {}
             TCorner.Parent = ToggleFrame
             
             local TStroke = Instance.new("UIStroke")
-            TStroke.Color = Color3.fromRGB(35, 35, 48)
+            TStroke.Color = Color3.fromRGB(32, 36, 48)
             TStroke.Thickness = 1
             TStroke.Parent = ToggleFrame
             
@@ -2158,7 +3806,7 @@ local Tabs = {}
             local Switch = Instance.new("TextButton")
             Switch.Size = UDim2.new(0, 38, 0, 20)
             Switch.Position = UDim2.new(1, -48, 0.5, -10)
-            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(42, 42, 55)
+            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(38, 42, 54)
             Switch.Text = ""
             Switch.BorderSizePixel = 0
             Switch.Active = true
@@ -2170,7 +3818,7 @@ local Tabs = {}
             local Knob = Instance.new("Frame")
             Knob.Size = UDim2.new(0, 16, 0, 16)
             Knob.Position = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            Knob.BackgroundColor3 = isChecked and Color3.fromRGB(10, 12, 18) or Color3.fromRGB(240, 240, 245)
             Knob.BorderSizePixel = 0
             Knob.Active = true
             Knob.Parent = Switch
@@ -2179,13 +3827,15 @@ local Tabs = {}
             KCorner.Parent = Knob
             
             local function UpdateToggle()
-                local targetColor = isChecked and Color3.fromRGB(255, 42, 95) or Color3.fromRGB(42, 42, 55)
+                local targetBg = isChecked and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(38, 42, 54)
+                local targetKnobColor = isChecked and Color3.fromRGB(10, 12, 18) or Color3.fromRGB(240, 240, 245)
                 local targetPos = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-                TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = targetColor}):Play()
-                TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = targetPos}):Play()
+                TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = targetBg}):Play()
+                TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = targetPos, BackgroundColor3 = targetKnobColor}):Play()
             end
             
             Switch.MouseButton1Click:Connect(function()
+                PlayClickSound()
                 isChecked = not isChecked
                 UpdateToggle()
                 if callback then pcall(callback, isChecked) end
@@ -2203,7 +3853,7 @@ local Tabs = {}
         function TabAPI:AddButton(title, callback)
             local Btn = Instance.new("TextButton")
             Btn.Size = UDim2.new(1, -16, 0, 30)
-            Btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+            Btn.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
             Btn.Text = title
             Btn.TextColor3 = Color3.fromRGB(235, 235, 245)
             Btn.Font = Enum.Font.GothamMedium
@@ -2215,28 +3865,25 @@ local Tabs = {}
             BCorner.CornerRadius = UDim.new(0, 5)
             BCorner.Parent = Btn
             local BStroke = Instance.new("UIStroke")
-            BStroke.Color = Color3.fromRGB(38, 38, 52)
+            BStroke.Color = Color3.fromRGB(34, 38, 52)
             BStroke.Thickness = 1
             BStroke.Parent = Btn
             
-            -- Smooth micro-animations
             Btn.MouseEnter:Connect(function()
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 34, 48)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 36, 52)}):Play()
             end)
             Btn.MouseLeave:Connect(function()
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
             end)
             Btn.MouseButton1Click:Connect(function()
-                TweenService:Create(Btn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(255, 42, 95)}):Play()
+                PlayClickSound()
+                TweenService:Create(Btn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(0, 230, 255)}):Play()
                 task.wait(0.1)
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
                 if callback then pcall(callback) end
             end)
         end
         
-        -- -------------------------------------------------------------
-        -- SEARCHABLE DROPDOWN WITH REAL-TIME FILTER
-        -- -------------------------------------------------------------
         function TabAPI:AddSearchDropdown(title, options, defaultVal, callback)
             local selected = defaultVal or (options and options[1]) or ""
             local allOptions = options or {}
@@ -2244,7 +3891,7 @@ local Tabs = {}
             
             local DropFrame = Instance.new("Frame")
             DropFrame.Size = UDim2.new(1, -16, 0, 34)
-            DropFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
             DropFrame.BorderSizePixel = 0
             DropFrame.ClipsDescendants = true
             DropFrame.Active = true
@@ -2253,7 +3900,7 @@ local Tabs = {}
             DCorner.CornerRadius = UDim.new(0, 6)
             DCorner.Parent = DropFrame
             local DStroke = Instance.new("UIStroke")
-            DStroke.Color = Color3.fromRGB(36, 36, 50)
+            DStroke.Color = Color3.fromRGB(34, 38, 50)
             DStroke.Thickness = 1
             DStroke.Parent = DropFrame
             
@@ -2273,10 +3920,10 @@ local Tabs = {}
             SelectBtn.Size = UDim2.new(0, 215, 0, 24)
             SelectBtn.Position = UDim2.new(1, -225, 0, 5)
             SelectBtn.Text = tostring(selected) .. " ▾"
-            SelectBtn.TextColor3 = Color3.fromRGB(255, 75, 125)
+            SelectBtn.TextColor3 = Color3.fromRGB(0, 230, 255)
             SelectBtn.Font = Enum.Font.GothamMedium
             SelectBtn.TextSize = 10
-            SelectBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+            SelectBtn.BackgroundColor3 = Color3.fromRGB(26, 30, 42)
             SelectBtn.BorderSizePixel = 0
             SelectBtn.Active = true
             SelectBtn.Parent = DropFrame
@@ -2284,13 +3931,12 @@ local Tabs = {}
             SBCorner.CornerRadius = UDim.new(0, 5)
             SBCorner.Parent = SelectBtn
             
-            -- Search input box
             local SearchBox = Instance.new("TextBox")
             SearchBox.Size = UDim2.new(1, -16, 0, 24)
             SearchBox.Position = UDim2.new(0, 8, 0, 36)
-            SearchBox.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+            SearchBox.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
             SearchBox.PlaceholderText = "🔍 Type to filter " .. title .. "..."
-            SearchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 140)
+            SearchBox.PlaceholderColor3 = Color3.fromRGB(110, 120, 140)
             SearchBox.Text = ""
             SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             SearchBox.Font = Enum.Font.Gotham
@@ -2304,7 +3950,7 @@ local Tabs = {}
             SearchCorner.CornerRadius = UDim.new(0, 4)
             SearchCorner.Parent = SearchBox
             local SearchStroke = Instance.new("UIStroke")
-            SearchStroke.Color = Color3.fromRGB(255, 42, 95)
+            SearchStroke.Color = Color3.fromRGB(0, 230, 255)
             SearchStroke.Thickness = 0.8
             SearchStroke.Transparency = 0.5
             SearchStroke.Parent = SearchBox
@@ -2312,7 +3958,7 @@ local Tabs = {}
             local ListScroll = Instance.new("ScrollingFrame")
             ListScroll.Size = UDim2.new(1, -16, 0, 115)
             ListScroll.Position = UDim2.new(0, 8, 0, 65)
-            ListScroll.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+            ListScroll.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
             ListScroll.BorderSizePixel = 0
             ListScroll.ScrollBarThickness = 2
             ListScroll.Visible = false
@@ -2334,22 +3980,23 @@ local Tabs = {}
                     local OptBtn = Instance.new("TextButton")
                     OptBtn.Size = UDim2.new(1, 0, 0, 22)
                     OptBtn.Text = tostring(opt)
-                    OptBtn.TextColor3 = (opt == selected) and Color3.fromRGB(255, 75, 125) or Color3.fromRGB(205, 205, 215)
+                    OptBtn.TextColor3 = (opt == selected) and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(205, 205, 215)
                     OptBtn.Font = (opt == selected) and Enum.Font.GothamBold or Enum.Font.Gotham
                     OptBtn.TextSize = 10
-                    OptBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
                     OptBtn.BorderSizePixel = 0
                     OptBtn.Active = true
                     OptBtn.Parent = ListScroll
                     
                     OptBtn.MouseEnter:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(38, 38, 54)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(34, 38, 54)}):Play()
                     end)
                     OptBtn.MouseLeave:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
                     end)
                     
                     OptBtn.MouseButton1Click:Connect(function()
+                        PlayClickSound()
                         selected = opt
                         SelectBtn.Text = tostring(selected) .. " ▾"
                         isOpen = false
@@ -2379,6 +4026,7 @@ local Tabs = {}
             end)
             
             SelectBtn.MouseButton1Click:Connect(function()
+                PlayClickSound()
                 isOpen = not isOpen
                 if isOpen then
                     SearchBox.Visible = true
@@ -2419,7 +4067,7 @@ local Tabs = {}
             local current = defaultVal or min
             local SliderFrame = Instance.new("Frame")
             SliderFrame.Size = UDim2.new(1, -16, 0, 44)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(19, 19, 27)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
             SliderFrame.BorderSizePixel = 0
             SliderFrame.Active = true
             SliderFrame.Parent = Page
@@ -2427,7 +4075,7 @@ local Tabs = {}
             SlCorner.CornerRadius = UDim.new(0, 6)
             SlCorner.Parent = SliderFrame
             local SlStroke = Instance.new("UIStroke")
-            SlStroke.Color = Color3.fromRGB(35, 35, 48)
+            SlStroke.Color = Color3.fromRGB(34, 38, 50)
             SlStroke.Thickness = 1
             SlStroke.Parent = SliderFrame
             
@@ -2447,7 +4095,7 @@ local Tabs = {}
             SValue.Size = UDim2.new(0, 60, 0, 20)
             SValue.Position = UDim2.new(1, -70, 0, 4)
             SValue.Text = tostring(current)
-            SValue.TextColor3 = Color3.fromRGB(255, 75, 125)
+            SValue.TextColor3 = Color3.fromRGB(0, 230, 255)
             SValue.Font = Enum.Font.GothamBold
             SValue.TextSize = 11
             SValue.TextXAlignment = Enum.TextXAlignment.Right
@@ -2458,7 +4106,7 @@ local Tabs = {}
             local Bar = Instance.new("Frame")
             Bar.Size = UDim2.new(1, -20, 0, 6)
             Bar.Position = UDim2.new(0, 10, 0, 30)
-            Bar.BackgroundColor3 = Color3.fromRGB(36, 36, 48)
+            Bar.BackgroundColor3 = Color3.fromRGB(32, 36, 48)
             Bar.BorderSizePixel = 0
             Bar.Active = true
             Bar.Parent = SliderFrame
@@ -2469,7 +4117,7 @@ local Tabs = {}
             local Fill = Instance.new("Frame")
             local pct = math.clamp((current - min) / (max - min), 0, 1)
             Fill.Size = UDim2.new(pct, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(255, 42, 95)
+            Fill.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
             Fill.BorderSizePixel = 0
             Fill.Active = true
             Fill.Parent = Bar
@@ -2477,74 +4125,79 @@ local Tabs = {}
             FillCorner.CornerRadius = UDim.new(1, 0)
             FillCorner.Parent = Fill
             
-            local isSliding = false
-            local function UpdateSlide(input)
-                local relX = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-                current = math.floor(min + (max - min) * relX)
-                TweenService:Create(Fill, TweenInfo.new(0.08), {Size = UDim2.new(relX, 0, 1, 0)}):Play()
+            local sDragging = false
+            local function UpdateSlide(inputPos)
+                local rel = math.clamp((inputPos.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                local val = math.floor(min + (max - min) * rel)
+                current = val
                 SValue.Text = tostring(current)
+                TweenService:Create(Fill, TweenInfo.new(0.05), {Size = UDim2.new(rel, 0, 1, 0)}):Play()
                 if callback then pcall(callback, current) end
             end
             
-            Bar.InputBegan:Connect(function(input)
+            SliderFrame.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    isSliding = true
-                    _G.UIInteracting = true
-                    UpdateSlide(input)
+                    sDragging = true
+                    UpdateSlide(input.Position)
                 end
             end)
             UIS.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    if isSliding then
-                        isSliding = false
-                        task.wait(0.05)
-                        _G.UIInteracting = false
-                    end
+                    sDragging = false
                 end
             end)
             UIS.InputChanged:Connect(function(input)
-                if isSliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    UpdateSlide(input)
+                if sDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    UpdateSlide(input.Position)
                 end
             end)
+            
+            local SliderAPI = {}
+            function SliderAPI:Set(val)
+                current = math.clamp(val, min, max)
+                local p = (current - min) / (max - min)
+                SValue.Text = tostring(current)
+                Fill.Size = UDim2.new(p, 0, 1, 0)
+                if callback then pcall(callback, current) end
+            end
+            return SliderAPI
         end
         
         return TabAPI
     end
     
-    -- Instantiate Tabs
+    -- ==================== TAB INITIALIZATION ====================
     local FarmTab = CreateTab("⚔️ Main Farm")
     local BossTab = CreateTab("👑 Boss Farm")
     local RaidTab = CreateTab("🌀 Raids")
     local FruitTab = CreateTab("🍇 Devil Fruit")
     local SeaTab = CreateTab("🌊 Sea Events")
+    local V4Tab = CreateTab("🧬 Race V4")
+    local VisualTab = CreateTab("👁️ Visuals & ESP")
     local ItemTab = CreateTab("📜 Quests")
     local StatsTab = CreateTab("⚡ Stats")
     local ShopTab = CreateTab("🛒 Shop")
     local TeleportTab = CreateTab("🚀 Teleports")
     local MiscTab = CreateTab("⚙️ Settings")
     
-    -- ==================== 1. MAIN FARM ====================
-    FarmTab:AddSection("Combat Mode & Weapon Selection")
+    -- ==================== 1. MAIN FARM TAB ====================
+    FarmTab:AddSection("Weapon & Combat Mode")
     FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v)
         _G.Config.SelectedWeapon = v
         EquipWeapon(v)
     end)
-    FarmTab:AddToggle("Use M1 / Normal Clicks (Fast Attack)", true, function(v) _G.Config.UseM1 = v end)
-    FarmTab:AddDropdown("Click Speed", {"Super Fast (0.015s)", "Fast (0.04s)", "Normal (0.1s)"}, "Super Fast (0.015s)", function(v)
-        if v:find("Super") then
-            _G.Config.FastAttackSpeed = 0.015
-        elseif v:find("Fast") then
-            _G.Config.FastAttackSpeed = 0.04
-        else
-            _G.Config.FastAttackSpeed = 0.1
-        end
+    FarmTab:AddToggle("Use M1 / Fast Attack", true, function(v) _G.Config.UseM1 = v end)
+    FarmTab:AddDropdown("Click Speed", {"Super Fast (0.015s)", "Fast (0.04s)", "Normal (0.08s)"}, "Super Fast (0.015s)", function(v)
+        if v:find("0.015") then _G.Config.FastAttackSpeed = 0.015
+        elseif v:find("0.04") then _G.Config.FastAttackSpeed = 0.04
+        else _G.Config.FastAttackSpeed = 0.08 end
     end)
     FarmTab:AddSlider("Kill Aura Range (Studs)", 40, 250, 120, function(v) _G.Config.AttackDistance = v end)
     FarmTab:AddToggle("Bring Mobs (Simulation Radius)", true, function(v) _G.Config.BringMobs = v end)
     FarmTab:AddToggle("Auto Buso Haki (Enhancement)", true, function(v) _G.Config.AutoBusoHaki = v end)
+    FarmTab:AddToggle("Auto Ken Haki (Observation)", false, function(v) _G.Config.AutoKenHaki = v end)
     
-    FarmTab:AddSection("Skills Control")
+    FarmTab:AddSection("Weapon Skills")
     FarmTab:AddToggle("Use Weapon Skills", false, function(v) _G.Config.UseSkills = v end)
     FarmTab:AddToggle("Use Skill [Z]", true, function(v) _G.Config.Skill_Z = v end)
     FarmTab:AddToggle("Use Skill [X]", true, function(v) _G.Config.Skill_X = v end)
@@ -2552,7 +4205,7 @@ local Tabs = {}
     FarmTab:AddToggle("Use Skill [V]", false, function(v) _G.Config.Skill_V = v end)
     FarmTab:AddToggle("Use Skill [F]", false, function(v) _G.Config.Skill_F = v end)
     
-    FarmTab:AddSection("Farm Distance Control")
+    FarmTab:AddSection("Farm Distance")
     FarmTab:AddToggle("Auto Adaptive Boss Distance", true, function(v) _G.Config.AdaptiveBossDistance = v end)
     FarmTab:AddSlider("Mob Distance (Studs)", 6, 25, 14, function(v) _G.Config.MobFarmDistance = v end)
     FarmTab:AddSlider("Boss Distance (Studs)", 10, 35, 20, function(v) _G.Config.BossFarmDistance = v end)
@@ -2560,44 +4213,49 @@ local Tabs = {}
     FarmTab:AddSection("Level Farming")
     FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
         _G.Config.AutoFarmLevel = v
-        if not v then FullResetMovement() end
+        if not v then StopTween(); ClearHover() end
     end)
     FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
+    FarmTab:AddToggle("Auto Chest Farm", false, function(v) _G.Config.AutoChestFarm = v end)
     
-    FarmTab:AddSection("Select Mob Farming (" .. SeaName .. ")")
-    local MobDrop = FarmTab:AddSearchDropdown("Select Mob", GetSpawnedMobsList(), GetSpawnedMobsList()[1] or "Bandit", function(v) _G.Config.SelectedMob = v end)
+    FarmTab:AddSection("Selected Mob Farming")
+    local mobList = GetSpawnedMobsList()
+    local MobDrop = FarmTab:AddSearchDropdown("Select Mob (" .. SeaName .. ")", mobList, mobList[1], function(v) _G.Config.SelectedMob = v end)
     FarmTab:AddButton("Refresh Mobs List (" .. SeaName .. ")", function()
         local updated = GetSpawnedMobsList()
         MobDrop:SetOptions(updated)
     end)
     FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
         _G.Config.FarmSelectedMob = v
-        if not v then FullResetMovement() end
+        if not v then StopTween(); ClearHover() end
     end)
     
-    -- ==================== 2. BOSS FARM ====================
-    BossTab:AddSection("Select Boss Farming (" .. SeaName .. ")")
-    local BossDrop = BossTab:AddSearchDropdown("Select Boss", GetSpawnedBossesList(), GetSpawnedBossesList()[1] or "The Gorilla King", function(v) _G.Config.SelectedBoss = v end)
+    -- ==================== 2. BOSS FARM TAB ====================
+    BossTab:AddSection("Boss Selection")
+    local bossList = GetActiveBossesList()
+    local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v) _G.Config.SelectedBoss = v end)
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
-        local updated = GetSpawnedBossesList()
+        local updated = GetActiveBossesList()
         BossDrop:SetOptions(updated)
     end)
     BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
         _G.Config.FarmSelectedBoss = v
-        if not v then StopTween() end
+        if not v then StopTween(); ClearHover() end
     end)
     BossTab:AddToggle("Auto Farm All Spawned Bosses (" .. SeaName .. ")", false, function(v)
         _G.Config.FarmAllBosses = v
-        if not v then StopTween() end
+        if not v then StopTween(); ClearHover() end
     end)
     
-    -- World & Raid Bosses filtered by current sea
     BossTab:AddSection("World & Special Bosses")
     if Sea3 then
         BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v end)
         BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v end)
         BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v end)
         BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v end)
+        BossTab:AddToggle("Auto Farm Bones (Haunted Castle)", false, function(v) _G.Config.AutoFarmBones = v end)
+        BossTab:AddToggle("Auto Roll Bones (Death King)", false, function(v) _G.Config.AutoRollBones = v end)
+        BossTab:AddToggle("Auto Summon Soul Reaper", false, function(v) _G.Config.AutoSummonSoulReaper = v end)
     elseif Sea2 then
         BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v end)
         BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v end)
@@ -2616,6 +4274,7 @@ local Tabs = {}
         RaidTab:AddToggle("Auto Start Raid", false, function(v) _G.Config.AutoStartRaid = v end)
         RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v end)
         RaidTab:AddToggle("Auto Awaken Fruit", false, function(v) _G.Config.AutoAwaken = v end)
+        RaidTab:AddToggle("Auto Law / Order Raid", false, function(v) _G.Config.AutoLawRaid = v end)
     end
     
     -- ==================== 4. DEVIL FRUIT ====================
@@ -2629,13 +4288,13 @@ local Tabs = {}
     end)
     
     -- ==================== 5. SEA EVENTS ====================
-    SeaTab:AddSection("Sea Events & Mirage")
+    SeaTab:AddSection("Sea Events & Hunting")
     if Sea1 then
-        SeaTab:AddNotice("🔒 Sea Events & Mirage Island unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
+        SeaTab:AddNotice("🔒 Sea Events unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
     else
         SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v end)
         SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v end)
-        SeaTab:AddToggle("Auto Kill Sea Beast", false, function(v) _G.Config.AutoKillSeaBeast = v end)
+        SeaTab:AddToggle("Auto Kill Sea Beast (Safe Altitude)", false, function(v) _G.Config.AutoKillSeaBeast = v end)
         SeaTab:AddButton("Check Mirage Island Status", function()
             local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
             print("[ALPHA] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
@@ -2645,10 +4304,47 @@ local Tabs = {}
             print("[ALPHA] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
         end)
         SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
-        SeaTab:AddToggle("Auto Pull Lever (Temple of Time)", false, function(v) _G.Config.AutoPullLever = v end)
+        SeaTab:AddToggle("Auto Collect Azure Embers (Kitsune)", false, function(v) _G.Config.AutoKitsuneEmber = v end)
     end
     
-    -- ==================== 6. ITEMS & QUESTS ====================
+    -- ==================== 6. RACE V4 TAB ====================
+    V4Tab:AddSection("Temple of Time & Trials")
+    if not Sea3 then
+        V4Tab:AddNotice("🔒 Race V4 is exclusive to Third Sea (Temple of Time).", Color3.fromRGB(255, 140, 70))
+    else
+        V4Tab:AddButton("Teleport to Temple of Time", function()
+            TweenTo(CFrame.new(28282.57, 14896.85, 105.10))
+        end)
+        V4Tab:AddToggle("Auto Pull Secret Lever", false, function(v) _G.Config.AutoPullLever = v end)
+        V4Tab:AddToggle("Auto Complete Race Trial", false, function(v) _G.Config.AutoRaceV4Trial = v end)
+        V4Tab:AddToggle("Auto Insert Gear (Ancient Clock)", false, function(v) _G.Config.AutoInsertGear = v end)
+    end
+    
+    -- ==================== 7. VISUALS & ESP ====================
+    VisualTab:AddSection("ESP Suite")
+    VisualTab:AddToggle("Player ESP (Health + Team)", false, function(v)
+        _G.Config.PlayerESP = v
+        UpdatePlayerESP()
+    end)
+    VisualTab:AddToggle("Fruit ESP (Rarity Colors)", false, function(v)
+        _G.Config.FruitESP = v
+        UpdateFruitESP()
+    end)
+    VisualTab:AddToggle("Chest ESP (Gold/Silver/Diamond)", false, function(v)
+        _G.Config.ChestESP = v
+        UpdateChestESP()
+    end)
+    VisualTab:AddToggle("Flower ESP (Blue/Red/Yellow)", false, function(v)
+        _G.Config.FlowerESP = v
+        UpdateFlowerESP()
+    end)
+    VisualTab:AddToggle("Sea Event & Mirage ESP", false, function(v)
+        _G.Config.SeaEventESP = v
+        _G.Config.MirageESP = v
+        UpdateSeaEventESP()
+    end)
+    
+    -- ==================== 8. ITEMS & QUESTS ====================
     ItemTab:AddSection("Special Quests & Sea Travel")
     if Sea1 then
         ItemTab:AddButton("Auto Saber Quest", function() local cf = CommF(); if cf then cf:InvokeServer("ProQuestProgress", "RichSon") end end)
@@ -2660,7 +4356,7 @@ local Tabs = {}
         ItemTab:AddNotice("You have reached the Third Sea!", Color3.fromRGB(100, 255, 150))
     end
     
-    -- ==================== 7. STATS ALLOCATOR ====================
+    -- ==================== 9. STATS ALLOCATOR ====================
     StatsTab:AddSection("Stat Points Allocator")
     StatsTab:AddToggle("Auto Allocate Stats", false, function(v) _G.Config.AutoStats = v end)
     StatsTab:AddSlider("Points Per Stat", 1, 100, 1, function(v) _G.Config.StatPoints = v end)
@@ -2672,7 +4368,7 @@ local Tabs = {}
     StatsTab:AddButton("Refund Stats (2,500 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Refund", "2") end end)
     StatsTab:AddButton("Reroll Race (3,000 Frags)", function() local cf = CommF(); if cf then cf:InvokeServer("BlackbeardReward", "Reroll", "2") end end)
     
-    -- ==================== 8. SHOP ====================
+    -- ==================== 10. SHOP ====================
     ShopTab:AddSection("Fighting Styles")
     ShopTab:AddButton("Buy Black Leg ($150,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyBlackLeg") end end)
     ShopTab:AddButton("Buy Electro ($550,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyElectro") end end)
@@ -2690,9 +4386,8 @@ local Tabs = {}
     ShopTab:AddButton("Buy Flash Step (Soru - $100,000)", function() local cf = CommF(); if cf then cf:InvokeServer("BuyHaki", "Soru") end end)
     ShopTab:AddButton("Buy Observation Haki ($750,000)", function() local cf = CommF(); if cf then cf:InvokeServer("KenHaki") end end)
     
-    -- ==================== 9. TELEPORTS (PER-SEA ONLY) ====================
+    -- ==================== 11. TELEPORTS ====================
     TeleportTab:AddSection("Island Teleports (" .. SeaName .. ")")
-    
     local AllIslands = {
         [1] = {
             ["Pirate Starter (Lv. 1)"] = CFrame.new(1059.37, 16.51, 1546.99),
@@ -2748,28 +4443,39 @@ local Tabs = {}
     local SelIsland = islandKeys[1] or "Pirate Starter"
     
     local IslandDrop = TeleportTab:AddSearchDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
-    
     TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
-        -- Auto-disable farming to avoid loop battle
         _G.Config.AutoFarmLevel = false
         _G.Config.FarmSelectedMob = false
         _G.Config.FarmSelectedBoss = false
         _G.Config.FarmAllBosses = false
-        
         local tcf = CurrentIslands[SelIsland]
-        if tcf then
-            TeleportToIsland(tcf, SelIsland)
-        end
+        if tcf then TeleportToIsland(tcf, SelIsland) end
     end)
-    
     TeleportTab:AddButton("🛑 Stop Travel & Hover Here", function()
         StopTween()
         local root = GetRoot()
         if root then HoverLock(root.CFrame) end
     end)
     
-    -- ==================== 10. SETTINGS ====================
+    TeleportTab:AddSection("Bypass & Anti-Desync Controls")
+    TeleportTab:AddToggle("Instant Portal Bypass (requestEntrance)", _G.Config.BypassTeleport ~= false, function(v)
+        _G.Config.BypassTeleport = v
+    end)
+    TeleportTab:AddToggle("Auto-Set Island Spawn on Arrival", _G.Config.AutoSetSpawn ~= false, function(v)
+        _G.Config.AutoSetSpawn = v
+    end)
+    TeleportTab:AddToggle("Segmented Chunk Streaming (Anti-Lag)", _G.Config.WaypointFlight ~= false, function(v)
+        _G.Config.WaypointFlight = v
+    end)
+    TeleportTab:AddButton("⚡ Force Anti-Desync Handshake", function()
+        local root = GetRoot()
+        if root then
+            RecoverFromPhantomDesync(root.CFrame)
+            print("[ALPHA] Server position handshake executed!")
+        end
+    end)
     
+    -- ==================== 12. SETTINGS ====================
     MiscTab:AddSection("Diagnostics & Fixes")
     MiscTab:AddButton("🔍 Run Movement Diagnostic (Copies to Clipboard)", function()
         local root = GetRoot()
@@ -2786,11 +4492,20 @@ local Tabs = {}
         report = report .. "HasQuest: " .. tostring(HasQuest()) .. "\n"
         report = report .. "IsTravelingSky: " .. tostring(IsTravelingSky) .. "\n"
         report = report .. "TweenSpeed Config: " .. tostring(_G.Config.TweenSpeed) .. "\n"
+        report = report .. "Validator Safe Speed: " .. tostring(Validator.CurrentSafeSpeed) .. "\n"
+        report = report .. "Validator Stats: " .. Validator.GetStats() .. "\n"
         pcall(function()
             if setclipboard then
                 setclipboard(report)
                 print("[ALPHA] Diagnostic report copied to clipboard!")
             end
+        end)
+    end)
+    MiscTab:AddButton("🛡️ View Smart Validator Status (Print + Clipboard)", function()
+        local stats = "[SMART VALIDATOR]\n" .. Validator.GetStats()
+        print(stats)
+        pcall(function()
+            if setclipboard then setclipboard(stats) end
         end)
     end)
 
@@ -2817,6 +4532,12 @@ local Tabs = {}
         _G.Config.AntiAFK = v
         if v then EnableAntiAFK() elseif AntiAFKConn then AntiAFKConn:Disconnect(); AntiAFKConn = nil end
     end)
+    MiscTab:AddToggle("Anti-Desync Protection", _G.Config.AntiDesync ~= false, function(v)
+        _G.Config.AntiDesync = v
+    end)
+    MiscTab:AddToggle("Auto-Set Spawn Point on Arrival", _G.Config.AutoSetSpawn ~= false, function(v)
+        _G.Config.AutoSetSpawn = v
+    end)
     MiscTab:AddSlider("Tween Flight Speed (Safe 200-260)", 150, 300, 240, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
@@ -2827,17 +4548,21 @@ local Tabs = {}
         if hum then hum.JumpPower = v end
     end)
     
-    -- Set default active tab
     SwitchTab("⚔️ Main Farm")
 end
+
+
 --============================== STAGGERED INITIALIZATION ==============================
 -- Step 1: UI first (immediate user feedback)
 CreateUI()
 
--- Step 2: Start all background loops with staggered delays (not all at once)
+-- Step 2: Start all background loops with staggered delays
 task.spawn(function()
     task.wait(0.5 + math.random() * 0.5)
     StartCombatLoop()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartHakiLoop()
     
     task.wait(0.3 + math.random() * 0.3)
     StartAutoFarmLevel()
@@ -2858,17 +4583,29 @@ task.spawn(function()
     StartDevilFruitLoops()
     
     task.wait(0.2 + math.random() * 0.3)
-    StartFruitESPLoop()
+    StartESPLoops()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartChestFarmLoop()
     
     task.wait(0.2 + math.random() * 0.3)
     StartAutoStatsLoop()
     
     task.wait(0.2 + math.random() * 0.3)
-    StartDungeonRaidLoop()
+    StartAdvancedRaidEngine()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartSeaEventsEngine()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartRaceV4Engine()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartSpecialBossAndBoneEngine()
 end)
 
 print("--------------------------------------------------")
 print("[v2] Loaded successfully!")
-print("[v2] Keyless Edition active.")
+print("[v2] Keyless Cyber 3D Edition active.")
 print("[v2] Current Location: " .. SeaName)
 print("--------------------------------------------------")
