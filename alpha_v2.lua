@@ -475,6 +475,7 @@ local IsTravelingSky = false
 local NoclipConn = nil
 local SetTravelHUD = nil -- Forward declaration for Cockpit HUD
 local LandingPlatform = nil
+local _activeFlight = nil -- Heartbeat flight connection tracker
 
 local function EnableNoclip()
     if NoclipConn then return end
@@ -551,6 +552,11 @@ local function HoverLock(targetCFrame)
 end
 
 local function StopTween()
+    -- Stop Heartbeat-driven flight if active
+    if _activeFlight then
+        pcall(function() _activeFlight:Disconnect() end)
+        _activeFlight = nil
+    end
     if CurrentTween then
         pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
@@ -1192,7 +1198,88 @@ local function RecoverFromPhantomDesync(expectedCF)
     end
 end
 
--- Multi-Waypoint Sky Cruise (Maintains continuous stream chunk bubble)
+-- Multi-Waypoint Sky Cruise using Heartbeat CFrame Stepping
+-- Key insight: TweenService tweens on HumanoidRootPart are CLIENT-ONLY visual effects.
+-- The server does NOT replicate tween position changes - it sees the player at the original position
+-- and periodically "corrects" (rubberbands) them back. Setting root.CFrame every Heartbeat frame
+-- IS replicated because the client has network ownership of its character's HumanoidRootPart.
+
+-- _activeFlight declared at top of flight engine section (line ~478)
+
+local function StopActiveFlight()
+    if _activeFlight then
+        pcall(function() _activeFlight:Disconnect() end)
+        _activeFlight = nil
+    end
+    CurrentTween = nil -- clear compat flag
+end
+
+-- Heartbeat-driven CFrame movement: moves root from A to B at given speed
+-- Returns a "tween-like" object with :Cancel() and .Completed event for compat
+local function HeartbeatMove(root, targetCFrame, speed, onStep)
+    local startCF = root.CFrame
+    local startPos = startCF.Position
+    local endPos = targetCFrame.Position
+    local totalDist = (endPos - startPos).Magnitude
+    if totalDist < 1 then
+        root.CFrame = targetCFrame
+        return { Cancel = function() end, Completed = { Wait = function() end, Connect = function(_, cb) cb() end } }
+    end
+    local duration = totalDist / math.max(speed, 50)
+    local elapsed = 0
+    local done = false
+    local completedCallbacks = {}
+    
+    StopActiveFlight()
+    
+    local conn
+    conn = RunService.Heartbeat:Connect(function(dt)
+        if done or not root or not root.Parent then
+            if conn then conn:Disconnect() end
+            _activeFlight = nil
+            done = true
+            for _, cb in ipairs(completedCallbacks) do pcall(cb) end
+            return
+        end
+        
+        elapsed = elapsed + dt
+        local alpha = math.clamp(elapsed / duration, 0, 1)
+        local newPos = startPos:Lerp(endPos, alpha)
+        root.CFrame = CFrame.new(newPos)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        
+        if onStep then pcall(onStep, alpha, newPos) end
+        
+        if alpha >= 1 then
+            done = true
+            conn:Disconnect()
+            _activeFlight = nil
+            root.CFrame = targetCFrame
+            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            for _, cb in ipairs(completedCallbacks) do pcall(cb) end
+        end
+    end)
+    _activeFlight = conn
+    
+    local mockTween = {}
+    mockTween.Cancel = function()
+        done = true
+        if conn then pcall(function() conn:Disconnect() end) end
+        _activeFlight = nil
+    end
+    mockTween.Completed = {
+        Wait = function()
+            while not done do task.wait(0.05) end
+        end,
+        Connect = function(_, cb)
+            if done then pcall(cb) else table.insert(completedCallbacks, cb) end
+        end
+    }
+    CurrentTween = mockTween -- compat: so StopTween() can cancel it
+    return mockTween
+end
+
 local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, totalDist)
     local root = GetRoot()
     if not root then return false end
@@ -1201,22 +1288,25 @@ local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, total
     local horizontalDest = Vector3.new(destPos.X, cruiseY, destPos.Z)
     local totalHorizontalDist = (horizontalDest - horizontalStart).Magnitude
     
+    -- Pre-stream destination
+    pcall(function()
+        if LocalPlayer.RequestStreamAroundAsync then
+            LocalPlayer:RequestStreamAroundAsync(destPos)
+        end
+    end)
+    
     if totalHorizontalDist <= 350 or not _G.Config.WaypointFlight then
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(destPos)
+        local move = HeartbeatMove(root, CFrame.new(horizontalDest), speed, function(alpha, curPos)
+            if SetTravelHUD then
+                local curRem = (destPos - curPos).Magnitude
+                SetTravelHUD(true, label, curRem, speed, totalDist)
             end
         end)
-        local tw = TweenService:Create(root, TweenInfo.new(totalHorizontalDist / speed, Enum.EasingStyle.Linear), {
-            CFrame = CFrame.new(horizontalDest)
-        })
-        CurrentTween = tw
-        tw:Play()
-        tw.Completed:Wait()
-        CurrentTween = nil
+        move.Completed.Wait()
         return true
     end
     
+    -- Build waypoints every 350 studs
     local dir = (horizontalDest - horizontalStart).Unit
     local waypoints = {}
     local distAcc = 350
@@ -1231,50 +1321,26 @@ local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, total
             return false
         end
         
+        -- Stream next waypoint's terrain
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(wp)
             end
         end)
         
-        local wpDist = (wp - root.Position).Magnitude
-        local segTime = wpDist / speed
-        local segTween = TweenService:Create(root, TweenInfo.new(segTime, Enum.EasingStyle.Linear), {
-            CFrame = CFrame.new(wp)
-        })
-        CurrentTween = segTween
-        segTween:Play()
-        
-        local lastPos = root.Position
-        local rollbackDetected = false
-        local wpConn
-        wpConn = RunService.Heartbeat:Connect(function()
-            if not IsTravelingSky or not root or not root.Parent then
-                if wpConn then wpConn:Disconnect() end
-                return
-            end
-            local curPos = root.Position
-            if (curPos - wp).Magnitude > (lastPos - wp).Magnitude + 35 then
-                rollbackDetected = true
-            end
-            lastPos = curPos
-            
+        local move = HeartbeatMove(root, CFrame.new(wp), speed, function(alpha, curPos)
             if SetTravelHUD then
                 local curRem = (destPos - curPos).Magnitude
                 SetTravelHUD(true, label, curRem, speed, totalDist)
             end
         end)
+        move.Completed.Wait()
         
-        segTween.Completed:Wait()
-        if wpConn then wpConn:Disconnect() end
-        
-        if rollbackDetected and _G.Config.AntiDesync then
-            print("[ALPHA SKYWAY] Server rollback intercepted! Stabilizing and resuming...")
-            local bv = GetOrCreateBodyVelocity(root)
-            bv.Velocity = Vector3.new(0, 0, 0)
+        -- Brief stabilization pause between segments
+        if root and root.Parent then
             root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            task.wait(0.3)
-            speed = math.max(speed - 15, 200)
+            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            task.wait(0.05)
         end
     end
     
@@ -1282,10 +1348,10 @@ local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, total
 end
 
 -- -------------------------------------------------------------------------
--- UNIFIED AUTO-CRUISE TWEEN & BYPASS ENGINE (Redz Hub + Hoho Bypass Standard)
--- Short distance (<= 120 studs): Direct linear farm tween.
+-- UNIFIED AUTO-CRUISE TWEEN & BYPASS ENGINE (Heartbeat CFrame Step Method)
+-- Short distance (<= 120 studs): Direct Heartbeat linear move.
 -- Long distance (> 120 studs): Native requestEntrance portal bypass,
--- multi-waypoint sky cruise with continuous chunk streaming, and
+-- multi-waypoint sky cruise with Heartbeat CFrame stepping, and
 -- Solid Ground Raycast Snapping with server spawn-point authority!
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
@@ -1313,6 +1379,7 @@ local function TweenTo(targetCFrame, destName)
         return
     end
     
+    StopActiveFlight()
     if CurrentTween then
         pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
@@ -1321,7 +1388,7 @@ local function TweenTo(targetCFrame, destName)
     CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 120 studs): Direct linear farm tween
+    -- 1. SHORT RANGE (<= 120 studs): Direct Heartbeat linear move
     if distance <= 120 then
         EnableNoclip()
         hum.PlatformStand = true
@@ -1330,15 +1397,12 @@ local function TweenTo(targetCFrame, destName)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         
-        local time = distance / speed
-        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-        CurrentTween.Completed:Connect(function()
-            CurrentTween = nil
+        local move = HeartbeatMove(root, targetCFrame, speed)
+        move.Completed.Connect(nil, function()
             if hum and hum.Parent then hum.PlatformStand = false end
             HoverLock(targetCFrame)
         end)
-        CurrentTween:Play()
-        return CurrentTween
+        return move
     end
     
     -- 2. LONG RANGE (> 120 studs): Auto-Cruise Cross-Island Flight with Portal Bypass
@@ -1371,7 +1435,7 @@ local function TweenTo(targetCFrame, destName)
                     pcall(function()
                         cf:InvokeServer("requestEntrance", bestPortal.Pos)
                     end)
-                    task.wait(0.35)
+                    task.wait(0.5)
                     root = GetRoot()
                     if root then
                         local newDist = (targetPos - root.Position).Magnitude
@@ -1427,14 +1491,11 @@ local function TweenTo(targetCFrame, destName)
             cruiseY = math.max(root.Position.Y, 245)
         end
         
-        -- Step 1: Smooth vertical ascent to cruise altitude
+        -- Step 1: Smooth vertical ascent to cruise altitude (Heartbeat-driven)
         if root.Position.Y < (cruiseY - 20) then
             local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
-            local upDist = (upCF.Position - root.Position).Magnitude
-            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
-            CurrentTween = upTween
-            upTween:Play()
-            upTween.Completed:Wait()
+            local upMove = HeartbeatMove(root, upCF, speed)
+            upMove.Completed.Wait()
         end
         
         if not root or not root.Parent or not IsTravelingSky then
@@ -1442,7 +1503,7 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Step 2: Waypoint Sky Cruise to target X, Z
+        -- Step 2: Waypoint Sky Cruise to target X, Z (Heartbeat-driven)
         local cruiseOk = WaypointSkyCruise(root.Position, targetPos, cruiseY, speed, label, totalDist)
         
         if not root or not root.Parent or not IsTravelingSky then
@@ -1456,6 +1517,7 @@ local function TweenTo(targetCFrame, destName)
                 LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
         end)
+        task.wait(0.15)
         
         -- Step 3: Descend directly onto island with Solid Ground Raycast Snapping
         local realGroundPos, groundPart = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
@@ -1464,18 +1526,13 @@ local function TweenTo(targetCFrame, destName)
             finalLandCF = CFrame.new(targetPos.X, realGroundPos.Y + 3.2, targetPos.Z)
         end
         
-        local downDist = (finalLandCF.Position - root.Position).Magnitude
-        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = finalLandCF})
-        CurrentTween = downTween
-        downTween:Play()
-        downTween.Completed:Wait()
+        local downMove = HeartbeatMove(root, finalLandCF, speed)
+        downMove.Completed.Wait()
         
         -- Clean Safe Arrival & Touchdown Stabilization
-        local finalBv = GetOrCreateBodyVelocity(root)
-        finalBv.Velocity = Vector3.new(0, 0, 0)
+        root.CFrame = finalLandCF
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        root.CFrame = finalLandCF
         
         -- Ground Authority Handshake
         if hum and hum.Parent then
@@ -1486,10 +1543,21 @@ local function TweenTo(targetCFrame, destName)
             hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
         end
         
+        -- Force position confirmation: set CFrame a few more times over next frames
+        task.spawn(function()
+            for i = 1, 8 do
+                task.wait(0.1)
+                if root and root.Parent then
+                    root.CFrame = finalLandCF
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end)
+        
         -- Auto Set Spawn Point on arrival
         if _G.Config.AutoSetSpawn then
             task.spawn(function()
-                task.wait(0.2)
+                task.wait(0.3)
                 local cf = CommF()
                 if cf then
                     pcall(function() cf:InvokeServer("SetSpawnPoint") end)
@@ -1503,10 +1571,10 @@ local function TweenTo(targetCFrame, destName)
         
         -- Validate arrival position with server
         task.spawn(function()
-            task.wait(0.3)
+            task.wait(0.5)
             DisableNoclip()
             Validator.ValidatePosition(finalLandCF, 40)
-            task.wait(2.5)
+            task.wait(3)
             if LandingPlatform and LandingPlatform.Parent then
                 LandingPlatform:Destroy()
                 LandingPlatform = nil
