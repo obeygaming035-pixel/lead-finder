@@ -595,32 +595,29 @@ local function GetOrCreateBodyVelocity(root)
         pcall(function() FlightBodyVel:Destroy() end)
     end
     local bv = Instance.new("BodyVelocity")
-    bv.Name = "AlphaFlightBV"
+    bv.Name = "BodyClip"
     bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.MaxForce = Vector3.new(100000, 100000, 100000)
     bv.Parent = root
     FlightBodyVel = bv
     return bv
 end
 
--- HoverLock: locks altitude above enemies or NPCs during combat/interaction
--- Enhanced with position validation and retry logic for unattended operation
+-- HoverLock: locks position above enemies or NPCs during combat/interaction
+-- Keeps character standing naturally (no ragdoll/PlatformStand, weightless BodyClip)
 local function HoverLock(targetCFrame)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum or hum.Health <= 0 then return end
+    if hum.Sit then hum.Sit = false end
     EnableNoclip()
-    hum.PlatformStand = true
     local bv = GetOrCreateBodyVelocity(root)
     bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(100000, 100000, 100000)
     root.CFrame = targetCFrame
 end
 
 local function StopTween()
-    -- Stop Heartbeat-driven flight if active
     if _activeFlight then
         pcall(function() _activeFlight:Disconnect() end)
         _activeFlight = nil
@@ -632,10 +629,7 @@ local function StopTween()
     CurrentTargetPos = nil
     IsTravelingSky = false
     local hum = GetHumanoid()
-    if hum then 
-        hum.PlatformStand = false 
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
+    if hum and hum.Sit then hum.Sit = false end
     if FlightBodyVel then
         pcall(function() FlightBodyVel:Destroy() end)
         FlightBodyVel = nil
@@ -643,12 +637,10 @@ local function StopTween()
     local root = GetRoot()
     if root then
         for _, c in ipairs(root:GetChildren()) do
-            if (c:IsA("BodyVelocity") and c.Name == "AlphaFlightBV") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+            if (c:IsA("BodyVelocity") and (c.Name == "BodyClip" or c.Name == "AlphaFlightBV")) or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
                 pcall(function() c:Destroy() end)
             end
         end
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
     if SetTravelHUD then SetTravelHUD(false) end
 end
@@ -657,28 +649,7 @@ local function FullResetMovement()
     StopTween()
     DisableNoclip()
     local hum = GetHumanoid()
-    if hum then
-        hum.PlatformStand = false
-        hum.Sit = false
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
-    end
-    local char = GetCharacter()
-    if char then
-        for _, c in ipairs(char:GetDescendants()) do
-            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition")
-                or c:IsA("LinearVelocity") or c:IsA("VectorForce") or c:IsA("AlignPosition") or c:IsA("AlignOrientation") then
-                pcall(function() c:Destroy() end)
-            end
-        end
-    end
-    local root = GetRoot()
-    if root then
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end
-    FlightBodyVel = nil
+    if hum and hum.Sit then hum.Sit = false end
 end
 
 --============================== SMART RUNTIME VALIDATOR (SELF-HEALING ENGINE) ==============================
@@ -1389,31 +1360,39 @@ local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum or hum.Health <= 0 then return end
-    
+    if hum.Sit then hum.Sit = false end
+
     local targetPos = targetCFrame.Position
     local distance = (targetPos - root.Position).Magnitude
-    
-    -- Within reach: lock position immediately
-    if distance < 15 then
-        StopTween()
-        HoverLock(targetCFrame)
+
+    local bv = GetOrCreateBodyVelocity(root)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(100000, 100000, 100000)
+    EnableNoclip()
+
+    -- 1. Within close range (<= 20 studs): lock immediately
+    if distance <= 20 then
+        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+        CurrentTween = nil
+        CurrentTargetPos = nil
+        IsTravelingSky = false
+        root.CFrame = targetCFrame
+        if SetTravelHUD then SetTravelHUD(false) end
         return
     end
-    
-    -- Anti-spam: already moving to nearly the exact same position
-    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and (CurrentTween or IsTravelingSky) then
+
+    -- 2. Same-island close range (<= 150 studs): instant snap!
+    -- Matches top Blox Fruits hubs: local mob farming snaps instantly without tween delays
+    if distance <= 150 then
+        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+        CurrentTween = nil
+        CurrentTargetPos = nil
+        IsTravelingSky = false
+        root.CFrame = targetCFrame
         return
     end
-    
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
-    if speed < 180 then speed = 220 end
-    if speed > 270 then speed = 250 end
-    
-    StopTween()
-    CurrentTargetPos = targetPos
-    local label = destName or "Destination"
-    
-    -- Native server entrance portal bypass
+
+    -- 3. Native server entrance portal bypass
     if _G.Config.BypassTeleport then
         local bestPortal = nil
         local bestDist = math.huge
@@ -1430,10 +1409,12 @@ local function TweenTo(targetCFrame, destName)
             local cf = CommF()
             if cf then
                 pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
-                task.wait(0.5)
+                task.wait(0.3)
                 root = GetRoot()
                 if root and (targetPos - root.Position).Magnitude < 150 then
-                    HoverLock(targetCFrame)
+                    root.CFrame = targetCFrame
+                    IsTravelingSky = false
+                    if SetTravelHUD then SetTravelHUD(false) end
                     if _G.Config.AutoSetSpawn then
                         pcall(function() cf:InvokeServer("SetSpawnPoint") end)
                     end
@@ -1442,95 +1423,46 @@ local function TweenTo(targetCFrame, destName)
             end
         end
     end
-    
-    EnableNoclip()
-    hum.PlatformStand = true
-    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    
-    local bv = GetOrCreateBodyVelocity(root)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    
-    IsTravelingSky = true
-    
-    -- 1. SHORT RANGE (<= 250 studs, e.g. same island mob farm)
-    if distance <= 250 then
-        local dur = distance / speed
-        local tw = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-        CurrentTween = tw
-        tw:Play()
-        
-        tw.Completed:Connect(function(playbackState)
-            if playbackState == Enum.PlaybackState.Completed then
-                CurrentTween = nil
-                IsTravelingSky = false
-                HoverLock(targetCFrame)
-            end
-        end)
-        return tw
+
+    -- 4. Cross-Island Long Distance Glide (> 150 studs)
+    -- Anti-spam: if already gliding to this exact target, let it continue
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 15 and CurrentTween then
+        return
     end
-    
-    -- 2. LONG RANGE (> 250 studs, cross-island multi-waypoint sky glide)
-    local startPos = root.Position
-    local cruiseY = math.max(startPos.Y, targetPos.Y, 280) + 40
-    if cruiseY < 320 and CurrentSea ~= 1 then cruiseY = 320 end
-    
-    task.spawn(function()
-        local function SafeTween(goalCF, dur)
-            if not root or not root.Parent or not IsTravelingSky then return false end
-            local tw = TweenService:Create(root, TweenInfo.new(dur, Enum.EasingStyle.Linear), {CFrame = goalCF})
-            CurrentTween = tw
-            tw:Play()
-            local completed = false
-            local conn = tw.Completed:Connect(function() completed = true end)
-            local t0 = tick()
-            while not completed and (tick() - t0) < (dur + 1.2) and root and root.Parent and IsTravelingSky and hum and hum.Health > 0 do
-                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                if bv and bv.Parent then bv.Velocity = Vector3.new(0, 0, 0) end
-                
-                local rem = (targetPos - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, rem, speed, distance) end
-                
-                if LocalPlayer.RequestStreamAroundAsync and math.floor(tick() * 2) % 2 == 0 then
-                    pcall(function()
-                        LocalPlayer:RequestStreamAroundAsync(root.Position + (targetPos - root.Position).Unit * 250)
-                    end)
-                end
-                RunService.Heartbeat:Wait()
-            end
-            if conn then conn:Disconnect() end
-            if tw then pcall(function() tw:Cancel() end) end
+
+    if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+
+    CurrentTargetPos = targetPos
+    IsTravelingSky = true
+    local label = destName or "Destination"
+
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
+    if speed < 180 then speed = 220 end
+    if speed > 270 then speed = 250 end
+
+    -- Water safety: during flights across the ocean, keep Y at least 40 so player never touches ocean water!
+    local flightCFrame = targetCFrame
+    if distance > 250 and targetCFrame.Y < 40 then
+        flightCFrame = CFrame.new(targetCFrame.X, 40, targetCFrame.Z)
+    end
+
+    local dur = distance / speed
+    local twInfo = TweenInfo.new(dur, Enum.EasingStyle.Linear)
+    local tw = TweenService:Create(root, twInfo, {CFrame = flightCFrame})
+    CurrentTween = tw
+    tw:Play()
+
+    if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
+
+    tw.Completed:Connect(function(playbackState)
+        if playbackState == Enum.PlaybackState.Completed then
             CurrentTween = nil
-            return completed
-        end
-        
-        -- Phase 1: Ascend smoothly to cruise altitude
-        local ascendDist = math.abs(cruiseY - startPos.Y)
-        if ascendDist > 15 then
-            SafeTween(CFrame.new(startPos.X, cruiseY, startPos.Z), ascendDist / speed)
-        end
-        
-        -- Phase 2: Horizontal sky cruise to coordinates directly above target
-        if IsTravelingSky and root and root.Parent and hum and hum.Health > 0 then
-            local horizDist = (Vector3.new(targetPos.X, 0, targetPos.Z) - Vector3.new(root.Position.X, 0, root.Position.Z)).Magnitude
-            SafeTween(CFrame.new(targetPos.X, cruiseY, targetPos.Z), horizDist / speed)
-        end
-        
-        -- Phase 3: Gentle descent to targetCFrame
-        if IsTravelingSky and root and root.Parent and hum and hum.Health > 0 then
-            local descendDist = (targetPos - root.Position).Magnitude
-            SafeTween(targetCFrame, math.max(descendDist / speed, 0.4))
-        end
-        
-        -- Arrival
-        if root and root.Parent and hum and hum.Health > 0 then
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            CurrentTargetPos = nil
+            IsTravelingSky = false
+            root.CFrame = targetCFrame
             HoverLock(targetCFrame)
-            
+            if SetTravelHUD then SetTravelHUD(false) end
+
             if _G.Config.AutoSetSpawn then
                 task.spawn(function()
                     task.wait(0.3)
@@ -1539,11 +1471,8 @@ local function TweenTo(targetCFrame, destName)
                 end)
             end
         end
-        
-        IsTravelingSky = false
-        CurrentTargetPos = nil
-        if SetTravelHUD then SetTravelHUD(false) end
     end)
+    return tw
 end
 
 -- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Island Sky Cruise
