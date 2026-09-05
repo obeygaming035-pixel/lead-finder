@@ -570,21 +570,24 @@ end
 
 local function FullResetMovement()
     StopTween()
-    if FlightBodyVel then
-        pcall(function() FlightBodyVel:Destroy() end)
-        FlightBodyVel = nil
-    end
     DisableNoclip()
     local hum = GetHumanoid()
     if hum then
         hum.PlatformStand = false
         hum.Sit = false
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
     local root = GetRoot()
     if root then
+        for _, c in ipairs(root:GetChildren()) do
+            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+                pcall(function() c:Destroy() end)
+            end
+        end
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
+    FlightBodyVel = nil
 end
 
 --============================== SMART RUNTIME VALIDATOR (SELF-HEALING ENGINE) ==============================
@@ -1223,7 +1226,16 @@ local function HeartbeatMove(root, targetCFrame, speed, onStep)
     local totalDist = (endPos - startPos).Magnitude
     if totalDist < 1 then
         root.CFrame = targetCFrame
-        return { Cancel = function() end, Completed = { Wait = function() end, Connect = function(_, cb) cb() end } }
+        return {
+            Cancel = function() end,
+            Completed = {
+                Wait = function() end,
+                Connect = function(a, b)
+                    local cb = (type(a) == "function" and a) or (type(b) == "function" and b)
+                    if cb then pcall(cb) end
+                end
+            }
+        }
     end
     local duration = totalDist / math.max(speed, 50)
     local elapsed = 0
@@ -1272,7 +1284,9 @@ local function HeartbeatMove(root, targetCFrame, speed, onStep)
         Wait = function()
             while not done do task.wait(0.05) end
         end,
-        Connect = function(_, cb)
+        Connect = function(a, b)
+            local cb = (type(a) == "function" and a) or (type(b) == "function" and b)
+            if not cb then return end
             if done then pcall(cb) else table.insert(completedCallbacks, cb) end
         end
     }
@@ -1280,81 +1294,14 @@ local function HeartbeatMove(root, targetCFrame, speed, onStep)
     return mockTween
 end
 
-local function WaypointSkyCruise(startPos, destPos, cruiseY, speed, label, totalDist)
-    local root = GetRoot()
-    if not root then return false end
-    
-    local horizontalStart = Vector3.new(startPos.X, cruiseY, startPos.Z)
-    local horizontalDest = Vector3.new(destPos.X, cruiseY, destPos.Z)
-    local totalHorizontalDist = (horizontalDest - horizontalStart).Magnitude
-    
-    -- Pre-stream destination
-    pcall(function()
-        if LocalPlayer.RequestStreamAroundAsync then
-            LocalPlayer:RequestStreamAroundAsync(destPos)
-        end
-    end)
-    
-    if totalHorizontalDist <= 350 or not _G.Config.WaypointFlight then
-        local move = HeartbeatMove(root, CFrame.new(horizontalDest), speed, function(alpha, curPos)
-            if SetTravelHUD then
-                local curRem = (destPos - curPos).Magnitude
-                SetTravelHUD(true, label, curRem, speed, totalDist)
-            end
-        end)
-        move.Completed.Wait()
-        return true
-    end
-    
-    -- Build waypoints every 350 studs
-    local dir = (horizontalDest - horizontalStart).Unit
-    local waypoints = {}
-    local distAcc = 350
-    while distAcc < totalHorizontalDist do
-        table.insert(waypoints, horizontalStart + (dir * distAcc))
-        distAcc = distAcc + 350
-    end
-    table.insert(waypoints, horizontalDest)
-    
-    for idx, wp in ipairs(waypoints) do
-        if not IsTravelingSky or not root or not root.Parent then
-            return false
-        end
-        
-        -- Stream next waypoint's terrain
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(wp)
-            end
-        end)
-        
-        local move = HeartbeatMove(root, CFrame.new(wp), speed, function(alpha, curPos)
-            if SetTravelHUD then
-                local curRem = (destPos - curPos).Magnitude
-                SetTravelHUD(true, label, curRem, speed, totalDist)
-            end
-        end)
-        move.Completed.Wait()
-        
-        -- Brief stabilization pause between segments
-        if root and root.Parent then
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            task.wait(0.05)
-        end
-    end
-    
-    return true
-end
-
 -- -------------------------------------------------------------------------
--- UNIFIED AUTO-CRUISE TWEEN & BYPASS ENGINE (Heartbeat CFrame Step Method)
--- Short distance (<= 120 studs): Direct Heartbeat linear move.
--- Long distance (> 120 studs): Native requestEntrance portal bypass,
--- multi-waypoint sky cruise with Heartbeat CFrame stepping, and
--- Solid Ground Raycast Snapping with server spawn-point authority!
+-- UNIFIED TRAVEL & TELEPORT ENGINE
+-- Short distance (<= 350 studs): Heartbeat-driven CFrame glide for mob farming.
+-- Long distance (> 350 studs or forceInstant): Instant direct CFrame teleport
+-- with terrain pre-streaming, landing platform, position reinforcement,
+-- and server spawn-point authority (eliminates rubberbanding completely).
 -- -------------------------------------------------------------------------
-local function TweenTo(targetCFrame, destName)
+local function TweenTo(targetCFrame, destName, forceInstant)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum then return end
@@ -1388,8 +1335,9 @@ local function TweenTo(targetCFrame, destName)
     CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- 1. SHORT RANGE (<= 120 studs): Direct Heartbeat linear move
-    if distance <= 120 then
+    -- 1. SHORT RANGE (<= 350 studs and not forceInstant): Direct Heartbeat linear move
+    -- Smooth glide on the same island for mob grinding and combat
+    if not forceInstant and distance <= 350 then
         EnableNoclip()
         hum.PlatformStand = true
         
@@ -1405,7 +1353,9 @@ local function TweenTo(targetCFrame, destName)
         return move
     end
     
-    -- 2. LONG RANGE (> 120 studs): Auto-Cruise Cross-Island Flight with Portal Bypass
+    -- 2. LONG RANGE (> 350 studs or forceInstant): INSTANT DIRECT TELEPORT
+    -- Instant CFrame set with terrain pre-streaming, landing platform,
+    -- position reinforcement, and server spawn-point authority.
     if IsTravelingSky then return end
     IsTravelingSky = true
     
@@ -1413,23 +1363,23 @@ local function TweenTo(targetCFrame, destName)
         local totalDist = distance
         if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
         
-        -- Native Entrance Portal Shortcut Check (Bypass Engine)
-        if _G.Config.BypassTeleport and distance > 1200 then
+        -- Step 1: Try requestEntrance portal bypass first (game's own teleport system)
+        if _G.Config.BypassTeleport then
             local bestPortal = nil
-            local bestSaving = 0
+            local bestDist = math.huge
             for _, portal in ipairs(ENTRANCE_PORTALS) do
                 if portal.Sea == CurrentSea and portal.IsEntrance then
                     local portalToTarget = (targetPos - portal.Pos).Magnitude
-                    local saving = distance - portalToTarget
-                    if saving > 800 and saving > bestSaving then
-                        bestSaving = saving
+                    if portalToTarget < bestDist then
+                        bestDist = portalToTarget
                         bestPortal = portal
                     end
                 end
             end
             
-            if bestPortal then
-                print(string.format("[ALPHA BYPASS] Taking %s portal shortcut (saves %d studs)!", bestPortal.Name, math.floor(bestSaving)))
+            if bestPortal and bestDist < 500 then
+                -- Portal is close to target - use game's built-in teleport
+                print(string.format("[ALPHA TP] Using %s portal (%.0f studs from target)", bestPortal.Name, bestDist))
                 local cf = CommF()
                 if cf then
                     pcall(function()
@@ -1439,7 +1389,8 @@ local function TweenTo(targetCFrame, destName)
                     root = GetRoot()
                     if root then
                         local newDist = (targetPos - root.Position).Magnitude
-                        if newDist < 80 then
+                        if newDist < 120 then
+                            -- Portal worked! Just short-hop to exact position
                             StopTween()
                             HoverLock(targetCFrame)
                             if _G.Config.AutoSetSpawn then
@@ -1449,31 +1400,31 @@ local function TweenTo(targetCFrame, destName)
                             if SetTravelHUD then SetTravelHUD(false) end
                             return
                         end
-                        distance = newDist
-                        totalDist = newDist
                     end
                 end
             end
         end
         
-        -- Pre-stream destination chunks immediately
+        -- Step 2: Pre-stream destination terrain (critical for instant TP)
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
         end)
+        task.wait(0.3) -- Give streaming a moment to start loading terrain
         
-        -- Create solid invisible staging platform so character never falls into void
+        -- Step 3: Create invisible landing platform (prevents falling into void if terrain hasn't loaded)
         if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
         LandingPlatform = Instance.new("Part")
         LandingPlatform.Name = "AlphaLandingPlatform"
-        LandingPlatform.Size = Vector3.new(60, 2, 60)
-        LandingPlatform.CFrame = CFrame.new(targetPos.X, targetPos.Y - 1, targetPos.Z)
+        LandingPlatform.Size = Vector3.new(80, 3, 80)
+        LandingPlatform.CFrame = CFrame.new(targetPos.X, targetPos.Y - 2, targetPos.Z)
         LandingPlatform.Anchored = true
         LandingPlatform.CanCollide = true
         LandingPlatform.Transparency = 1
         LandingPlatform.Parent = Workspace
         
+        -- Step 4: Prepare character for teleport
         EnableNoclip()
         hum.PlatformStand = true
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -1482,59 +1433,62 @@ local function TweenTo(targetCFrame, destName)
         local bv = GetOrCreateBodyVelocity(root)
         bv.Velocity = Vector3.new(0, 0, 0)
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         
-        -- Safe Cruise Altitude: Y = 240 to 280
-        local cruiseY = 245
-        if targetPos.Y > 200 then
-            cruiseY = targetPos.Y + 45
-        elseif root.Position.Y > 200 then
-            cruiseY = math.max(root.Position.Y, 245)
-        end
+        -- Step 5: INSTANT TELEPORT - Direct CFrame set
+        local landCF = targetCFrame * CFrame.new(0, 4, 0)
+        root.CFrame = landCF
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         
-        -- Step 1: Smooth vertical ascent to cruise altitude (Heartbeat-driven)
-        if root.Position.Y < (cruiseY - 20) then
-            local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
-            local upMove = HeartbeatMove(root, upCF, speed)
-            upMove.Completed.Wait()
-        end
+        if SetTravelHUD then SetTravelHUD(true, label, 0, 0, totalDist) end
         
-        if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
+        -- Step 6: Position reinforcement loop - hammer CFrame for 2 seconds
+        -- This is the key: keep setting CFrame every frame so the server
+        -- has no chance to rubberband us back. After ~1-2 seconds, the server
+        -- accepts the new position as authoritative.
+        local reinforceStart = tick()
+        local reinforceDuration = 2.0
+        local reinforceConn
+        reinforceConn = RunService.Heartbeat:Connect(function()
+            if not root or not root.Parent then
+                if reinforceConn then reinforceConn:Disconnect() end
+                return
+            end
+            if (tick() - reinforceStart) < reinforceDuration then
+                root.CFrame = landCF
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                if bv and bv.Parent then
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                end
+            else
+                reinforceConn:Disconnect()
+            end
+        end)
         
-        -- Step 2: Waypoint Sky Cruise to target X, Z (Heartbeat-driven)
-        local cruiseOk = WaypointSkyCruise(root.Position, targetPos, cruiseY, speed, label, totalDist)
+        -- Wait for reinforcement to complete
+        task.wait(reinforceDuration + 0.1)
         
-        if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
-        
-        -- Pre-stream terrain again directly above destination
+        -- Step 7: Stream terrain again now that we're at destination
         pcall(function()
             if LocalPlayer.RequestStreamAroundAsync then
                 LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
         end)
-        task.wait(0.15)
+        task.wait(0.3)
         
-        -- Step 3: Descend directly onto island with Solid Ground Raycast Snapping
-        local realGroundPos, groundPart = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
-        local finalLandCF = targetCFrame * CFrame.new(0, 3.2, 0)
+        -- Step 8: Try to find real ground and snap to it
+        local realGroundPos = GetRealGroundPosition(targetPos.X, targetPos.Y, targetPos.Z)
         if realGroundPos then
-            finalLandCF = CFrame.new(targetPos.X, realGroundPos.Y + 3.2, targetPos.Z)
+            landCF = CFrame.new(targetPos.X, realGroundPos.Y + 3.5, targetPos.Z)
+            root.CFrame = landCF
         end
         
-        local downMove = HeartbeatMove(root, finalLandCF, speed)
-        downMove.Completed.Wait()
-        
-        -- Clean Safe Arrival & Touchdown Stabilization
-        root.CFrame = finalLandCF
+        -- Step 9: Clean up physics and restore normal humanoid state
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         
-        -- Ground Authority Handshake
         if hum and hum.Parent then
             hum.PlatformStand = false
             hum.Sit = false
@@ -1543,21 +1497,22 @@ local function TweenTo(targetCFrame, destName)
             hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
         end
         
-        -- Force position confirmation: set CFrame a few more times over next frames
-        task.spawn(function()
-            for i = 1, 8 do
-                task.wait(0.1)
-                if root and root.Parent then
-                    root.CFrame = finalLandCF
-                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        DisableNoclip()
+        
+        -- Step 10: Destroy all body movers so player can walk and fall normally
+        if root then
+            for _, c in ipairs(root:GetChildren()) do
+                if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+                    pcall(function() c:Destroy() end)
                 end
             end
-        end)
+        end
+        FlightBodyVel = nil
         
-        -- Auto Set Spawn Point on arrival
+        -- Step 11: Set spawn point to cement the position server-side
         if _G.Config.AutoSetSpawn then
             task.spawn(function()
-                task.wait(0.3)
+                task.wait(0.2)
                 local cf = CommF()
                 if cf then
                     pcall(function() cf:InvokeServer("SetSpawnPoint") end)
@@ -1569,12 +1524,23 @@ local function TweenTo(targetCFrame, destName)
         CurrentTween = nil
         if SetTravelHUD then SetTravelHUD(false) end
         
-        -- Validate arrival position with server
+        -- Step 12: Final position reinforcement + cleanup
         task.spawn(function()
-            task.wait(0.5)
-            DisableNoclip()
-            Validator.ValidatePosition(finalLandCF, 40)
-            task.wait(3)
+            -- Keep reinforcing for a few more seconds in background
+            for i = 1, 15 do
+                task.wait(0.2)
+                if root and root.Parent then
+                    local deviation = (root.Position - landCF.Position).Magnitude
+                    if deviation > 50 then
+                        -- Server tried to rubberband - fight it
+                        root.CFrame = landCF
+                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        print("[ALPHA TP] Rubberband intercepted, re-enforcing position!")
+                    end
+                end
+            end
+            -- Clean up landing platform after position is stable
+            task.wait(2)
             if LandingPlatform and LandingPlatform.Parent then
                 LandingPlatform:Destroy()
                 LandingPlatform = nil
@@ -1583,7 +1549,7 @@ local function TweenTo(targetCFrame, destName)
     end)
 end
 
--- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Auto-Cruise
+-- TeleportToIsland: Dedicated wrapper that suspends farming and executes Safe Instant Teleport
 local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.AutoFarmLevel = false
     _G.Config.FarmSelectedMob = false
@@ -1591,7 +1557,7 @@ local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.FarmAllBosses = false
     
     StopTween()
-    TweenTo(targetCFrame, islandName or "Selected Island")
+    TweenTo(targetCFrame, islandName or "Selected Island", true)
 end
 --============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
@@ -2057,21 +2023,24 @@ local GetActiveBossesList = GetSpawnedBossesList
 -- ClearHover: stops hover/noclip state and resets player to normal ground physics
 local function ClearHover()
     StopTween()
-    if FlightBodyVel then
-        pcall(function() FlightBodyVel:Destroy() end)
-        FlightBodyVel = nil
-    end
     DisableNoclip()
     local hum = GetHumanoid()
     if hum then
         hum.PlatformStand = false
         hum.Sit = false
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
     local root = GetRoot()
     if root then
+        for _, c in ipairs(root:GetChildren()) do
+            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+                pcall(function() c:Destroy() end)
+            end
+        end
         root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
+    FlightBodyVel = nil
 end
 
 -- Find live enemy by name
