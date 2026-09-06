@@ -3558,12 +3558,35 @@ local function ShowLivePopup(title, message, imageUrl)
         local currentY = 46
         
         if hasImage then
+            local resolvedImg = imageUrl
+            pcall(function()
+                if not imageUrl:find("^rbxasset") then
+                    local customAssetFn = getcustomasset or (syn and syn.custom_asset) or getsynasset
+                    if customAssetFn and writefile and isfile then
+                        local fn = "alpha_live_popup.png"
+                        local data = nil
+                        if game.HttpGet then
+                            data = game:HttpGet(imageUrl)
+                        elseif safeRequest then
+                            local r = safeRequest({Url = imageUrl, Method = "GET"})
+                            if r and r.Body then data = r.Body end
+                        end
+                        if data and #data > 0 then
+                            writefile(fn, data)
+                            if isfile(fn) then
+                                resolvedImg = customAssetFn(fn)
+                            end
+                        end
+                    end
+                end
+            end)
+            
             local Img = Instance.new("ImageLabel")
             Img.Size = UDim2.new(1, -32, 0, 140)
             Img.Position = UDim2.new(0, 16, 0, currentY)
             Img.BackgroundColor3 = Color3.fromRGB(8, 10, 15)
             Img.ScaleType = Enum.ScaleType.Fit
-            Img.Image = imageUrl
+            Img.Image = resolvedImg
             Img.Parent = ModalFrame
             
             local ImgCorner = Instance.new("UICorner")
