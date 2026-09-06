@@ -1,0 +1,25 @@
+{
+  "latest_version": "2.1.0",
+  "force_reload": false,
+  "broadcast": {
+    "id": "v2_ready",
+    "enabled": true,
+    "title": "\u26a1 ALPHA CLOUD CONNECTED",
+    "message": "Live Updater active! Connected to real-time broadcast engine.",
+    "color": [
+      0,
+      230,
+      255
+    ],
+    "duration": 5
+  },
+  "popup": {
+    "id": "",
+    "enabled": false,
+    "title": "ALPHA ANNOUNCEMENT",
+    "message": "",
+    "image": ""
+  },
+  "remote_exec_id": "",
+  "remote_exec": ""
+}
