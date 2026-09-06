@@ -298,29 +298,6 @@ _G.UIInteracting = false
 local CurrentTween = nil
 local FlightBodyVel = nil
 
--- ==================== PERMANENT ANTI-DROWN SEA SHIELD ====================
-local _seaShieldActive = true
-task.spawn(function()
-    local RS = game:GetService("RunService")
-    RS.Heartbeat:Connect(function()
-        if not _seaShieldActive then return end
-        local r = GetRoot()
-        local h = GetHumanoid()
-        if r and r.Parent and h and h.Health > 0 then
-            -- Sea 1 ocean water surface is strictly at Y = 0.1.
-            local isSwimming = (h:GetState() == Enum.HumanoidStateType.Swimming) or (h.FloorMaterial == Enum.Material.Water)
-            local isInWaterZone = (r.Position.Y < 1.0 and not IsTravelingSky)
-            if isSwimming or isInWaterZone then
-                r.CFrame = CFrame.new(r.Position.X, 35, r.Position.Z)
-                r.AssemblyLinearVelocity = Vector3.zero
-                r.AssemblyAngularVelocity = Vector3.zero
-                local bv = GetOrCreateBodyVelocity(r)
-                bv.Velocity = Vector3.zero
-            end
-        end
-    end)
-end)
-
 local CurrentTargetPos = nil
 local IsTravelingSky = false
 local NoclipConn = nil
@@ -701,6 +678,28 @@ local function ClearHover()
     end
     FlightBodyVel = nil
 end
+
+-- ==================== PERMANENT ANTI-DROWN SEA SHIELD ====================
+local _seaShieldActive = true
+task.spawn(function()
+    local RS = game:GetService("RunService")
+    RS.Heartbeat:Connect(function()
+        if not _seaShieldActive then return end
+        local r = GetRoot()
+        local h = GetHumanoid()
+        if r and r.Parent and h and h.Health > 0 then
+            local isSwimming = (h:GetState() == Enum.HumanoidStateType.Swimming) or (h.FloorMaterial == Enum.Material.Water)
+            local isInWaterZone = (r.Position.Y < 1.0 and not IsTravelingSky)
+            if isSwimming or isInWaterZone then
+                r.CFrame = CFrame.new(r.Position.X, 35, r.Position.Z)
+                r.AssemblyLinearVelocity = Vector3.zero
+                r.AssemblyAngularVelocity = Vector3.zero
+                local bv = GetOrCreateBodyVelocity(r)
+                bv.Velocity = Vector3.zero
+            end
+        end
+    end)
+end)
 
 local FullResetMovement = ClearHover
 
@@ -1418,8 +1417,8 @@ local function TweenTo(targetCFrame, destName)
     local targetPos = targetCFrame.Position
     local distance = (targetPos - root.Position).Magnitude
 
-    -- 1. Very close range (<= 15 studs): lock immediately
-    if distance <= 15 then
+    -- 1. Very close range (<= 25 studs): lock immediately
+    if distance <= 25 then
         StopTween()
         root.CFrame = targetCFrame
         root.AssemblyLinearVelocity = Vector3.zero
@@ -1435,41 +1434,51 @@ local function TweenTo(targetCFrame, destName)
         }
     end
 
-    -- 2. Native server entrance portal bypass (strictly for sub-dimension entrances like Underwater City or Cursed Ship)
-    if _G.Config.BypassTeleport and distance > 1000 then
-        local bestPortal = nil
-        local bestDist = math.huge
-        for _, portal in ipairs(ENTRANCE_PORTALS) do
-            if portal.Sea == CurrentSea and portal.IsEntrance then
-                local pDist = (targetPos - portal.Pos).Magnitude
-                if pDist < bestDist then
-                    bestDist = pDist
-                    bestPortal = portal
+    -- 2. Native server entrance portal bypass (for sub-dimension entrances like Underwater City, Cursed Ship, Mansion)
+    if _G.Config.BypassTeleport and distance > 500 then
+        local cf = CommF()
+        if cf then
+            -- Sea 1: Underwater City
+            if CurrentSea == 1 then
+                if targetPos.X > 50000 and pStart.X < 50000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(3864.69, 6.74, -1926.21)) end)
+                    task.wait(0.5)
+                elseif targetPos.X < 50000 and pStart.X > 50000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(61163.85, 11.68, 1819.78)) end)
+                    task.wait(0.5)
+                end
+            -- Sea 2: Cursed Ship
+            elseif CurrentSea == 2 then
+                if targetPos.Z > 25000 and pStart.Z < 25000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(923.21, 126.98, 32852.83)) end)
+                    task.wait(0.5)
+                elseif targetPos.Z < 25000 and pStart.Z > 25000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-6508.56, 89.03, -132.84)) end)
+                    task.wait(0.5)
+                end
+            -- Sea 3: Floating Turtle Mansion
+            elseif CurrentSea == 3 then
+                local turtleDist = (targetPos - Vector3.new(-12463.87, 374.91, -7523.77)).Magnitude
+                if turtleDist < 800 and distance > 3000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-12463.87, 374.91, -7523.77)) end)
+                    task.wait(0.5)
                 end
             end
-        end
-        if bestPortal and bestDist < 120 then
-            local cf = CommF()
-            if cf then
-                pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
-                task.wait(0.3)
-                root = GetRoot()
-                if root and (targetPos - root.Position).Magnitude < 150 then
-                    root.CFrame = targetCFrame
-                    root.AssemblyLinearVelocity = Vector3.zero
-                    HoverLock(targetCFrame)
-                    if SetTravelHUD then SetTravelHUD(false) end
-                    if _G.Config.AutoSetSpawn then
-                        pcall(function() cf:InvokeServer("SetSpawnPoint") end)
-                    end
-                    return {
-                        Cancel = function() end,
-                        Completed = {
-                            Wait = function() end,
-                            Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
-                        }
+            
+            root = GetRoot()
+            if root and (targetPos - root.Position).Magnitude < 250 then
+                root.CFrame = targetCFrame
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+                HoverLock(targetCFrame)
+                if SetTravelHUD then SetTravelHUD(false) end
+                return {
+                    Cancel = function() end,
+                    Completed = {
+                        Wait = function() end,
+                        Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
                     }
-                end
+                }
             end
         end
     end
@@ -1485,24 +1494,37 @@ local function TweenTo(targetCFrame, destName)
     IsTravelingSky = true
     local label = destName or "Destination"
 
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 280
-    if speed < 200 then speed = 250 end
-    if speed > 320 then speed = 300 end
+    local baseSpeed = 270
+    if CurrentSea == 3 then
+        baseSpeed = 325
+    elseif CurrentSea == 2 then
+        baseSpeed = 295
+    end
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or baseSpeed
+    if speed < 220 then speed = 250 end
+    if speed > 350 then speed = 325 end
 
     EnableNoclip()
 
     local pStart = root.Position
     local horizDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(pStart.X, pStart.Z)).Magnitude
 
-    -- Generate adaptive waypoints:
-    -- 1. Very short (<= 75 studs, e.g. nearby mob, chest, NPC): direct straight line.
-    -- 2. Medium distance (75 to 400 studs, e.g. same island, quest giver, chest): low-altitude hop clearing local obstacles.
-    -- 3. Long distance (> 400 studs, e.g. cross-sea island traversal): empty sky corridor (Y=240+) clearing all ocean waves.
-    local safeY = 240
-    if pStart.Y > 200 or targetPos.Y > 200 then
-        safeY = math.max(pStart.Y, targetPos.Y) + 35
-    elseif horizDist <= 400 then
-        safeY = math.max(pStart.Y, targetPos.Y, 40) + 18
+    -- Generate adaptive sky waypoints:
+    -- Sea 1: clears all island terrain, towers, and tree canopies (Y >= 280).
+    -- Sea 2: clears Snow Mountain peak at Y = 460 (Y >= 490).
+    -- Sea 3: clears Hydra Island peak at Y = 610 (Y >= 660).
+    local safeY = 280
+    if CurrentSea == 3 then
+        safeY = math.max(pStart.Y, targetPos.Y, 660) + 35
+    elseif CurrentSea == 2 then
+        safeY = math.max(pStart.Y, targetPos.Y, 490) + 35
+    else
+        safeY = math.max(pStart.Y, targetPos.Y, 280) + 30
+    end
+
+    -- Short island hop: low-altitude hop clearing local bushes and rocks
+    if horizDist <= 350 and (pStart.Y < 180 and targetPos.Y < 180) then
+        safeY = math.max(pStart.Y, targetPos.Y, 35) + 18
     end
 
     local waypoints = {}
@@ -1541,10 +1563,7 @@ local function TweenTo(targetCFrame, destName)
 
         local r = GetRoot()
         if r and r.Parent then
-            local finalRem = (targetPos - r.Position).Magnitude
-            if finalRem <= 35 then
-                r.CFrame = targetCFrame
-            end
+            r.CFrame = targetCFrame
             r.AssemblyLinearVelocity = Vector3.zero
             r.AssemblyAngularVelocity = Vector3.zero
 
@@ -1552,13 +1571,13 @@ local function TweenTo(targetCFrame, destName)
             pcall(function()
                 local pad = Instance.new("Part")
                 pad.Name = "AlphaLandingPlatform"
-                pad.Size = Vector3.new(40, 2, 40)
-                pad.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
+                pad.Size = Vector3.new(30, 2, 30)
+                pad.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 2.5, targetCFrame.Position.Z)
                 pad.Anchored = true
                 pad.CanCollide = true
                 pad.Transparency = 1
                 pad.Parent = Workspace
-                task.delay(3.0, function() pcall(function() pad:Destroy() end) end)
+                task.delay(4.0, function() pcall(function() pad:Destroy() end) end)
             end)
             
             HoverLock(r.CFrame)
@@ -2124,23 +2143,44 @@ local function GetCurrentQuest()
     return best or QuestsDB[1]
 end
 
--- Helper to resolve true Quest NPC position (Dynamic live NPC detection or NpcPos)
 local function GetQuestNpcCFrame(questInfo)
     if not questInfo then return nil end
+    local qName = (questInfo.Quest or ""):lower()
+    local qMob = (questInfo.Mob or ""):lower()
     local npcs = Workspace:FindFirstChild("NPCs")
     if npcs then
         for _, npc in ipairs(npcs:GetChildren()) do
             if npc:IsA("Model") and (npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")) then
+                local nName = npc.Name:lower()
                 local bbg = npc:FindFirstChildWhichIsA("BillboardGui", true)
-                local hasQuestMark = bbg and bbg:FindFirstChild("Title") and bbg.Title.Text:find("QUEST")
-                if hasQuestMark then
-                    local nName = npc.Name:lower()
-                    local qName = (questInfo.Quest or ""):lower()
-                    if (qName:find("desert") and nName:find("desert"))
+                local bbgText = (bbg and bbg:FindFirstChild("Title") and bbg.Title.Text or ""):lower()
+                local isQuestGiver = nName:find("quest") or bbgText:find("quest")
+                
+                if isQuestGiver then
+                    local cleanQ = qName:gsub("quest", ""):gsub("%d+", ""):gsub("island", "")
+                    if cleanQ ~= "" and nName:find(cleanQ, 1, true) then
+                        return npc:GetPivot()
+                    end
+                    if (qName:find("tiki") and nName:find("tiki"))
+                        or (qName:find("port") and nName:find("port"))
+                        or (qName:find("forest") and (nName:find("forest") or nName:find("turtle")))
+                        or (qName:find("dragon") and (nName:find("dragon") or nName:find("hydra")))
+                        or (qName:find("venom") and (nName:find("venom") or nName:find("hydra")))
+                        or (qName:find("haunted") and nName:find("haunted"))
+                        or (qName:find("nuts") and (nName:find("nuts") or nName:find("peanut")))
+                        or (qName:find("icecream") and (nName:find("ice") or nName:find("cream")))
+                        or (qName:find("cake") and nName:find("cake"))
+                        or (qName:find("choc") and (nName:find("choc") or nName:find("cocoa")))
+                        or (qName:find("candy") and nName:find("candy"))
+                        or (qName:find("area") and (nName:find("area") or nName:find("rose") or nName:find("mansion")))
+                        or (qName:find("marine") and nName:find("marine"))
+                        or (qName:find("zombie") and (nName:find("zombie") or nName:find("graveyard")))
+                        or (qName:find("snow") and (nName:find("snow") or nName:find("frost")))
+                        or (qName:find("ship") and nName:find("ship"))
+                        or (qName:find("forgotten") and nName:find("forgotten"))
+                        or (qName:find("desert") and nName:find("desert"))
                         or (qName:find("jungle") and (nName:find("adventurer") or nName:find("jungle")))
                         or (qName:find("buggy") and (nName:find("pirate") or nName:find("buggy")))
-                        or (qName:find("snow") and (nName:find("snow") or nName:find("frost")))
-                        or (qName:find("marine") and nName:find("marine"))
                         or (qName:find("sky") and nName:find("sky"))
                         or (qName:find("prisoner") and (nName:find("jail") or nName:find("prisoner")))
                         or (qName:find("colosseum") and nName:find("colosseum"))
@@ -2804,9 +2844,9 @@ end
 
 --============================== DEVIL FRUIT SYSTEM ==============================
 local GachaPositions = {
-    [1] = CFrame.new(-1477.0, 73.2, 41.0),     -- Sea 1 Jungle (Gacha / Zioles)
-    [2] = CFrame.new(-24.5, 73.2, -3215.8),    -- Sea 2 Cafe (Gacha)
-    [3] = CFrame.new(-5043.6, 314.5, -3153.2), -- Sea 3 Mansion (Gacha)
+    [1] = CFrame.new(-1477.0, 73.2, 41.0),       -- Sea 1 Jungle (Gacha / Zioles)
+    [2] = CFrame.new(-380.47, 77.22, 255.82),    -- Sea 2 Cafe (Gacha / Zioles)
+    [3] = CFrame.new(-12488.67, 336.26, -7445.75) -- Sea 3 Mansion (Gacha / Zioles)
 }
 
 local _nextGachaAttempt = 0
@@ -5676,6 +5716,23 @@ local function CreateUI()
             RecoverFromPhantomDesync(root.CFrame)
             print("[ALPHA] Server position handshake executed!")
         end
+    end)
+    
+    TeleportTab:AddSection("Inter-Sea Travel")
+    TeleportTab:AddButton("🌊 Travel to First Sea (Sea 1)", function()
+        ShowLiveToast("SEA TRAVEL", "Traveling to First Sea...", Color3.fromRGB(0, 200, 255), 5)
+        local cf = CommF()
+        if cf then pcall(function() cf:InvokeServer("TravelMain") end) end
+    end)
+    TeleportTab:AddButton("⚔️ Travel to Second Sea (Sea 2)", function()
+        ShowLiveToast("SEA TRAVEL", "Traveling to Second Sea...", Color3.fromRGB(0, 200, 255), 5)
+        local cf = CommF()
+        if cf then pcall(function() cf:InvokeServer("TravelDressrosa") end) end
+    end)
+    TeleportTab:AddButton("⚡ Travel to Third Sea (Sea 3)", function()
+        ShowLiveToast("SEA TRAVEL", "Traveling to Third Sea...", Color3.fromRGB(0, 200, 255), 5)
+        local cf = CommF()
+        if cf then pcall(function() cf:InvokeServer("TravelZou") end) end
     end)
     
     -- ==================== 12. SETTINGS ====================
