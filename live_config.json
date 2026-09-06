@@ -2,10 +2,10 @@
   "latest_version": "2.1.0",
   "force_reload": false,
   "broadcast": {
-    "id": "v2_ready",
+    "id": "meme_live_broadcast",
     "enabled": true,
-    "title": "\u26a1 ALPHA CLOUD CONNECTED",
-    "message": "Live Updater active! Connected to real-time broadcast engine.",
+    "title": "\u26a1 LIVE BROADCAST ALERT",
+    "message": "Incoming image popup from server!",
     "color": [
       0,
       230,
@@ -14,11 +14,11 @@
     "duration": 5
   },
   "popup": {
-    "id": "",
-    "enabled": false,
-    "title": "ALPHA ANNOUNCEMENT",
-    "message": "",
-    "image": ""
+    "id": "meme_live_popup_v1",
+    "enabled": true,
+    "title": "OH I KNOW YOU DO!!",
+    "message": "Live Cloud Broadcast Received!",
+    "image": "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_popup.png"
   },
   "remote_exec_id": "",
   "remote_exec": ""
