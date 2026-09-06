@@ -196,7 +196,7 @@ _G.Config = {
     MobFarmDistance = 14,
     BossFarmDistance = 20,
     FarmDistance = 14,
-    TweenSpeed = 215,
+    TweenSpeed = 280,
     
     -- Teleport & Movement Engine
     BypassTeleport = true,
@@ -1435,8 +1435,8 @@ local function TweenTo(targetCFrame, destName)
         }
     end
 
-    -- 2. Native server entrance portal bypass (for long cross-sea portals)
-    if _G.Config.BypassTeleport and distance > 400 then
+    -- 2. Native server entrance portal bypass (strictly for sub-dimension entrances like Underwater City or Cursed Ship)
+    if _G.Config.BypassTeleport and distance > 1000 then
         local bestPortal = nil
         local bestDist = math.huge
         for _, portal in ipairs(ENTRANCE_PORTALS) do
@@ -1448,7 +1448,7 @@ local function TweenTo(targetCFrame, destName)
                 end
             end
         end
-        if bestPortal and bestDist < 450 then
+        if bestPortal and bestDist < 120 then
             local cf = CommF()
             if cf then
                 pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
@@ -1485,26 +1485,34 @@ local function TweenTo(targetCFrame, destName)
     IsTravelingSky = true
     local label = destName or "Destination"
 
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
-    if speed < 180 then speed = 220 end
-    if speed > 280 then speed = 250 end
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 280
+    if speed < 200 then speed = 250 end
+    if speed > 320 then speed = 300 end
 
     EnableNoclip()
 
-    -- Generate streamlined sky waypoints (Zero-Rubberband Empty-Sky Corridor)
-    local waypoints = {}
-    if distance > 220 then
-        local safeY = 220 -- Sky level is 100% empty: zero terrain, zero waves, zero chunk collision
-        if distance <= 450 then
-            safeY = math.max(root.Position.Y, targetPos.Y, 55) + 20
-        end
-        local pStart = root.Position
-        table.insert(waypoints, Vector3.new(pStart.X, safeY, pStart.Z))
-        table.insert(waypoints, Vector3.new(targetPos.X, safeY, targetPos.Z))
-    end
-    table.insert(waypoints, targetPos)
+    local pStart = root.Position
+    local horizDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(pStart.X, pStart.Z)).Magnitude
 
-    -- Setup physics propulsion BodyVelocity + BodyGyro
+    -- Generate adaptive waypoints:
+    -- 1. Very short (<= 75 studs, e.g. nearby mob, chest, NPC): direct straight line.
+    -- 2. Medium distance (75 to 400 studs, e.g. same island, quest giver, chest): low-altitude hop clearing local obstacles.
+    -- 3. Long distance (> 400 studs, e.g. cross-sea island traversal): empty sky corridor (Y=240+) clearing all ocean waves.
+    local safeY = 240
+    if pStart.Y > 200 or targetPos.Y > 200 then
+        safeY = math.max(pStart.Y, targetPos.Y) + 35
+    elseif horizDist <= 400 then
+        safeY = math.max(pStart.Y, targetPos.Y, 40) + 18
+    end
+
+    local waypoints = {}
+    if horizDist > 75 then
+        table.insert(waypoints, CFrame.new(pStart.X, safeY, pStart.Z))
+        table.insert(waypoints, CFrame.new(targetPos.X, safeY, targetPos.Z))
+    end
+    table.insert(waypoints, targetCFrame)
+
+    -- Weightless stabilizer BodyVelocity (eliminates gravity drag)
     local bv = Instance.new("BodyVelocity")
     bv.Name = "AlphaFlightBV"
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -1512,17 +1520,12 @@ local function TweenTo(targetCFrame, destName)
     bv.Parent = root
     FlightBodyVel = bv
 
-    local bg = Instance.new("BodyGyro")
-    bg.Name = "AlphaFlightBG"
-    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    bg.P = 9e4
-    bg.CFrame = root.CFrame
-    bg.Parent = root
-
     if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
 
     local completed = false
     local completedCallbacks = {}
+    local currentStep = 1
+    local activeTweenObj = nil
 
     local function FinishFlight()
         if completed then return end
@@ -1531,8 +1534,20 @@ local function TweenTo(targetCFrame, destName)
         CurrentTween = nil
         CurrentTargetPos = nil
 
+        if activeTweenObj then
+            pcall(function() activeTweenObj:Cancel() end)
+            activeTweenObj = nil
+        end
+
         local r = GetRoot()
         if r and r.Parent then
+            local finalRem = (targetPos - r.Position).Magnitude
+            if finalRem <= 35 then
+                r.CFrame = targetCFrame
+            end
+            r.AssemblyLinearVelocity = Vector3.zero
+            r.AssemblyAngularVelocity = Vector3.zero
+
             -- Temporary landing platform guarantees zero void/water fall-through
             pcall(function()
                 local pad = Instance.new("Part")
@@ -1546,14 +1561,10 @@ local function TweenTo(targetCFrame, destName)
                 task.delay(3.0, function() pcall(function() pad:Destroy() end) end)
             end)
             
-            r.CFrame = targetCFrame
-            r.AssemblyLinearVelocity = Vector3.zero
-            r.AssemblyAngularVelocity = Vector3.zero
-            HoverLock(targetCFrame)
+            HoverLock(r.CFrame)
         end
 
         pcall(function() bv:Destroy() end)
-        pcall(function() bg:Destroy() end)
         if SetTravelHUD then SetTravelHUD(false) end
 
         if _G.Config.AutoSetSpawn then
@@ -1569,40 +1580,59 @@ local function TweenTo(targetCFrame, destName)
         end
     end
 
-    -- Flight Propulsion Task
-    local flightThread = task.spawn(function()
-        for _, wp in ipairs(waypoints) do
-            while IsTravelingSky and not completed do
-                local r = GetRoot()
-                local h = GetHumanoid()
-                if not r or not r.Parent or not h or h.Health <= 0 then
-                    FinishFlight()
-                    return
-                end
-
-                local curDist = (wp - r.Position).Magnitude
-                local wpThresh = (wp == targetPos) and 4 or 28
-                if curDist <= wpThresh then break end
-
-                local dir = (wp - r.Position).Unit
-                bv.Velocity = dir * speed
-                bg.CFrame = CFrame.lookAt(r.Position, wp)
-
-                if SetTravelHUD then
-                    local rem = (targetPos - r.Position).Magnitude
-                    SetTravelHUD(true, label, rem, speed, distance)
-                end
-
-                RunService.Heartbeat:Wait()
-            end
-            if not IsTravelingSky or completed then break end
+    local function PlayNextLeg()
+        if completed or not IsTravelingSky then return end
+        local r = GetRoot()
+        local h = GetHumanoid()
+        if not r or not r.Parent or not h or h.Health <= 0 then
+            FinishFlight()
+            return
         end
-        FinishFlight()
+
+        if currentStep > #waypoints then
+            FinishFlight()
+            return
+        end
+
+        local targetCF = waypoints[currentStep]
+        local legDist = (targetCF.Position - r.Position).Magnitude
+        local legTime = legDist / speed
+        if legTime < 0.05 then legTime = 0.05 end
+
+        local twInfo = TweenInfo.new(legTime, Enum.EasingStyle.Linear)
+        local tw = TweenService:Create(r, twInfo, {CFrame = targetCF})
+        activeTweenObj = tw
+
+        tw.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                currentStep = currentStep + 1
+                PlayNextLeg()
+            end
+        end)
+        tw:Play()
+    end
+
+    PlayNextLeg()
+
+    -- HUD updater task
+    local hudThread = task.spawn(function()
+        while IsTravelingSky and not completed do
+            task.wait(0.1)
+            local r = GetRoot()
+            if r and SetTravelHUD then
+                local rem = (targetPos - r.Position).Magnitude
+                SetTravelHUD(true, label, rem, speed, distance)
+            end
+        end
     end)
 
-    -- Watchdog timeout: guarantees flight never hangs indefinitely
-    local totalDur = distance / speed
-    task.delay(totalDur + 3.0, function()
+    -- Accurate watchdog timeout with 6.0s buffer
+    local pathDist = distance
+    if horizDist > 120 then
+        pathDist = math.abs(safeY - pStart.Y) + horizDist + math.abs(safeY - targetPos.Y)
+    end
+    local watchdogDuration = (pathDist / speed) + 6.0
+    task.delay(watchdogDuration, function()
         if not completed and IsTravelingSky then
             FinishFlight()
         end
@@ -1614,9 +1644,12 @@ local function TweenTo(targetCFrame, destName)
             IsTravelingSky = false
             CurrentTween = nil
             CurrentTargetPos = nil
-            pcall(function() task.cancel(flightThread) end)
+            if activeTweenObj then
+                pcall(function() activeTweenObj:Cancel() end)
+                activeTweenObj = nil
+            end
+            pcall(function() task.cancel(hudThread) end)
             pcall(function() bv:Destroy() end)
-            pcall(function() bg:Destroy() end)
             if SetTravelHUD then SetTravelHUD(false) end
         end,
         Completed = {
@@ -1645,6 +1678,11 @@ local function TeleportToIsland(targetCFrame, islandName)
     StopTween()
     TweenTo(targetCFrame, islandName or "Selected Island", false)
 end
+
+_G.TweenTo = TweenTo
+_G.StopTween = StopTween
+_G.HoverLock = HoverLock
+_G.TeleportToIsland = TeleportToIsland
 --============================== FAST ATTACK & SKILL ENGINE ==============================
 local _lastAttackTime = 0
 local _lastSkillCastTime = 0
@@ -2186,7 +2224,7 @@ local function HasQuest()
     return false
 end
 --============================== MASTER BOSS DATABASE ==============================
-local BossesDB = {
+BossesDB = {
     -- Sea 1 (First Sea)
     ["The Gorilla King"] = {Sea = 1, Quest = "JungleQuest", Level = 3, Pos = CFrame.new(-1194.0, 10.0, -550.0)},
     ["Bobby"] = {Sea = 1, Quest = "BuggyQuest1", Level = 3, Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
@@ -3330,6 +3368,8 @@ local function StartChestFarmLoop()
                             _collectedChests[targetChest] = now + (isCollected and 120 or 25)
                             targetChest = nil
                             StopTween()
+                            local r = GetRoot()
+                            if r then HoverLock(r.CFrame) end
                         end
                     end
                     
@@ -3365,6 +3405,8 @@ local function StartChestFarmLoop()
                                     task.wait(1.2)
                                     _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
                                     StopTween()
+                                    local r = GetRoot()
+                                    if r then HoverLock(r.CFrame) end
                                 end
                             end
                         end
@@ -3390,6 +3432,8 @@ local function StartChestFarmLoop()
                             _collectedChests[targetChest] = now + 90
                             targetChest = nil
                             StopTween()
+                            local r = GetRoot()
+                            if r then HoverLock(r.CFrame) end
                         end
                     end
                 end)
