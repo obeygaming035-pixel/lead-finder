@@ -174,7 +174,7 @@ AutoSelectPirates()
 --============================== CONFIGURATION ==============================
 _G.Config = {
     -- Farming
-    AutoFarmLevel = true,
+    AutoFarmLevel = false,
     AutoDoubleQuest = false,
     FarmSelectedMob = false,
     FarmSelectedBoss = false,
@@ -268,7 +268,7 @@ _G.Config = {
     Fullbright = false,
     
     -- Stats
-    AutoStats = true,
+    AutoStats = false,
     StatPoints = 5,
     Stats = {
         Melee = true,
@@ -672,12 +672,30 @@ local function StopTween()
     if SetTravelHUD then SetTravelHUD(false) end
 end
 
-local function FullResetMovement()
+-- ClearHover / FullResetMovement: completely stops hover/noclip, clears velocities, restores physics
+local function ClearHover()
     StopTween()
     DisableNoclip()
     local hum = GetHumanoid()
-    if hum and hum.Sit then hum.Sit = false end
+    if hum then
+        hum.PlatformStand = false
+        hum.Sit = false
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+    local root = GetRoot()
+    if root then
+        for _, c in ipairs(root:GetChildren()) do
+            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
+                pcall(function() c:Destroy() end)
+            end
+        end
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+    FlightBodyVel = nil
 end
+
+local FullResetMovement = ClearHover
 
 --============================== SMART RUNTIME VALIDATOR (SELF-HEALING ENGINE) ==============================
 -- Continuously analyses every action and auto-corrects. Designed for unattended overnight operation.
@@ -2232,28 +2250,9 @@ end
 -- Alias so both names work (UI uses GetActiveBossesList)
 local GetActiveBossesList = GetSpawnedBossesList
 
--- ClearHover: stops hover/noclip state and resets player to normal ground physics
-local function ClearHover()
-    StopTween()
-    DisableNoclip()
-    local hum = GetHumanoid()
-    if hum then
-        hum.PlatformStand = false
-        hum.Sit = false
-        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-    end
-    local root = GetRoot()
-    if root then
-        for _, c in ipairs(root:GetChildren()) do
-            if c:IsA("BodyVelocity") or c:IsA("BodyGyro") or c:IsA("BodyPosition") then
-                pcall(function() c:Destroy() end)
-            end
-        end
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end
-    FlightBodyVel = nil
-end
+-- ClearHover and FullResetMovement are defined above
+
+
 
 -- Robust mob name matcher (handles exact names, stripped level tags, case insensitivity)
 local function IsMobMatch(mobName, targetName)
@@ -4554,10 +4553,13 @@ local function CreateUI()
     FarmTab:AddSection("Level Farming")
     FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
         _G.Config.AutoFarmLevel = v
-        if not v then StopTween(); ClearHover() end
+        if not v then ClearHover() end
     end)
     FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
-    FarmTab:AddToggle("Auto Chest Farm", false, function(v) _G.Config.AutoChestFarm = v end)
+    FarmTab:AddToggle("Auto Chest Farm", false, function(v)
+        _G.Config.AutoChestFarm = v
+        if not v then ClearHover() end
+    end)
     
     FarmTab:AddSection("Selected Mob Farming")
     local mobList = GetSpawnedMobsList()
@@ -4569,7 +4571,7 @@ local function CreateUI()
     end)
     FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
         _G.Config.FarmSelectedMob = v
-        if not v then StopTween(); ClearHover() end
+        if not v then ClearHover() end
     end)
     
     -- ==================== 2. BOSS FARM TAB ====================
@@ -4583,26 +4585,26 @@ local function CreateUI()
     end)
     BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
         _G.Config.FarmSelectedBoss = v
-        if not v then StopTween(); ClearHover() end
+        if not v then ClearHover() end
     end)
     BossTab:AddToggle("Auto Farm All Spawned Bosses (" .. SeaName .. ")", false, function(v)
         _G.Config.FarmAllBosses = v
-        if not v then StopTween(); ClearHover() end
+        if not v then ClearHover() end
     end)
     
     BossTab:AddSection("World & Special Bosses")
     if Sea3 then
-        BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v end)
-        BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v end)
-        BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v end)
-        BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v end)
-        BossTab:AddToggle("Auto Farm Bones (Haunted Castle)", false, function(v) _G.Config.AutoFarmBones = v end)
+        BossTab:AddToggle("Auto Kill Rip Indra", false, function(v) _G.Config.AutoKillRipIndra = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Kill Dough King", false, function(v) _G.Config.AutoKillDoughKing = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Kill Cake Prince", false, function(v) _G.Config.AutoKillCakePrince = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Kill Soul Reaper", false, function(v) _G.Config.AutoKillSoulReaper = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Farm Bones (Haunted Castle)", false, function(v) _G.Config.AutoFarmBones = v; if not v then ClearHover() end end)
         BossTab:AddToggle("Auto Roll Bones (Death King)", false, function(v) _G.Config.AutoRollBones = v end)
         BossTab:AddToggle("Auto Summon Soul Reaper", false, function(v) _G.Config.AutoSummonSoulReaper = v end)
     elseif Sea2 then
-        BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v end)
-        BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v end)
-        BossTab:AddToggle("Auto Kill Order (Law)", false, function(v) _G.Config.AutoKillLaw = v end)
+        BossTab:AddToggle("Auto Kill Darkbeard", false, function(v) _G.Config.AutoKillDarkbeard = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Kill Cursed Captain", false, function(v) _G.Config.AutoKillCursedCaptain = v; if not v then ClearHover() end end)
+        BossTab:AddToggle("Auto Kill Order (Law)", false, function(v) _G.Config.AutoKillLaw = v; if not v then ClearHover() end end)
     else
         BossTab:AddNotice("World Raid Bosses (Indra, Dough King, Darkbeard) are located in Second & Third Sea.", Color3.fromRGB(255, 170, 70))
     end
@@ -4615,16 +4617,16 @@ local function CreateUI()
         RaidTab:AddSearchDropdown("Select Raid Chip", {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"}, "Flame", function(v) _G.Config.SelectedChip = v end)
         RaidTab:AddToggle("Auto Buy Raid Chip", false, function(v) _G.Config.AutoBuyChip = v end)
         RaidTab:AddToggle("Auto Start Raid", false, function(v) _G.Config.AutoStartRaid = v end)
-        RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v end)
+        RaidTab:AddToggle("Auto Farm Raid (Next Island)", false, function(v) _G.Config.AutoFarmRaid = v; if not v then ClearHover() end end)
         RaidTab:AddToggle("Auto Awaken Fruit", false, function(v) _G.Config.AutoAwaken = v end)
-        RaidTab:AddToggle("Auto Law / Order Raid", false, function(v) _G.Config.AutoLawRaid = v end)
+        RaidTab:AddToggle("Auto Law / Order Raid", false, function(v) _G.Config.AutoLawRaid = v; if not v then ClearHover() end end)
     end
     
     -- ==================== 4. DEVIL FRUIT ====================
     FruitTab:AddSection("Fruit Actions")
     FruitTab:AddToggle("Auto Random Fruit (Gacha Cousin)", false, function(v) _G.Config.AutoRandomFruit = v end)
-    FruitTab:AddToggle("Auto Store Fruits in Inventory", true, function(v) _G.Config.AutoStoreFruit = v end)
-    FruitTab:AddToggle("Auto Grab Dropped Fruits (Tween)", false, function(v) _G.Config.AutoGrabFruits = v end)
+    FruitTab:AddToggle("Auto Store Fruits in Inventory", false, function(v) _G.Config.AutoStoreFruit = v end)
+    FruitTab:AddToggle("Auto Grab Dropped Fruits (Tween)", false, function(v) _G.Config.AutoGrabFruits = v; if not v then ClearHover() end end)
     FruitTab:AddToggle("Fruit ESP (Billboard Labels)", false, function(v)
         _G.Config.FruitESP = v
         UpdateFruitESP()
@@ -4635,9 +4637,9 @@ local function CreateUI()
     if Sea1 then
         SeaTab:AddNotice("🔒 Sea Events unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
     else
-        SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v end)
-        SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v end)
-        SeaTab:AddToggle("Auto Kill Sea Beast (Safe Altitude)", false, function(v) _G.Config.AutoKillSeaBeast = v end)
+        SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v; if not v then ClearHover() end end)
+        SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v; if not v then ClearHover() end end)
+        SeaTab:AddToggle("Auto Kill Sea Beast (Safe Altitude)", false, function(v) _G.Config.AutoKillSeaBeast = v; if not v then ClearHover() end end)
         SeaTab:AddButton("Check Mirage Island Status", function()
             local s = CheckIslandSpawn("MysticIsland") or CheckIslandSpawn("Mirage Island")
             print("[ALPHA] Mirage Island:", s and "SPAWNED!" or "NOT Spawned")
@@ -4646,8 +4648,8 @@ local function CreateUI()
             local s = CheckIslandSpawn("KitsuneIsland") or CheckIslandSpawn("Kitsune Island")
             print("[ALPHA] Kitsune Island:", s and "SPAWNED!" or "NOT Spawned")
         end)
-        SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v end)
-        SeaTab:AddToggle("Auto Collect Azure Embers (Kitsune)", false, function(v) _G.Config.AutoKitsuneEmber = v end)
+        SeaTab:AddToggle("Auto Find Blue Gear (Mirage)", false, function(v) _G.Config.AutoFindGear = v; if not v then ClearHover() end end)
+        SeaTab:AddToggle("Auto Collect Azure Embers (Kitsune)", false, function(v) _G.Config.AutoKitsuneEmber = v; if not v then ClearHover() end end)
     end
     
     -- ==================== 6. RACE V4 TAB ====================
@@ -4798,6 +4800,9 @@ local function CreateUI()
         StopTween()
         local root = GetRoot()
         if root then HoverLock(root.CFrame) end
+    end)
+    TeleportTab:AddButton("🚶 Stop Travel & Land (Normal Ground)", function()
+        ClearHover()
     end)
     
     TeleportTab:AddSection("Bypass & Anti-Desync Controls")
