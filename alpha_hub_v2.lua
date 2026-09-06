@@ -2485,35 +2485,111 @@ local function StartAutoFarmSelectedBoss()
 end
 
 --============================== AUTO FARM ALL BOSSES CORE ==============================
+local _bossPatrolIndex = 1
+local _bossSkipUntil = {}
+
 local function StartAutoFarmAllBosses()
     task.spawn(function()
-        task.wait(math.random(12, 30) / 10)
+        task.wait(1.5)
         while true do
-            task.wait(0.3)
+            task.wait(0.25)
             if _G.Config.FarmAllBosses then
                 pcall(function()
-                    local enemies = Workspace:FindFirstChild("Enemies")
+                    local char = GetCharacter()
+                    local hum = GetHumanoid()
                     local root = GetRoot()
-                    if enemies and root then
+                    if not char or not hum or hum.Health <= 0 or not root then return end
+                    
+                    -- Step 1: Scan for any spawned boss in Workspace.Enemies
+                    local targetBoss = nil
+                    local targetBData = nil
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if enemies then
                         for _, enemy in ipairs(enemies:GetChildren()) do
-                            local bData = BossesDB[enemy.Name]
-                            if bData and bData.Sea == CurrentSea and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                                if bData.Quest and not HasQuest() then
-                                    local cf = CommF()
-                                    if cf then cf:InvokeServer("StartQuest", bData.Quest, bData.Level) end
-                                    task.wait(0.35)
-                                end
-                                while enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and _G.Config.FarmAllBosses do
-                                    local dist = GetOptimalFarmDistance(enemy)
-                                    local farmPos = enemy.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                                    local distToFarm = (farmPos.Position - root.Position).Magnitude
-                                    if distToFarm < 15 then
-                                        HoverLock(farmPos)
-                                    else
-                                        TweenTo(farmPos, enemy.Name)
+                            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
+                                for bName, bData in pairs(BossesDB) do
+                                    if bData.Sea == CurrentSea and IsMobMatch(enemy.Name, bName) then
+                                        targetBoss = enemy
+                                        targetBData = bData
+                                        break
                                     end
-                                    EquipWeapon(_G.Config.SelectedWeapon)
-                                    task.wait(0.2)
+                                end
+                            end
+                            if targetBoss then break end
+                        end
+                    end
+                    
+                    -- Step 2: If a boss is found, fight it!
+                    if targetBoss and targetBoss.Parent and targetBoss:FindFirstChild("Humanoid") and targetBoss.Humanoid.Health > 0 then
+                        if targetBData and targetBData.Quest and not HasQuest() then
+                            local cf = CommF()
+                            if cf then
+                                cf:InvokeServer("StartQuest", targetBData.Quest, targetBData.Level or 1)
+                                task.wait(0.3)
+                            end
+                        end
+                        
+                        local dist = GetOptimalFarmDistance(targetBoss)
+                        local farmPos = targetBoss.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        local distToFarm = (farmPos.Position - root.Position).Magnitude
+                        
+                        if distToFarm < 15 then
+                            HoverLock(farmPos)
+                        else
+                            TweenTo(farmPos, targetBoss.Name)
+                        end
+                        EquipWeapon(_G.Config.SelectedWeapon)
+                        return
+                    end
+                    
+                    -- Step 3: If no boss is currently loaded in Workspace.Enemies, PATROL boss spawn points!
+                    local bossList = {}
+                    for bName, bData in pairs(BossesDB) do
+                        if bData.Sea == CurrentSea and bData.Pos then
+                            table.insert(bossList, {Name = bName, Data = bData})
+                        end
+                    end
+                    
+                    if #bossList > 0 then
+                        local now = tick()
+                        local candidate = nil
+                        for i = 1, #bossList do
+                            local idx = ((_bossPatrolIndex + i - 2) % #bossList) + 1
+                            local b = bossList[idx]
+                            if not _bossSkipUntil[b.Name] or now > _bossSkipUntil[b.Name] then
+                                candidate = b
+                                _bossPatrolIndex = idx
+                                break
+                            end
+                        end
+                        
+                        if not candidate then
+                            _bossSkipUntil = {}
+                            candidate = bossList[1]
+                            _bossPatrolIndex = 1
+                        end
+                        
+                        if candidate then
+                            local checkPos = candidate.Data.Pos * CFrame.new(0, 30, 0)
+                            local distToCheck = (checkPos.Position - root.Position).Magnitude
+                            
+                            if distToCheck > 35 then
+                                TweenTo(checkPos, "Boss Patrol: " .. candidate.Name)
+                            else
+                                task.wait(1.2)
+                                local found = false
+                                if enemies then
+                                    for _, enemy in ipairs(enemies:GetChildren()) do
+                                        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and IsMobMatch(enemy.Name, candidate.Name) then
+                                            found = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if not found then
+                                    _bossSkipUntil[candidate.Name] = now + 120
+                                    _bossPatrolIndex = (_bossPatrolIndex % #bossList) + 1
+                                    StopTween()
                                 end
                             end
                         end
@@ -2570,15 +2646,164 @@ local function StartRaidBossLoop()
 end
 
 --============================== DEVIL FRUIT SYSTEM ==============================
+local GachaPositions = {
+    [1] = CFrame.new(-1448.14, 29.85, 9.49),   -- Sea 1 Jungle (Gacha / Zioles)
+    [2] = CFrame.new(-24.5, 73.2, -3215.8),    -- Sea 2 Cafe (Gacha)
+    [3] = CFrame.new(-5043.6, 314.5, -3153.2), -- Sea 3 Mansion (Gacha)
+}
+
+local _nextGachaAttempt = 0
+local _isSpinningFruit = false
+
+local function StoreAllPhysicalFruits()
+    local cf = CommF()
+    if not cf then return end
+    pcall(function()
+        local bp = LocalPlayer:FindFirstChild("Backpack")
+        local char = GetCharacter()
+        for _, container in ipairs({bp, char}) do
+            if container then
+                for _, tool in ipairs(container:GetChildren()) do
+                    if tool:IsA("Tool") and tool:FindFirstChild("Handle") and not tool:FindFirstChild("Exp") then
+                        if tool.ToolTip == "Blox Fruit" or string.find(tool.Name, "Fruit") or tool:GetAttribute("OriginalName") then
+                            cf:InvokeServer("StoreFruit", tool:GetAttribute("OriginalName") or tool.Name, tool)
+                            task.wait(0.2)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function SpinRandomFruitNow()
+    if _isSpinningFruit then return end
+    _isSpinningFruit = true
+    task.spawn(function()
+        pcall(function()
+            local char = GetCharacter()
+            local hum = GetHumanoid()
+            local root = GetRoot()
+            if not char or not hum or hum.Health <= 0 or not root then
+                _isSpinningFruit = false
+                return
+            end
+
+            -- Check player level
+            local data = LocalPlayer:FindFirstChild("Data")
+            local level = data and data:FindFirstChild("Level") and data.Level.Value or 1
+            if level < 50 then
+                pcall(function()
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "Blox Fruit Gacha",
+                        Text = "Level 50+ is required to spin fruits (Current Lv. " .. level .. ")",
+                        Duration = 4
+                    })
+                end)
+                _isSpinningFruit = false
+                return
+            end
+
+            local cf = CommF()
+            if not cf then
+                _isSpinningFruit = false
+                return
+            end
+
+            -- Travel to Gacha NPC
+            local gachaCF = GachaPositions[CurrentSea] or GachaPositions[1]
+            local dist = (gachaCF.Position - root.Position).Magnitude
+            if dist > 35 then
+                TweenTo(gachaCF, "Blox Fruit Gacha")
+                local waitStart = tick()
+                while (tick() - waitStart) < 30 do
+                    root = GetRoot()
+                    if not root then break end
+                    if (gachaCF.Position - root.Position).Magnitude <= 35 then break end
+                    task.wait(0.2)
+                end
+            end
+
+            task.wait(0.5)
+            root = GetRoot()
+            if root and (gachaCF.Position - root.Position).Magnitude <= 45 then
+                local res = cf:InvokeServer("Cousin", "Buy")
+                task.wait(0.8)
+                
+                -- Check if a fruit was received and store it
+                StoreAllPhysicalFruits()
+
+                pcall(function()
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "Blox Fruit Gacha",
+                        Text = "Fruit Spin Attempted! Check inventory/backpack.",
+                        Duration = 4
+                    })
+                end)
+            end
+        end)
+        _isSpinningFruit = false
+    end)
+end
+_G.SpinRandomFruitNow = SpinRandomFruitNow
+_G.StoreAllPhysicalFruits = StoreAllPhysicalFruits
+
 local function StartDevilFruitLoops()
-    -- Auto Random Gacha
+    -- Auto Random Gacha Loop
     task.spawn(function()
         task.wait(math.random(20, 40) / 10)
         while true do
-            task.wait(2 + math.random() * 0.5)
-            if _G.Config.AutoRandomFruit then
-                local cf = CommF()
-                if cf then pcall(function() cf:InvokeServer("Cousin", "Buy") end) end
+            task.wait(2.5 + math.random() * 0.5)
+            if _G.Config.AutoRandomFruit and not _isSpinningFruit and not IsTravelingSky then
+                local now = tick()
+                if now >= _nextGachaAttempt then
+                    local data = LocalPlayer:FindFirstChild("Data")
+                    local level = data and data:FindFirstChild("Level") and data.Level.Value or 1
+                    local beli = data and data:FindFirstChild("Beli") and data.Beli.Value or 0
+                    
+                    if level >= 50 and beli >= 25000 then
+                        _isSpinningFruit = true
+                        pcall(function()
+                            local root = GetRoot()
+                            local cf = CommF()
+                            if root and cf then
+                                local gachaCF = GachaPositions[CurrentSea] or GachaPositions[1]
+                                local dist = (gachaCF.Position - root.Position).Magnitude
+                                if dist > 35 then
+                                    TweenTo(gachaCF, "Blox Fruit Gacha")
+                                    local waitStart = tick()
+                                    while (tick() - waitStart) < 30 do
+                                        root = GetRoot()
+                                        if not root then break end
+                                        if (gachaCF.Position - root.Position).Magnitude <= 35 then break end
+                                        task.wait(0.2)
+                                    end
+                                end
+                                
+                                task.wait(0.5)
+                                root = GetRoot()
+                                if root and (gachaCF.Position - root.Position).Magnitude <= 45 then
+                                    local buyRes = cf:InvokeServer("Cousin", "Buy")
+                                    task.wait(0.8)
+                                    
+                                    if _G.Config.AutoStoreFruit then
+                                        StoreAllPhysicalFruits()
+                                    end
+                                    
+                                    -- Set 2h cooldown + 5s buffer
+                                    _nextGachaAttempt = now + 7205
+                                else
+                                    -- Retry shortly if couldn't reach
+                                    _nextGachaAttempt = now + 60
+                                end
+                            end
+                        end)
+                        _isSpinningFruit = false
+                    else
+                        -- Low level or insufficient Beli, check back in 2 minutes
+                        _nextGachaAttempt = now + 120
+                    end
+                end
             end
         end
     end)
@@ -2587,24 +2812,9 @@ local function StartDevilFruitLoops()
     task.spawn(function()
         task.wait(math.random(22, 42) / 10)
         while true do
-            task.wait(1.5 + math.random() * 0.5)
+            task.wait(2.0 + math.random() * 0.5)
             if _G.Config.AutoStoreFruit then
-                local cf = CommF()
-                if cf then
-                    pcall(function()
-                        local bp = LocalPlayer:FindFirstChild("Backpack")
-                        local char = GetCharacter()
-                        for _, container in ipairs({bp, char}) do
-                            if container then
-                                for _, tool in ipairs(container:GetChildren()) do
-                                    if tool:IsA("Tool") and (tool.ToolTip == "Blox Fruit" or string.find(tool.Name, "Fruit")) then
-                                        cf:InvokeServer("StoreFruit", tool:GetAttribute("OriginalName") or tool.Name, tool)
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
+                StoreAllPhysicalFruits()
             end
         end
     end)
@@ -2613,13 +2823,16 @@ local function StartDevilFruitLoops()
     task.spawn(function()
         task.wait(math.random(25, 45) / 10)
         while true do
-            task.wait(1 + math.random() * 0.3)
-            if _G.Config.AutoGrabFruits then
+            task.wait(1.5 + math.random() * 0.3)
+            if _G.Config.AutoGrabFruits and not _isSpinningFruit then
                 pcall(function()
                     for _, obj in ipairs(Workspace:GetChildren()) do
                         if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or obj.ToolTip == "Blox Fruit") and obj:FindFirstChild("Handle") then
-                            TweenTo(obj.Handle.CFrame)
-                            task.wait(0.5)
+                            TweenTo(obj.Handle.CFrame * CFrame.new(0, 1.5, 0), "Dropped Fruit (" .. obj.Name .. ")")
+                            task.wait(0.8)
+                            if _G.Config.AutoStoreFruit then
+                                StoreAllPhysicalFruits()
+                            end
                         end
                     end
                 end)
@@ -2627,6 +2840,7 @@ local function StartDevilFruitLoops()
         end
     end)
 end
+
 
 --============================== FULL VISUALS & ESP SUITE ==============================
 local ESPFolder = {}
@@ -2729,40 +2943,56 @@ local function UpdateFruitESP()
     end
 end
 
--- 3. Chest ESP & Auto Chest Collection
+-- 3. Chest ESP & Auto Chest Collection (Active Spawns Only)
+local _collectedChests = {}
+
 local function GetSpawnedChests()
     local chests = {}
     local seen = {}
-    local function Check(c)
-        if not c or seen[c] then return end
-        if c:IsA("Model") or c:IsA("BasePart") then
-            local n = c.Name:lower()
-            if n:find("chest") or c:FindFirstChild("TouchInterest") or c:FindFirstChildWhichIsA("TouchTransmitter", true) then
-                seen[c] = true
-                table.insert(chests, c)
+    local now = tick()
+    
+    local function CheckPart(part)
+        if not part or seen[part] or not part:IsA("BasePart") then return end
+        if part.Transparency >= 0.95 then return end -- Skip despawned/collected chests!
+        
+        local n = part.Name:lower()
+        local parentName = part.Parent and part.Parent.Name:lower() or ""
+        local isChest = n:find("chest") or parentName:find("chest")
+        if not isChest then return end
+        
+        -- Check blacklist
+        if _collectedChests[part] and now < _collectedChests[part] then return end
+        if part.Parent and _collectedChests[part.Parent] and now < _collectedChests[part.Parent] then return end
+        
+        seen[part] = true
+        table.insert(chests, part)
+    end
+    
+    local function Scan(container)
+        if not container then return end
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("BasePart") then
+                CheckPart(obj)
+            elseif obj:IsA("Model") then
+                local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                if p then CheckPart(p) end
+                for _, sub in ipairs(obj:GetChildren()) do
+                    if sub:IsA("BasePart") then CheckPart(sub) end
+                end
             end
         end
     end
-    for _, c in ipairs(Workspace:GetChildren()) do Check(c) end
-    local chestsFolder = Workspace:FindFirstChild("Chests") or Workspace:FindFirstChild("ChestModels")
-    if chestsFolder then for _, c in ipairs(chestsFolder:GetChildren()) do Check(c) end end
+    
+    Scan(Workspace:FindFirstChild("Chests"))
+    Scan(Workspace:FindFirstChild("ChestModels"))
     local map = Workspace:FindFirstChild("Map")
     if map then
         for _, island in ipairs(map:GetChildren()) do
-            Check(island:FindFirstChild("Chests"))
-            for _, sub in ipairs(island:GetChildren()) do Check(sub) end
+            Scan(island:FindFirstChild("Chests"))
+            Scan(island)
         end
     end
-    local worldOrigin = Workspace:FindFirstChild("_WorldOrigin")
-    if worldOrigin then
-        local locs = worldOrigin:FindFirstChild("Locations")
-        if locs then
-            for _, loc in ipairs(locs:GetChildren()) do
-                Check(loc:FindFirstChild("Chests"))
-                for _, sub in ipairs(loc:GetChildren()) do Check(sub) end
-            end
-        end
-    end
+    Scan(Workspace)
     return chests
 end
 
@@ -2904,36 +3134,135 @@ local function UpdateSeaEventESP()
     end
 end
 
+local ChestIslandCircuits = {
+    [1] = {
+        CFrame.new(1059.37, 16.51, 1546.99),  -- Pirate Starter
+        CFrame.new(-655.82, 15.0, 1588.65),   -- Middle Town
+        CFrame.new(-1612.33, 36.85, 149.13),  -- Jungle
+        CFrame.new(-1181.39, 15.0, 3843.43),  -- Pirate Village
+        CFrame.new(1094.11, 15.0, 4192.89),   -- Desert
+        CFrame.new(1384.81, 87.27, -1298.47), -- Snow Island
+        CFrame.new(-5035.79, 28.65, 4324.96), -- Marineford
+        CFrame.new(4875.33, 15.0, 735.45),    -- Prison
+        CFrame.new(-1427.62, 15.0, -2792.77), -- Colosseum
+        CFrame.new(-5247.72, 15.0, 8504.68),  -- Magma Village
+        CFrame.new(5127.13, 59.50, 4105.45)   -- Fountain City
+    },
+    [2] = {
+        CFrame.new(-380.47, 77.22, 255.82),
+        CFrame.new(878.01, 121.98, 1235.35),
+        CFrame.new(-2448.53, 73.02, -3210.63),
+        CFrame.new(-5418.89, 48.52, -774.75),
+        CFrame.new(608.24, 401.52, -5372.46),
+        CFrame.new(-6026.96, 15.96, -5071.29),
+        CFrame.new(5422.31, 28.25, -6767.13),
+        CFrame.new(-3054.44, 237.15, -10142.82)
+    },
+    [3] = {
+        CFrame.new(-290.74, 15.0, 5343.55),
+        CFrame.new(5749.73, 610.42, -267.78),
+        CFrame.new(2681.27, 1682.80, -7190.99),
+        CFrame.new(-12463.87, 374.91, -7523.77),
+        CFrame.new(-5085.24, 314.52, -3156.26),
+        CFrame.new(-9516.99, 172.01, 6078.47),
+        CFrame.new(-2100.12, 70.12, -12150.34),
+        CFrame.new(-16106.33, 15.0, 440.38)
+    }
+}
+
+local _chestCircuitIndex = 1
+
 local function StartChestFarmLoop()
     task.spawn(function()
-        task.wait(2)
+        task.wait(1.5)
+        local targetChest = nil
+        local targetStartTime = 0
+        
         while true do
-            task.wait(0.3)
+            task.wait(0.12)
             if _G.Config.AutoChestFarm then
                 pcall(function()
-                    local chests = GetSpawnedChests()
                     local root = GetRoot()
-                    if root and #chests > 0 then
-                        local closest = nil
-                        local minDist = math.huge
-                        for _, c in ipairs(chests) do
-                            local part = c:IsA("BasePart") and c or c:FindFirstChildWhichIsA("BasePart")
-                            if part then
-                                local d = (part.Position - root.Position).Magnitude
+                    if not root then return end
+                    EnableNoclip()
+                    
+                    local now = tick()
+                    
+                    -- Check if current target expired, collected, or timed out (stuck prevention)
+                    if targetChest then
+                        local isCollected = (not targetChest.Parent) or targetChest.Transparency >= 0.95
+                        local isTimedOut = (now - targetStartTime) > 6.0
+                        if isCollected or isTimedOut then
+                            _collectedChests[targetChest] = now + (isCollected and 90 or 45)
+                            targetChest = nil
+                            StopTween()
+                        end
+                    end
+                    
+                    -- Find next closest active chest
+                    if not targetChest then
+                        local chests = GetSpawnedChests()
+                        if #chests > 0 then
+                            local closest = nil
+                            local minDist = math.huge
+                            for _, c in ipairs(chests) do
+                                local d = (c.Position - root.Position).Magnitude
                                 if d < minDist then
                                     minDist = d
-                                    closest = part
+                                    closest = c
+                                end
+                            end
+                            if closest then
+                                targetChest = closest
+                                targetStartTime = now
+                                TweenTo(closest.CFrame * CFrame.new(0, 1.5, 0), "Chest (" .. closest.Name .. ")", false)
+                            end
+                        else
+                            -- No active chests on current island: patrol to next island in circuit
+                            local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[1]
+                            if circuit and #circuit > 0 then
+                                local nextIslandPos = circuit[_chestCircuitIndex] * CFrame.new(0, 25, 0)
+                                local dist = (nextIslandPos.Position - root.Position).Magnitude
+                                if dist > 35 then
+                                    TweenTo(nextIslandPos, "Chest Island Patrol")
+                                else
+                                    -- Arrived at island, give 1.5s for streaming to load
+                                    task.wait(1.5)
+                                    _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
+                                    StopTween()
                                 end
                             end
                         end
-                        if closest then
-                            TweenTo(closest.CFrame * CFrame.new(0, 1, 0))
-                            local prompt = closest:FindFirstChildWhichIsA("ProximityPrompt", true) or (closest.Parent and closest.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
-                            if prompt then pcall(function() fireproximityprompt(prompt) end) end
-                            task.wait(0.2)
+                    end
+                    
+                    -- If we are at or near the target chest, collect it
+                    if targetChest and targetChest.Parent then
+                        local dist = (targetChest.Position - root.Position).Magnitude
+                        if dist <= 9 then
+                            -- Physical touch trigger
+                            if firetouchinterest then
+                                firetouchinterest(root, targetChest, 0)
+                                task.wait(0.04)
+                                firetouchinterest(root, targetChest, 1)
+                            end
+                            -- Proximity prompt trigger fallback
+                            local prompt = targetChest:FindFirstChildWhichIsA("ProximityPrompt", true) or (targetChest.Parent and targetChest.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
+                            if prompt and fireproximityprompt then
+                                pcall(function() fireproximityprompt(prompt) end)
+                            end
+                            
+                            task.wait(0.12)
+                            _collectedChests[targetChest] = now + 90
+                            targetChest = nil
+                            StopTween()
                         end
                     end
                 end)
+            else
+                if targetChest then
+                    targetChest = nil
+                    ClearHover()
+                end
             end
         end
     end)
@@ -4965,6 +5294,12 @@ local function CreateUI()
     
     -- ==================== 4. DEVIL FRUIT ====================
     FruitTab:AddSection("Fruit Actions")
+    FruitTab:AddButton("Spin Random Fruit Now (1-Click)", function()
+        SpinRandomFruitNow()
+    end)
+    FruitTab:AddButton("Store All Fruits to Inventory", function()
+        StoreAllPhysicalFruits()
+    end)
     FruitTab:AddToggle("Auto Random Fruit (Gacha Cousin)", false, function(v) _G.Config.AutoRandomFruit = v end)
     FruitTab:AddToggle("Auto Store Fruits in Inventory", false, function(v) _G.Config.AutoStoreFruit = v end)
     FruitTab:AddToggle("Auto Grab Dropped Fruits (Tween)", false, function(v) _G.Config.AutoGrabFruits = v; if not v then ClearHover() end end)
