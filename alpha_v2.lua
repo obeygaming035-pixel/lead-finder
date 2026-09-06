@@ -174,7 +174,7 @@ AutoSelectPirates()
 --============================== CONFIGURATION ==============================
 _G.Config = {
     -- Farming
-    AutoFarmLevel = false,
+    AutoFarmLevel = true,
     AutoDoubleQuest = false,
     FarmSelectedMob = false,
     FarmSelectedBoss = false,
@@ -190,7 +190,7 @@ _G.Config = {
     MobFarmDistance = 14,
     BossFarmDistance = 20,
     FarmDistance = 14,
-    TweenSpeed = 240,
+    TweenSpeed = 215,
     
     -- Teleport & Movement Engine
     BypassTeleport = true,
@@ -268,8 +268,8 @@ _G.Config = {
     Fullbright = false,
     
     -- Stats
-    AutoStats = false,
-    StatPoints = 1,
+    AutoStats = true,
+    StatPoints = 5,
     Stats = {
         Melee = true,
         Defense = true,
@@ -291,6 +291,30 @@ _G.UIInteracting = false
 -- Universal Flight, Travel & Physics State Variables (scoped across entire file)
 local CurrentTween = nil
 local FlightBodyVel = nil
+
+-- ==================== PERMANENT ANTI-DROWN SEA SHIELD ====================
+local _seaShieldActive = true
+task.spawn(function()
+    local RS = game:GetService("RunService")
+    RS.Heartbeat:Connect(function()
+        if not _seaShieldActive then return end
+        local r = GetRoot()
+        local h = GetHumanoid()
+        if r and r.Parent and h and h.Health > 0 then
+            -- Sea 1 ocean water surface is strictly at Y = 0.1.
+            local isSwimming = (h:GetState() == Enum.HumanoidStateType.Swimming) or (h.FloorMaterial == Enum.Material.Water)
+            local isInWaterZone = (r.Position.Y < 1.0 and not IsTravelingSky)
+            if isSwimming or isInWaterZone then
+                r.CFrame = CFrame.new(r.Position.X, 35, r.Position.Z)
+                r.AssemblyLinearVelocity = Vector3.zero
+                r.AssemblyAngularVelocity = Vector3.zero
+                local bv = GetOrCreateBodyVelocity(r)
+                bv.Velocity = Vector3.zero
+            end
+        end
+    end)
+end)
+
 local CurrentTargetPos = nil
 local IsTravelingSky = false
 local NoclipConn = nil
@@ -496,13 +520,14 @@ local function EquipWeapon(weaponType)
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return nil end
     
-    -- 1. Check currently equipped tool
+    -- 1. Check currently equipped tool (strictly reject dummy 'Tool')
     local currentTool = char:FindFirstChildOfClass("Tool")
     if currentTool then
-        if IsWeaponType(currentTool, weaponType) then
+        if currentTool.Name:lower() ~= "tool" and currentTool.Name ~= "" and IsWeaponType(currentTool, weaponType) then
             return currentTool
         else
             pcall(function() humanoid:UnequipTools() end)
+            task.wait(0.08)
         end
     end
     
@@ -1441,11 +1466,15 @@ local function TweenTo(targetCFrame, destName)
 
     EnableNoclip()
 
-    -- Generate sky waypoints for ocean/terrain collision avoidance
+    -- Generate streamlined sky waypoints (Zero-Rubberband Empty-Sky Corridor)
     local waypoints = {}
     if distance > 220 then
-        local safeY = math.max(root.Position.Y, targetPos.Y, 55) + 20
-        table.insert(waypoints, Vector3.new(root.Position.X, safeY, root.Position.Z))
+        local safeY = 220 -- Sky level is 100% empty: zero terrain, zero waves, zero chunk collision
+        if distance <= 450 then
+            safeY = math.max(root.Position.Y, targetPos.Y, 55) + 20
+        end
+        local pStart = root.Position
+        table.insert(waypoints, Vector3.new(pStart.X, safeY, pStart.Z))
         table.insert(waypoints, Vector3.new(targetPos.X, safeY, targetPos.Z))
     end
     table.insert(waypoints, targetPos)
@@ -1479,6 +1508,19 @@ local function TweenTo(targetCFrame, destName)
 
         local r = GetRoot()
         if r and r.Parent then
+            -- Temporary landing platform guarantees zero void/water fall-through
+            pcall(function()
+                local pad = Instance.new("Part")
+                pad.Name = "AlphaLandingPlatform"
+                pad.Size = Vector3.new(40, 2, 40)
+                pad.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
+                pad.Anchored = true
+                pad.CanCollide = true
+                pad.Transparency = 1
+                pad.Parent = Workspace
+                task.delay(3.0, function() pcall(function() pad:Destroy() end) end)
+            end)
+            
             r.CFrame = targetCFrame
             r.AssemblyLinearVelocity = Vector3.zero
             r.AssemblyAngularVelocity = Vector3.zero
@@ -1514,7 +1556,8 @@ local function TweenTo(targetCFrame, destName)
                 end
 
                 local curDist = (wp - r.Position).Magnitude
-                if curDist <= 14 then break end
+                local wpThresh = (wp == targetPos) and 4 or 28
+                if curDist <= wpThresh then break end
 
                 local dir = (wp - r.Position).Unit
                 bv.Velocity = dir * speed
@@ -1712,7 +1755,7 @@ local function FastAttack()
         local regHit = ResolveCombatRemote("RegisterHit")
         if regAttack and regHit then
             pcall(function()
-                regAttack:FireServer(0)
+                regAttack:FireServer(0.2)
                 local hitList = {}
                 local primaryPart = nil
                 
@@ -1731,6 +1774,14 @@ local function FastAttack()
         end
         
         pcall(function() tool:Activate() end)
+        local vim = game:GetService("VirtualInputManager")
+        if vim then
+            pcall(function()
+                vim:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.015)
+                vim:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end)
+        end
     end
 end
 
@@ -1908,29 +1959,29 @@ local QuestsDB = {
     -- Sea 1 (First Sea: Lv. 1 - 699)
     {Sea = 1, Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", Pos = CFrame.new(1059.37, 16.51, 1546.99)},
     {Sea = 1, Min = 10, Max = 14, Quest = "JungleQuest", Level = 1, Mob = "Monkey", Pos = CFrame.new(-1612.33, 36.85, 149.13)},
-    {Sea = 1, Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", Pos = CFrame.new(-1240.23, 6.27, -495.22)},
-    {Sea = 1, Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", Pos = CFrame.new(-1181.39, 4.75, 3843.43)},
-    {Sea = 1, Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
-    {Sea = 1, Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", Pos = CFrame.new(1094.11, 6.44, 4192.89)},
-    {Sea = 1, Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", Pos = CFrame.new(1568.17, 6.44, 4373.23)},
+    {Sea = 1, Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", Pos = CFrame.new(-1240.23, 16.27, -495.22)},
+    {Sea = 1, Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", Pos = CFrame.new(-1180.0, 16.0, 3980.0), NpcPos = CFrame.new(-1152.0, 16.8, 3863.0)},
+    {Sea = 1, Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", Pos = CFrame.new(-1200.0, 26.0, 4370.0), NpcPos = CFrame.new(-1152.0, 16.8, 3863.0)},
+    {Sea = 1, Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", Pos = CFrame.new(1094.11, 16.50, 4192.89)},
+    {Sea = 1, Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", Pos = CFrame.new(1568.17, 16.50, 4373.23)},
     {Sea = 1, Min = 90, Max = 99, Quest = "SnowQuest", Level = 1, Mob = "Snow Bandit", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
     {Sea = 1, Min = 100, Max = 119, Quest = "SnowQuest", Level = 2, Mob = "Snowman", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
-    {Sea = 1, Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", Pos = CFrame.new(-5035.79, 28.65, 4324.96)},
+    {Sea = 1, Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", Pos = CFrame.new(-2793.0, 79.0, 5400.0), NpcPos = CFrame.new(-2793.0, 79.0, 5400.0)},
     {Sea = 1, Min = 150, Max = 174, Quest = "SkyQuest", Level = 1, Mob = "Sky Bandit", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
     {Sea = 1, Min = 175, Max = 189, Quest = "SkyQuest", Level = 2, Mob = "Dark Master", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
-    {Sea = 1, Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
-    {Sea = 1, Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", Pos = CFrame.new(4875.33, 5.65, 735.45)},
-    {Sea = 1, Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", Pos = CFrame.new(-1588.34, 7.39, -2982.52)},
-    {Sea = 1, Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", Pos = CFrame.new(-1427.62, 7.28, -2792.77)},
-    {Sea = 1, Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", Pos = CFrame.new(-5389.72, 8.57, 8533.84)},
-    {Sea = 1, Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
+    {Sea = 1, Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", Pos = CFrame.new(4875.33, 16.50, 735.45)},
+    {Sea = 1, Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", Pos = CFrame.new(4875.33, 16.50, 735.45)},
+    {Sea = 1, Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", Pos = CFrame.new(-1588.34, 16.50, -2982.52)},
+    {Sea = 1, Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", Pos = CFrame.new(-1427.62, 16.50, -2792.77)},
+    {Sea = 1, Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", Pos = CFrame.new(-61149.0, 6882.0, 8989.0), NpcPos = CFrame.new(-61149.0, 6882.0, 8989.0)},
+    {Sea = 1, Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", Pos = CFrame.new(-61149.0, 6882.0, 8989.0), NpcPos = CFrame.new(-61149.0, 6882.0, 8989.0)},
     {Sea = 1, Min = 375, Max = 399, Quest = "FishmanQuest", Level = 1, Mob = "Fishman Warrior", Pos = CFrame.new(61122.65, 18.50, 1569.40)},
     {Sea = 1, Min = 400, Max = 449, Quest = "FishmanQuest", Level = 2, Mob = "Fishman Commando", Pos = CFrame.new(61845.89, 18.50, 1569.40)},
     {Sea = 1, Min = 450, Max = 474, Quest = "SkyExp1Quest", Level = 1, Mob = "God's Guard", Pos = CFrame.new(-4721.89, 843.87, -1949.97)},
     {Sea = 1, Min = 475, Max = 524, Quest = "SkyExp1Quest", Level = 2, Mob = "Shanda", Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
     {Sea = 1, Min = 525, Max = 549, Quest = "SkyExp2Quest", Level = 1, Mob = "Royal Squad", Pos = CFrame.new(-7906.82, 5635.96, -1411.99)},
     {Sea = 1, Min = 550, Max = 624, Quest = "SkyExp2Quest", Level = 2, Mob = "Royal Soldier", Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
-    {Sea = 1, Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", Pos = CFrame.new(5589.90, 4.41, 3995.78)},
+    {Sea = 1, Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", Pos = CFrame.new(5589.90, 16.50, 3995.78)},
     {Sea = 1, Min = 650, Max = 699, Quest = "FountainQuest", Level = 2, Mob = "Galley Captain", Pos = CFrame.new(5649.03, 38.51, 4937.42)},
 
     -- Sea 2 (Second Sea: Lv. 700 - 1499)
@@ -2010,28 +2061,69 @@ local function GetCurrentQuest()
     return best or QuestsDB[1]
 end
 
--- Helper to resolve true Quest NPC position (Level 1 entry always holds NPC coords)
+-- Helper to resolve true Quest NPC position (NpcPos or Level 1 entry)
 local function GetQuestNpcCFrame(questInfo)
     if not questInfo then return nil end
+    if questInfo.NpcPos then return questInfo.NpcPos end
     for _, q in ipairs(QuestsDB) do
         if q.Quest == questInfo.Quest and q.Level == 1 then
-            return q.Pos
+            return q.NpcPos or q.Pos
         end
     end
-    return questInfo.Pos
+    return questInfo.NpcPos or questInfo.Pos
 end
 
--- Strictly and authoritatively check if a quest is active
-local function HasQuest()
+-- Inspect active quest target name from GUI or Data
+local function GetActiveQuestTarget()
+    local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui then
+        local tq = pGui:FindFirstChild("TrackedQuestFrame")
+        if tq and tq:FindFirstChild("Frame") and tq.Frame.Visible then
+            local desc = tq.Frame:FindFirstChild("description")
+            if desc and desc:IsA("TextLabel") and desc.Text ~= "" then
+                return desc.Text
+            end
+            local hdr = tq.Frame:FindFirstChild("header")
+            if hdr then
+                local txt = hdr:FindFirstChild("textLabel")
+                if txt and txt:IsA("TextLabel") and txt.Text ~= "" then
+                    return txt.Text
+                end
+            end
+        end
+        local main = pGui:FindFirstChild("Main")
+        if main then
+            local q = main:FindFirstChild("Quest")
+            if q and q.Visible then
+                local container = q:FindFirstChild("Container")
+                local qTitle = container and container:FindFirstChild("QuestTitle")
+                local title = qTitle and qTitle:FindFirstChild("Title")
+                if title and title.Text ~= "" and not title.Text:find("QUEST") then
+                    return title.Text
+                end
+            end
+        end
+    end
     local data = LocalPlayer:FindFirstChild("Data")
     if data then
         local qVal = data:FindFirstChild("Quest")
         if qVal and qVal:IsA("StringValue") and qVal.Value ~= "" then
-            return true
+            return qVal.Value
         end
     end
+    return ""
+end
+
+-- Strictly and authoritatively check if a quest is active
+local function HasQuest()
     local pGui = LocalPlayer:FindFirstChild("PlayerGui")
     if pGui then
+        -- 1. Modern Blox Fruits TrackedQuestFrame
+        local tq = pGui:FindFirstChild("TrackedQuestFrame")
+        if tq and tq:FindFirstChild("Frame") and tq.Frame.Visible then
+            return true
+        end
+        -- 2. Classic / Main Quest Container (Strictly require q.Visible)
         local main = pGui:FindFirstChild("Main")
         if main then
             local q = main:FindFirstChild("Quest")
@@ -2050,11 +2142,11 @@ local BossesDB = {
     ["The Saw"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-682.12, 15.23, 1582.45)},
     ["Yeti"] = {Sea = 1, Quest = "SnowQuest", Level = 3, Pos = CFrame.new(1185.34, 105.12, -1518.23)},
     ["Mob Leader"] = {Sea = 1, Quest = "DesertQuest", Level = 3, Pos = CFrame.new(1568.17, 6.44, 4373.23)},
-    ["Vice Admiral"] = {Sea = 1, Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-4807.23, 20.65, 4360.12)},
+    ["Vice Admiral"] = {Sea = 1, Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-2793.0, 79.0, 5400.0)},
     ["Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 3, Pos = CFrame.new(5175.23, 5.65, 735.45)},
     ["Chief Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 4, Pos = CFrame.new(5175.23, 5.65, 735.45)},
     ["Swan"] = {Sea = 1, Quest = "PrisonerQuest", Level = 5, Pos = CFrame.new(5230.12, 5.65, 760.34)},
-    ["Magma Admiral"] = {Sea = 1, Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-5815.17, 83.99, 8820.32)},
+    ["Magma Admiral"] = {Sea = 1, Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-61149.0, 6882.0, 8989.0)},
     ["Fishman Lord"] = {Sea = 1, Quest = "FishmanQuest", Level = 3, Pos = CFrame.new(61350.23, 18.50, 1569.40)},
     ["Wyper"] = {Sea = 1, Quest = "SkyExp1Quest", Level = 3, Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
     ["Thunder God"] = {Sea = 1, Quest = "SkyExp2Quest", Level = 3, Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
@@ -2216,6 +2308,20 @@ local function StartAutoFarmLevel()
                     if not hum or hum.Health <= 0 or not root then return end
                     
                     local questInfo = GetCurrentQuest()
+                    local activeTarget = GetActiveQuestTarget()
+                    if HasQuest() and activeTarget ~= "" then
+                        local mobLower = questInfo.Mob:lower()
+                        local actLower = activeTarget:lower()
+                        if not actLower:find(mobLower) and not mobLower:find(actLower:gsub("s$", "")) then
+                            LogBridgeEvent("QUEST", "Quest mismatch detected (active: " .. activeTarget .. " vs target: " .. questInfo.Mob .. "). Abandoning old quest...")
+                            local cf = CommF()
+                            if cf then
+                                cf:InvokeServer("AbandonQuest")
+                                task.wait(0.5)
+                            end
+                        end
+                    end
+                    
                     if not HasQuest() then
                         local npcCF = GetQuestNpcCFrame(questInfo)
                         local distToNPC = (npcCF.Position - root.Position).Magnitude
