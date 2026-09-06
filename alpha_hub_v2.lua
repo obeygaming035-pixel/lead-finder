@@ -648,6 +648,7 @@ local function HoverLock(targetCFrame)
     root.CFrame = targetCFrame
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    IsTravelingSky = false
 end
 
 local function StopTween()
@@ -1981,32 +1982,32 @@ end
 --============================== MASTER QUEST DATABASE ==============================
 local QuestsDB = {
     -- Sea 1 (First Sea: Lv. 1 - 699)
-    {Sea = 1, Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", Pos = CFrame.new(1059.37, 16.51, 1546.99)},
-    {Sea = 1, Min = 10, Max = 14, Quest = "JungleQuest", Level = 1, Mob = "Monkey", Pos = CFrame.new(-1612.33, 36.85, 149.13)},
-    {Sea = 1, Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", Pos = CFrame.new(-1240.23, 16.27, -495.22)},
-    {Sea = 1, Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", Pos = CFrame.new(-1180.0, 16.0, 3980.0), NpcPos = CFrame.new(-1152.0, 16.8, 3863.0)},
-    {Sea = 1, Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", Pos = CFrame.new(-1200.0, 26.0, 4370.0), NpcPos = CFrame.new(-1152.0, 16.8, 3863.0)},
-    {Sea = 1, Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", Pos = CFrame.new(1094.11, 16.50, 4192.89)},
-    {Sea = 1, Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", Pos = CFrame.new(1568.17, 16.50, 4373.23)},
-    {Sea = 1, Min = 90, Max = 99, Quest = "SnowQuest", Level = 1, Mob = "Snow Bandit", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
-    {Sea = 1, Min = 100, Max = 119, Quest = "SnowQuest", Level = 2, Mob = "Snowman", Pos = CFrame.new(1384.81, 87.27, -1298.47)},
-    {Sea = 1, Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", Pos = CFrame.new(-2793.0, 79.0, 5400.0), NpcPos = CFrame.new(-2793.0, 79.0, 5400.0)},
-    {Sea = 1, Min = 150, Max = 174, Quest = "SkyQuest", Level = 1, Mob = "Sky Bandit", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
-    {Sea = 1, Min = 175, Max = 189, Quest = "SkyQuest", Level = 2, Mob = "Dark Master", Pos = CFrame.new(-4839.53, 717.67, -2619.44)},
-    {Sea = 1, Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", Pos = CFrame.new(4875.33, 16.50, 735.45)},
-    {Sea = 1, Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", Pos = CFrame.new(4875.33, 16.50, 735.45)},
-    {Sea = 1, Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", Pos = CFrame.new(-1588.34, 16.50, -2982.52)},
-    {Sea = 1, Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", Pos = CFrame.new(-1427.62, 16.50, -2792.77)},
-    {Sea = 1, Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", Pos = CFrame.new(-61149.0, 6882.0, 8989.0), NpcPos = CFrame.new(-61149.0, 6882.0, 8989.0)},
-    {Sea = 1, Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", Pos = CFrame.new(-61149.0, 6882.0, 8989.0), NpcPos = CFrame.new(-61149.0, 6882.0, 8989.0)},
-    {Sea = 1, Min = 375, Max = 399, Quest = "FishmanQuest", Level = 1, Mob = "Fishman Warrior", Pos = CFrame.new(61122.65, 18.50, 1569.40)},
-    {Sea = 1, Min = 400, Max = 449, Quest = "FishmanQuest", Level = 2, Mob = "Fishman Commando", Pos = CFrame.new(61845.89, 18.50, 1569.40)},
-    {Sea = 1, Min = 450, Max = 474, Quest = "SkyExp1Quest", Level = 1, Mob = "God's Guard", Pos = CFrame.new(-4721.89, 843.87, -1949.97)},
-    {Sea = 1, Min = 475, Max = 524, Quest = "SkyExp1Quest", Level = 2, Mob = "Shanda", Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
-    {Sea = 1, Min = 525, Max = 549, Quest = "SkyExp2Quest", Level = 1, Mob = "Royal Squad", Pos = CFrame.new(-7906.82, 5635.96, -1411.99)},
-    {Sea = 1, Min = 550, Max = 624, Quest = "SkyExp2Quest", Level = 2, Mob = "Royal Soldier", Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
-    {Sea = 1, Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", Pos = CFrame.new(5589.90, 16.50, 3995.78)},
-    {Sea = 1, Min = 650, Max = 699, Quest = "FountainQuest", Level = 2, Mob = "Galley Captain", Pos = CFrame.new(5649.03, 38.51, 4937.42)},
+    {Sea = 1, Min = 1, Max = 9, Quest = "BanditQuest1", Level = 1, Mob = "Bandit", NpcPos = CFrame.new(1059.37, 16.51, 1546.99), Pos = CFrame.new(1203.0, 12.0, 1563.0), MobPos = CFrame.new(1203.0, 12.0, 1563.0)},
+    {Sea = 1, Min = 10, Max = 14, Quest = "JungleQuest", Level = 1, Mob = "Monkey", NpcPos = CFrame.new(-1612.33, 36.85, 149.13), Pos = CFrame.new(-1611.0, 29.0, 399.0), MobPos = CFrame.new(-1611.0, 29.0, 399.0)},
+    {Sea = 1, Min = 15, Max = 29, Quest = "JungleQuest", Level = 2, Mob = "Gorilla", NpcPos = CFrame.new(-1612.33, 36.85, 149.13), Pos = CFrame.new(-1240.0, 16.0, -495.0), MobPos = CFrame.new(-1240.0, 16.0, -495.0)},
+    {Sea = 1, Min = 30, Max = 39, Quest = "BuggyQuest1", Level = 1, Mob = "Pirate", NpcPos = CFrame.new(-1152.0, 16.8, 3863.0), Pos = CFrame.new(-1286.0, 18.0, 3886.0), MobPos = CFrame.new(-1286.0, 18.0, 3886.0)},
+    {Sea = 1, Min = 40, Max = 59, Quest = "BuggyQuest1", Level = 2, Mob = "Brute", NpcPos = CFrame.new(-1152.0, 16.8, 3863.0), Pos = CFrame.new(-943.0, 29.0, 4387.0), MobPos = CFrame.new(-943.0, 29.0, 4387.0)},
+    {Sea = 1, Min = 60, Max = 74, Quest = "DesertQuest", Level = 1, Mob = "Desert Bandit", NpcPos = CFrame.new(931.38, 4.68, 4198.21), Pos = CFrame.new(931.0, 7.5, 4510.0), MobPos = CFrame.new(931.0, 7.5, 4510.0)},
+    {Sea = 1, Min = 75, Max = 89, Quest = "DesertQuest", Level = 2, Mob = "Desert Officer", NpcPos = CFrame.new(931.38, 4.68, 4198.21), Pos = CFrame.new(1572.0, 14.0, 4158.0), MobPos = CFrame.new(1572.0, 14.0, 4158.0)},
+    {Sea = 1, Min = 90, Max = 99, Quest = "SnowQuest", Level = 1, Mob = "Snow Bandit", NpcPos = CFrame.new(1384.81, 87.27, -1298.47), Pos = CFrame.new(1364.0, 77.0, -1430.0), MobPos = CFrame.new(1364.0, 77.0, -1430.0)},
+    {Sea = 1, Min = 100, Max = 119, Quest = "SnowQuest", Level = 2, Mob = "Snowman", NpcPos = CFrame.new(1384.81, 87.27, -1298.47), Pos = CFrame.new(1121.0, 98.0, -1670.0), MobPos = CFrame.new(1121.0, 98.0, -1670.0)},
+    {Sea = 1, Min = 120, Max = 149, Quest = "MarineQuest2", Level = 1, Mob = "Chief Petty Officer", NpcPos = CFrame.new(-5036.0, 28.0, 4324.0), Pos = CFrame.new(-4837.0, 16.0, 4465.0), MobPos = CFrame.new(-4837.0, 16.0, 4465.0)},
+    {Sea = 1, Min = 150, Max = 174, Quest = "SkyQuest", Level = 1, Mob = "Sky Bandit", NpcPos = CFrame.new(-4839.53, 717.67, -2619.44), Pos = CFrame.new(-5015.0, 280.0, -973.0), MobPos = CFrame.new(-5015.0, 280.0, -973.0)},
+    {Sea = 1, Min = 175, Max = 189, Quest = "SkyQuest", Level = 2, Mob = "Dark Master", NpcPos = CFrame.new(-4839.53, 717.67, -2619.44), Pos = CFrame.new(-5270.0, 504.0, -462.0), MobPos = CFrame.new(-5270.0, 504.0, -462.0)},
+    {Sea = 1, Min = 190, Max = 209, Quest = "PrisonerQuest", Level = 1, Mob = "Prisoner", NpcPos = CFrame.new(4875.33, 16.50, 735.45), Pos = CFrame.new(5057.0, 7.0, 567.0), MobPos = CFrame.new(5057.0, 7.0, 567.0)},
+    {Sea = 1, Min = 210, Max = 249, Quest = "PrisonerQuest", Level = 2, Mob = "Dangerous Prisoner", NpcPos = CFrame.new(4875.33, 16.50, 735.45), Pos = CFrame.new(5393.0, 16.0, 795.0), MobPos = CFrame.new(5393.0, 16.0, 795.0)},
+    {Sea = 1, Min = 250, Max = 274, Quest = "ColosseumQuest", Level = 1, Mob = "Toga Warrior", NpcPos = CFrame.new(-1588.34, 16.50, -2982.52), Pos = CFrame.new(-1695.0, 9.0, -2634.0), MobPos = CFrame.new(-1695.0, 9.0, -2634.0)},
+    {Sea = 1, Min = 275, Max = 299, Quest = "ColosseumQuest", Level = 2, Mob = "Gladiator", NpcPos = CFrame.new(-1588.34, 16.50, -2982.52), Pos = CFrame.new(-1162.0, 11.0, -3098.0), MobPos = CFrame.new(-1162.0, 11.0, -3098.0)},
+    {Sea = 1, Min = 300, Max = 324, Quest = "MagmaQuest", Level = 1, Mob = "Military Soldier", NpcPos = CFrame.new(-5315.0, 12.0, 8515.0), Pos = CFrame.new(-5338.0, 17.0, 8629.0), MobPos = CFrame.new(-5338.0, 17.0, 8629.0)},
+    {Sea = 1, Min = 325, Max = 374, Quest = "MagmaQuest", Level = 2, Mob = "Military Spy", NpcPos = CFrame.new(-5315.0, 12.0, 8515.0), Pos = CFrame.new(-5890.0, 76.0, 8723.0), MobPos = CFrame.new(-5890.0, 76.0, 8723.0)},
+    {Sea = 1, Min = 375, Max = 399, Quest = "FishmanQuest", Level = 1, Mob = "Fishman Warrior", NpcPos = CFrame.new(61122.65, 18.50, 1569.40), Pos = CFrame.new(60736.0, 23.0, 1396.0), MobPos = CFrame.new(60736.0, 23.0, 1396.0)},
+    {Sea = 1, Min = 400, Max = 449, Quest = "FishmanQuest", Level = 2, Mob = "Fishman Commando", NpcPos = CFrame.new(61122.65, 18.50, 1569.40), Pos = CFrame.new(61887.0, 24.0, 1232.0), MobPos = CFrame.new(61887.0, 24.0, 1232.0)},
+    {Sea = 1, Min = 450, Max = 474, Quest = "SkyExp1Quest", Level = 1, Mob = "God's Guard", NpcPos = CFrame.new(-4721.89, 843.87, -1949.97), Pos = CFrame.new(-4083.0, 1087.0, -415.0), MobPos = CFrame.new(-4083.0, 1087.0, -415.0)},
+    {Sea = 1, Min = 475, Max = 524, Quest = "SkyExp1Quest", Level = 2, Mob = "Shanda", NpcPos = CFrame.new(-7894.62, 5545.49, -380.41), Pos = CFrame.new(-5879.0, 5470.0, 1864.0), MobPos = CFrame.new(-5879.0, 5470.0, 1864.0)},
+    {Sea = 1, Min = 525, Max = 549, Quest = "SkyExp2Quest", Level = 1, Mob = "Royal Squad", NpcPos = CFrame.new(-7906.82, 5635.96, -1411.99), Pos = CFrame.new(-6707.0, 5551.0, 1155.0), MobPos = CFrame.new(-6707.0, 5551.0, 1155.0)},
+    {Sea = 1, Min = 550, Max = 624, Quest = "SkyExp2Quest", Level = 2, Mob = "Royal Soldier", NpcPos = CFrame.new(-7748.21, 5606.84, -1443.43), Pos = CFrame.new(-6939.0, 5541.0, 963.0), MobPos = CFrame.new(-6939.0, 5541.0, 963.0)},
+    {Sea = 1, Min = 625, Max = 649, Quest = "FountainQuest", Level = 1, Mob = "Galley Pirate", NpcPos = CFrame.new(5589.90, 16.50, 3995.78), Pos = CFrame.new(5327.0, 76.0, 4014.0), MobPos = CFrame.new(5327.0, 76.0, 4014.0)},
+    {Sea = 1, Min = 650, Max = 699, Quest = "FountainQuest", Level = 2, Mob = "Galley Captain", NpcPos = CFrame.new(5649.03, 38.51, 4937.42), Pos = CFrame.new(5899.0, 76.0, 4809.0), MobPos = CFrame.new(5899.0, 76.0, 4809.0)},
 
     -- Sea 2 (Second Sea: Lv. 700 - 1499)
     {Sea = 2, Min = 700, Max = 724, Quest = "Area1Quest", Level = 1, Mob = "Raider", Pos = CFrame.new(-429.54, 72.99, 1836.18)},
@@ -2085,9 +2086,35 @@ local function GetCurrentQuest()
     return best or QuestsDB[1]
 end
 
--- Helper to resolve true Quest NPC position (NpcPos or Level 1 entry)
+-- Helper to resolve true Quest NPC position (Dynamic live NPC detection or NpcPos)
 local function GetQuestNpcCFrame(questInfo)
     if not questInfo then return nil end
+    local npcs = Workspace:FindFirstChild("NPCs")
+    if npcs then
+        for _, npc in ipairs(npcs:GetChildren()) do
+            if npc:IsA("Model") and (npc:FindFirstChild("HumanoidRootPart") or npc:FindFirstChild("Head")) then
+                local bbg = npc:FindFirstChildWhichIsA("BillboardGui", true)
+                local hasQuestMark = bbg and bbg:FindFirstChild("Title") and bbg.Title.Text:find("QUEST")
+                if hasQuestMark then
+                    local nName = npc.Name:lower()
+                    local qName = (questInfo.Quest or ""):lower()
+                    if (qName:find("desert") and nName:find("desert"))
+                        or (qName:find("jungle") and (nName:find("adventurer") or nName:find("jungle")))
+                        or (qName:find("buggy") and (nName:find("pirate") or nName:find("buggy")))
+                        or (qName:find("snow") and (nName:find("snow") or nName:find("frost")))
+                        or (qName:find("marine") and nName:find("marine"))
+                        or (qName:find("sky") and nName:find("sky"))
+                        or (qName:find("prisoner") and (nName:find("jail") or nName:find("prisoner")))
+                        or (qName:find("colosseum") and nName:find("colosseum"))
+                        or (qName:find("magma") and nName:find("magma"))
+                        or (qName:find("fishman") and nName:find("fishman"))
+                        or (qName:find("fountain") and nName:find("fountain")) then
+                        return npc:GetPivot()
+                    end
+                end
+            end
+        end
+    end
     if questInfo.NpcPos then return questInfo.NpcPos end
     for _, q in ipairs(QuestsDB) do
         if q.Quest == questInfo.Quest and q.Level == 1 then
@@ -2161,21 +2188,21 @@ end
 --============================== MASTER BOSS DATABASE ==============================
 local BossesDB = {
     -- Sea 1 (First Sea)
-    ["The Gorilla King"] = {Sea = 1, Quest = "JungleQuest", Level = 3, Pos = CFrame.new(-1120.23, 6.27, -495.22)},
+    ["The Gorilla King"] = {Sea = 1, Quest = "JungleQuest", Level = 3, Pos = CFrame.new(-1194.0, 10.0, -550.0)},
     ["Bobby"] = {Sea = 1, Quest = "BuggyQuest1", Level = 3, Pos = CFrame.new(-1146.47, 77.22, 4476.81)},
     ["The Saw"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-682.12, 15.23, 1582.45)},
-    ["Yeti"] = {Sea = 1, Quest = "SnowQuest", Level = 3, Pos = CFrame.new(1185.34, 105.12, -1518.23)},
-    ["Mob Leader"] = {Sea = 1, Quest = "DesertQuest", Level = 3, Pos = CFrame.new(1568.17, 6.44, 4373.23)},
-    ["Vice Admiral"] = {Sea = 1, Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-2793.0, 79.0, 5400.0)},
-    ["Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 3, Pos = CFrame.new(5175.23, 5.65, 735.45)},
+    ["Yeti"] = {Sea = 1, Quest = "SnowQuest", Level = 3, Pos = CFrame.new(1181.0, 104.0, -1617.0)},
+    ["Mob Leader"] = {Sea = 1, Quest = "DesertQuest", Level = 3, Pos = CFrame.new(-2881.0, 6.0, 5430.0)},
+    ["Vice Admiral"] = {Sea = 1, Quest = "MarineQuest2", Level = 2, Pos = CFrame.new(-5011.0, 15.0, 4383.0)},
+    ["Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 3, Pos = CFrame.new(5623.0, 1.0, 733.0)},
     ["Chief Warden"] = {Sea = 1, Quest = "PrisonerQuest", Level = 4, Pos = CFrame.new(5175.23, 5.65, 735.45)},
     ["Swan"] = {Sea = 1, Quest = "PrisonerQuest", Level = 5, Pos = CFrame.new(5230.12, 5.65, 760.34)},
-    ["Magma Admiral"] = {Sea = 1, Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-61149.0, 6882.0, 8989.0)},
-    ["Fishman Lord"] = {Sea = 1, Quest = "FishmanQuest", Level = 3, Pos = CFrame.new(61350.23, 18.50, 1569.40)},
+    ["Magma Admiral"] = {Sea = 1, Quest = "MagmaQuest", Level = 3, Pos = CFrame.new(-5626.0, 55.0, 8623.0)},
+    ["Fishman Lord"] = {Sea = 1, Quest = "FishmanQuest", Level = 3, Pos = CFrame.new(61352.0, 67.0, 1029.0)},
     ["Wyper"] = {Sea = 1, Quest = "SkyExp1Quest", Level = 3, Pos = CFrame.new(-7894.62, 5545.49, -380.41)},
     ["Thunder God"] = {Sea = 1, Quest = "SkyExp2Quest", Level = 3, Pos = CFrame.new(-7748.21, 5606.84, -1443.43)},
-    ["Cyborg"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(61163.85, 18.49, 1569.25)},
-    ["Saber Expert"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-1460.12, 29.85, -30.45)},
+    ["Cyborg"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(6252.0, 9.0, 4941.0)},
+    ["Saber Expert"] = {Sea = 1, Quest = nil, Level = 1, Pos = CFrame.new(-1528.0, 34.0, -34.0)},
 
     -- Sea 2 (Second Sea)
     ["Diamond"] = {Sea = 2, Quest = "Area1Quest", Level = 3, Pos = CFrame.new(-1580.45, 198.12, -210.34)},
@@ -2264,10 +2291,78 @@ local GetActiveBossesList = GetSpawnedBossesList
 local function IsMobMatch(mobName, targetName)
     if not mobName or not targetName then return false end
     if mobName == targetName then return true end
-    local cleanMob = mobName:gsub("%s*%[Lv%.%s*%d+%]%s*$", "")
-    if cleanMob == targetName then return true end
-    if cleanMob:lower() == targetName:lower() then return true end
+    local mLower = mobName:lower()
+    local tLower = targetName:lower()
+    if mLower == tLower then return true end
+    
+    -- Strip bracketed tags e.g. [Lv. 70], [Boss]
+    local cleanMob = mLower:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    local cleanTarget = tLower:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    if cleanMob == cleanTarget then return true end
+    if cleanMob:find(cleanTarget, 1, true) or cleanTarget:find(cleanMob, 1, true) then
+        return true
+    end
     return false
+end
+
+local _knownMobPositions = {}
+local _mobSpawnPointsCache = {}
+local _mobSpawnPatrolIndex = 1
+local _lastMobPatrolStep = 0
+
+-- Dynamic query to Workspace._WorldOrigin.EnemySpawns (reads live game spawn points directly)
+local function GetAllMobSpawns(mobName)
+    if not mobName then return {} end
+    if _mobSpawnPointsCache[mobName] and #_mobSpawnPointsCache[mobName] > 0 then
+        return _mobSpawnPointsCache[mobName]
+    end
+    
+    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    local list = {}
+    if spawnsFolder then
+        for _, s in ipairs(spawnsFolder:GetChildren()) do
+            if IsMobMatch(s.Name, mobName) then
+                local cf = s:IsA("BasePart") and s.CFrame or (s:FindFirstChildWhichIsA("BasePart") and s:FindFirstChildWhichIsA("BasePart").CFrame)
+                if cf then
+                    table.insert(list, cf)
+                end
+            end
+        end
+    end
+    if #list > 0 then
+        _mobSpawnPointsCache[mobName] = list
+    end
+    return list
+end
+
+local function GetTrueMobSpawnCFrame(mobName, questInfo)
+    if not mobName then return nil end
+    
+    -- 1. Check live recorded position from recently active enemies
+    if _knownMobPositions[mobName] then
+        return _knownMobPositions[mobName]
+    end
+
+    -- 2. Query official Game Spawn Markers from Workspace._WorldOrigin.EnemySpawns
+    local spawns = GetAllMobSpawns(mobName)
+    if #spawns > 0 then
+        local now = tick()
+        -- If multiple spawn points exist, cycle between them every 2.5 seconds to wake up the whole camp!
+        if #spawns > 1 and (now - _lastMobPatrolStep) > 2.5 then
+            _mobSpawnPatrolIndex = (_mobSpawnPatrolIndex % #spawns) + 1
+            _lastMobPatrolStep = now
+        end
+        local selectedIdx = math.clamp(_mobSpawnPatrolIndex, 1, #spawns)
+        return spawns[selectedIdx]
+    end
+    
+    -- 3. Fallback to Quest Database MobPos / Pos
+    if questInfo and questInfo.MobPos then
+        return questInfo.MobPos
+    elseif questInfo and questInfo.Pos then
+        return questInfo.Pos
+    end
+    return nil
 end
 
 -- Find live enemy by name
@@ -2288,6 +2383,7 @@ local function FindEnemy(targetName)
             local hum = mob:FindFirstChildOfClass("Humanoid")
             local mRoot = GetMobRoot(mob)
             if hum and hum.Health > 0 and mRoot and not Validator.IsMobGlitched(mob) then
+                _knownMobPositions[targetName] = mRoot.CFrame
                 local dist = root and (mRoot.Position - root.Position).Magnitude or 0
                 if dist < closestDist then
                     closestDist = dist
@@ -2298,10 +2394,12 @@ local function FindEnemy(targetName)
     end
     return closest
 end
+
 --============================== AUTO FARM LEVEL CORE ==============================
 local function StartAutoFarmLevel()
     task.spawn(function()
         task.wait(1.0)
+        local _failedQuestAttempts = 0
         while true do
             task.wait(0.2)
             if _G.Config.AutoFarmLevel then
@@ -2327,23 +2425,35 @@ local function StartAutoFarmLevel()
                         end
                     end
                     
-                    if not HasQuest() then
+                    local target = FindEnemy(questInfo.Mob)
+                    
+                    if not HasQuest() and _failedQuestAttempts < 3 then
                         local npcCF = GetQuestNpcCFrame(questInfo)
                         local distToNPC = (npcCF.Position - root.Position).Magnitude
                         
-                        if distToNPC > 30 then
+                        if distToNPC > 25 then
                             TweenTo(npcCF * CFrame.new(0, 4, 0), "Quest NPC (" .. questInfo.Quest .. ")")
                         else
                             HoverLock(npcCF * CFrame.new(0, 4, 0))
                             local cf = CommF()
                             if cf then
-                                cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
-                                task.wait(0.5)
+                                local res = cf:InvokeServer("StartQuest", questInfo.Quest, questInfo.Level)
+                                task.wait(0.4)
+                                if HasQuest() or tostring(res) == "1" then
+                                    _failedQuestAttempts = 0
+                                    local spawnCF = GetTrueMobSpawnCFrame(questInfo.Mob, questInfo)
+                                    if spawnCF then
+                                        TweenTo(spawnCF * CFrame.new(0, 8, 0), questInfo.Mob .. " Spawn Zone")
+                                    end
+                                else
+                                    _failedQuestAttempts = _failedQuestAttempts + 1
+                                end
                             end
                         end
                     else
-                        local target = FindEnemy(questInfo.Mob)
+                        -- Quest is active OR fallback after retries: fly straight to mob spawn point to trigger server spawn
                         if target and target:FindFirstChild("HumanoidRootPart") then
+                            _failedQuestAttempts = 0
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
@@ -2356,12 +2466,20 @@ local function StartAutoFarmLevel()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            local safePos = questInfo.Pos * CFrame.new(0, 30, 0)
-                            local distToSafe = (safePos.Position - root.Position).Magnitude
-                            if distToSafe < 15 then
-                                HoverLock(safePos)
-                            else
-                                TweenTo(safePos, "Mob Spawn Point")
+                            -- Mobs not spawned yet: fly directly to the TRUE spawn point and hover at tight 8-stud altitude
+                            -- to immediately satisfy the server's player proximity spawn trigger!
+                            local spawnCF = GetTrueMobSpawnCFrame(questInfo.Mob, questInfo)
+                            if spawnCF then
+                                local triggerPos = spawnCF * CFrame.new(0, 8, 0)
+                                local distToTrigger = (triggerPos.Position - root.Position).Magnitude
+                                if distToTrigger < 12 then
+                                    HoverLock(triggerPos)
+                                    if not HasQuest() and _failedQuestAttempts >= 3 then
+                                        _failedQuestAttempts = 0
+                                    end
+                                else
+                                    TweenTo(triggerPos, questInfo.Mob .. " Spawn Zone")
+                                end
                             end
                         end
                     end
@@ -2407,20 +2525,22 @@ local function StartAutoFarmSelectedMob()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                         else
-                            local mobPos = nil
-                            for _, q in ipairs(QuestsDB) do
-                                if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
-                                    mobPos = q.Pos
-                                    break
+                            local spawnCF = GetTrueMobSpawnCFrame(mobName)
+                            if not spawnCF then
+                                for _, q in ipairs(QuestsDB) do
+                                    if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
+                                        spawnCF = q.MobPos or q.Pos
+                                        break
+                                    end
                                 end
                             end
-                            if mobPos then
-                                local safePos = mobPos * CFrame.new(0, 30, 0)
-                                local distToSafe = (safePos.Position - root.Position).Magnitude
-                                if distToSafe < 15 then
-                                    HoverLock(safePos)
+                            if spawnCF then
+                                local triggerPos = spawnCF * CFrame.new(0, 8, 0)
+                                local distToTrigger = (triggerPos.Position - root.Position).Magnitude
+                                if distToTrigger < 12 then
+                                    HoverLock(triggerPos)
                                 else
-                                    TweenTo(safePos, mobName .. " Spawn")
+                                    TweenTo(triggerPos, mobName .. " Spawn Zone")
                                 end
                             end
                         end
@@ -2467,13 +2587,14 @@ local function StartAutoFarmSelectedBoss()
                         end
                         EquipWeapon(_G.Config.SelectedWeapon)
                     else
-                        if bossData then
-                            local safePos = bossData.Pos * CFrame.new(0, 40, 0)
-                            local distToSafe = (safePos.Position - root.Position).Magnitude
-                            if distToSafe < 15 then
-                                HoverLock(safePos)
+                        local spawnCF = GetTrueMobSpawnCFrame(bossName) or (bossData and bossData.Pos)
+                        if spawnCF then
+                            local triggerPos = spawnCF * CFrame.new(0, 12, 0)
+                            local distToTrigger = (triggerPos.Position - root.Position).Magnitude
+                            if distToTrigger < 15 then
+                                HoverLock(triggerPos)
                             else
-                                TweenTo(safePos, bossName .. " Spawn")
+                                TweenTo(triggerPos, bossName .. " Spawn Zone")
                             end
                         end
                     end
@@ -2520,21 +2641,17 @@ local function StartAutoFarmAllBosses()
                     end
                     
                     -- Step 2: If a boss is found, fight it!
-                    if targetBoss and targetBoss.Parent and targetBoss:FindFirstChild("Humanoid") and targetBoss.Humanoid.Health > 0 then
-                        if targetBData and targetBData.Quest and not HasQuest() then
-                            local cf = CommF()
-                            if cf then
-                                cf:InvokeServer("StartQuest", targetBData.Quest, targetBData.Level or 1)
-                                task.wait(0.3)
-                            end
-                        end
-                        
+                    if targetBoss and targetBoss.Parent and targetBoss:FindFirstChild("Humanoid") and targetBoss.Humanoid.Health > 0 and targetBoss:FindFirstChild("HumanoidRootPart") then
                         local dist = GetOptimalFarmDistance(targetBoss)
                         local farmPos = targetBoss.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                         local distToFarm = (farmPos.Position - root.Position).Magnitude
                         
                         if distToFarm < 15 then
                             HoverLock(farmPos)
+                            IsTravelingSky = false
+                            if _G.Config.FastAttack and _G.Config.UseM1 then
+                                FastAttack()
+                            end
                         else
                             TweenTo(farmPos, targetBoss.Name)
                         end
@@ -2570,13 +2687,15 @@ local function StartAutoFarmAllBosses()
                         end
                         
                         if candidate then
-                            local checkPos = candidate.Data.Pos * CFrame.new(0, 30, 0)
+                            local bossSpawnCF = GetTrueMobSpawnCFrame(candidate.Name) or candidate.Data.Pos
+                            local checkPos = bossSpawnCF * CFrame.new(0, 15, 0)
                             local distToCheck = (checkPos.Position - root.Position).Magnitude
                             
-                            if distToCheck > 35 then
+                            if distToCheck > 25 then
                                 TweenTo(checkPos, "Boss Patrol: " .. candidate.Name)
                             else
-                                task.wait(1.2)
+                                HoverLock(checkPos)
+                                task.wait(1.0)
                                 local found = false
                                 if enemies then
                                     for _, enemy in ipairs(enemies:GetChildren()) do
@@ -2587,7 +2706,7 @@ local function StartAutoFarmAllBosses()
                                     end
                                 end
                                 if not found then
-                                    _bossSkipUntil[candidate.Name] = now + 120
+                                    _bossSkipUntil[candidate.Name] = now + 90
                                     _bossPatrolIndex = (_bossPatrolIndex % #bossList) + 1
                                     StopTween()
                                 end
@@ -2647,7 +2766,7 @@ end
 
 --============================== DEVIL FRUIT SYSTEM ==============================
 local GachaPositions = {
-    [1] = CFrame.new(-1448.14, 29.85, 9.49),   -- Sea 1 Jungle (Gacha / Zioles)
+    [1] = CFrame.new(-1477.0, 73.2, 41.0),     -- Sea 1 Jungle (Gacha / Zioles)
     [2] = CFrame.new(-24.5, 73.2, -3215.8),    -- Sea 2 Cafe (Gacha)
     [3] = CFrame.new(-5043.6, 314.5, -3153.2), -- Sea 3 Mansion (Gacha)
 }
@@ -2713,20 +2832,21 @@ local function SpinRandomFruitNow()
             -- Travel to Gacha NPC
             local gachaCF = GachaPositions[CurrentSea] or GachaPositions[1]
             local dist = (gachaCF.Position - root.Position).Magnitude
-            if dist > 35 then
-                TweenTo(gachaCF, "Blox Fruit Gacha")
+            if dist > 25 then
+                TweenTo(gachaCF * CFrame.new(0, 2, 0), "Blox Fruit Gacha")
                 local waitStart = tick()
                 while (tick() - waitStart) < 30 do
                     root = GetRoot()
                     if not root then break end
-                    if (gachaCF.Position - root.Position).Magnitude <= 35 then break end
+                    if (gachaCF.Position - root.Position).Magnitude <= 25 then break end
                     task.wait(0.2)
                 end
             end
 
             task.wait(0.5)
             root = GetRoot()
-            if root and (gachaCF.Position - root.Position).Magnitude <= 45 then
+            if root and (gachaCF.Position - root.Position).Magnitude <= 40 then
+                HoverLock(gachaCF * CFrame.new(0, 2, 0))
                 local res = cf:InvokeServer("Cousin", "Buy")
                 task.wait(0.8)
                 
@@ -2769,20 +2889,21 @@ local function StartDevilFruitLoops()
                             if root and cf then
                                 local gachaCF = GachaPositions[CurrentSea] or GachaPositions[1]
                                 local dist = (gachaCF.Position - root.Position).Magnitude
-                                if dist > 35 then
-                                    TweenTo(gachaCF, "Blox Fruit Gacha")
+                                if dist > 25 then
+                                    TweenTo(gachaCF * CFrame.new(0, 2, 0), "Blox Fruit Gacha")
                                     local waitStart = tick()
                                     while (tick() - waitStart) < 30 do
                                         root = GetRoot()
                                         if not root then break end
-                                        if (gachaCF.Position - root.Position).Magnitude <= 35 then break end
+                                        if (gachaCF.Position - root.Position).Magnitude <= 25 then break end
                                         task.wait(0.2)
                                     end
                                 end
                                 
                                 task.wait(0.5)
                                 root = GetRoot()
-                                if root and (gachaCF.Position - root.Position).Magnitude <= 45 then
+                                if root and (gachaCF.Position - root.Position).Magnitude <= 40 then
+                                    HoverLock(gachaCF * CFrame.new(0, 2, 0))
                                     local buyRes = cf:InvokeServer("Cousin", "Buy")
                                     task.wait(0.8)
                                     
@@ -3177,9 +3298,10 @@ local function StartChestFarmLoop()
         task.wait(1.5)
         local targetChest = nil
         local targetStartTime = 0
+        local targetDistance = 0
         
         while true do
-            task.wait(0.12)
+            task.wait(0.1)
             if _G.Config.AutoChestFarm then
                 pcall(function()
                     local root = GetRoot()
@@ -3191,9 +3313,21 @@ local function StartChestFarmLoop()
                     -- Check if current target expired, collected, or timed out (stuck prevention)
                     if targetChest then
                         local isCollected = (not targetChest.Parent) or targetChest.Transparency >= 0.95
-                        local isTimedOut = (now - targetStartTime) > 6.0
+                        local timeoutLimit = math.clamp(targetDistance / 100, 8, 35)
+                        local isTimedOut = (now - targetStartTime) > timeoutLimit
+                        local dToChest = (targetChest.Position - root.Position).Magnitude
+                        
+                        -- Aggressive proximity touch interest collection
+                        if dToChest <= 25 and firetouchinterest then
+                            pcall(function()
+                                firetouchinterest(root, targetChest, 0)
+                                task.wait(0.02)
+                                firetouchinterest(root, targetChest, 1)
+                            end)
+                        end
+                        
                         if isCollected or isTimedOut then
-                            _collectedChests[targetChest] = now + (isCollected and 90 or 45)
+                            _collectedChests[targetChest] = now + (isCollected and 120 or 25)
                             targetChest = nil
                             StopTween()
                         end
@@ -3215,7 +3349,8 @@ local function StartChestFarmLoop()
                             if closest then
                                 targetChest = closest
                                 targetStartTime = now
-                                TweenTo(closest.CFrame * CFrame.new(0, 1.5, 0), "Chest (" .. closest.Name .. ")", false)
+                                targetDistance = minDist
+                                TweenTo(closest.CFrame * CFrame.new(0, 0.5, 0), "Chest (" .. closest.Name .. ")", false)
                             end
                         else
                             -- No active chests on current island: patrol to next island in circuit
@@ -3226,8 +3361,8 @@ local function StartChestFarmLoop()
                                 if dist > 35 then
                                     TweenTo(nextIslandPos, "Chest Island Patrol")
                                 else
-                                    -- Arrived at island, give 1.5s for streaming to load
-                                    task.wait(1.5)
+                                    -- Arrived at island, give 1.2s for streaming to load
+                                    task.wait(1.2)
                                     _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
                                     StopTween()
                                 end
@@ -3238,11 +3373,11 @@ local function StartChestFarmLoop()
                     -- If we are at or near the target chest, collect it
                     if targetChest and targetChest.Parent then
                         local dist = (targetChest.Position - root.Position).Magnitude
-                        if dist <= 9 then
+                        if dist <= 12 then
                             -- Physical touch trigger
                             if firetouchinterest then
                                 firetouchinterest(root, targetChest, 0)
-                                task.wait(0.04)
+                                task.wait(0.02)
                                 firetouchinterest(root, targetChest, 1)
                             end
                             -- Proximity prompt trigger fallback
@@ -3251,7 +3386,7 @@ local function StartChestFarmLoop()
                                 pcall(function() fireproximityprompt(prompt) end)
                             end
                             
-                            task.wait(0.12)
+                            task.wait(0.1)
                             _collectedChests[targetChest] = now + 90
                             targetChest = nil
                             StopTween()
