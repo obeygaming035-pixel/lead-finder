@@ -35,13 +35,46 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Place / Sea Identification
+-- Place / Sea Identification (Hybrid PlaceId + Map Hierarchy Detection)
 local PlaceId = game.PlaceId
-local Sea1 = (PlaceId == 2753915549)
-local Sea2 = (PlaceId == 4442272183)
-local Sea3 = (PlaceId == 7449423635)
-local CurrentSea = Sea1 and 1 or (Sea2 and 2 or (Sea3 and 3 or 1))
-local SeaName = Sea1 and "First Sea" or (Sea2 and "Second Sea" or (Sea3 and "Third Sea" or "Blox Fruits"))
+
+local function DetectSea()
+    if PlaceId == 7449423635 then return 3 end
+    if PlaceId == 4442272183 or PlaceId == 79091703265657 then return 2 end
+    if PlaceId == 2753915549 then return 1 end
+    
+    local map = Workspace:FindFirstChild("Map")
+    if map then
+        if map:FindFirstChild("Turtle") or map:FindFirstChild("PortTown") or map:FindFirstChild("Tiki") or map:FindFirstChild("HydraIsland") or map:FindFirstChild("GreatTree") then
+            return 3
+        end
+        if map:FindFirstChild("Dressrosa") or map:FindFirstChild("GreenBit") or map:FindFirstChild("IceCastle") or map:FindFirstChild("SnowMountain") or map:FindFirstChild("ForgottenIsland") or map:FindFirstChild("DarkbeardArena") or map:FindFirstChild("GhostShip") or map:FindFirstChild("RaidMap") then
+            return 2
+        end
+        if map:FindFirstChild("Jungle") or map:FindFirstChild("Marineford") or map:FindFirstChild("Desert") or map:FindFirstChild("MiddleTown") then
+            return 1
+        end
+    end
+    
+    local pGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+    if pGui then
+        local hud = pGui:FindFirstChild("HUDRoot")
+        if hud then
+            for _, d in ipairs(hud:GetDescendants()) do
+                if d:IsA("TextLabel") and d.Text:find("Sea2") then return 2 end
+                if d:IsA("TextLabel") and d.Text:find("Sea3") then return 3 end
+                if d:IsA("TextLabel") and d.Text:find("Sea1") then return 1 end
+            end
+        end
+    end
+    return 2 -- Default to Sea 2 if uncertain in current game
+end
+
+local CurrentSea = DetectSea()
+local Sea1 = (CurrentSea == 1)
+local Sea2 = (CurrentSea == 2)
+local Sea3 = (CurrentSea == 3)
+local SeaName = Sea3 and "Third Sea" or (Sea2 and "Second Sea" or "First Sea")
 
 -- Safe request wrapper
 local safeRequest = (syn and syn.request) or http_request or (fluxus and fluxus.request) or (http and http.request) or request
@@ -97,12 +130,11 @@ local function GetRemote(name, className)
         end
     end
     
-    -- Deep scan fallback (only if not found directly)
-    for _, v in ipairs(RS:GetDescendants()) do
-        if v.Name == name and (not className or v:IsA(className)) then
-            _remoteCache[name] = v
-            return v
-        end
+    -- Safe direct fallback (never deep-scan 150k descendants)
+    local r = RS:FindFirstChild(name)
+    if r and (not className or r:IsA(className)) then
+        _remoteCache[name] = r
+        return r
     end
     return nil
 end
@@ -132,7 +164,7 @@ end
 -- Ensures character is spawned into the world immediately after game load or crash recovery
 local function AutoSelectPirates()
     task.spawn(function()
-        for attempt = 1, 20 do
+        for attempt = 1, 15 do
             if LocalPlayer.Team ~= nil and tostring(LocalPlayer.Team) ~= "Neutral" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 break
             end
@@ -145,31 +177,20 @@ local function AutoSelectPirates()
                 end
             end)
             
-            -- Method 2: Client UI Button Click Simulation
+            -- Method 2: Safe targeted UI click only if ChooseTeam frame exists
             pcall(function()
                 local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-                if pGui then
-                    for _, gui in ipairs(pGui:GetChildren()) do
-                        for _, desc in ipairs(gui:GetDescendants()) do
-                            if desc:IsA("TextButton") or desc:IsA("ImageButton") then
-                                local txt = (desc:IsA("TextButton") and desc.Text or ""):lower()
-                                local name = desc.Name:lower()
-                                if (txt:find("pirate") or name:find("pirate")) and desc.Visible then
-                                    if getconnections then
-                                        for _, c in pairs(getconnections(desc.Activated)) do c:Fire() end
-                                        for _, c in pairs(getconnections(desc.MouseButton1Click)) do c:Fire() end
-                                    elseif firesignal then
-                                        firesignal(desc.MouseButton1Click)
-                                        firesignal(desc.Activated)
-                                    end
-                                end
-                            end
-                        end
+                local main = pGui and pGui:FindFirstChild("Main")
+                local chooseTeam = main and main:FindFirstChild("ChooseTeam")
+                if chooseTeam and chooseTeam.Visible then
+                    local pBtn = chooseTeam:FindFirstChild("Container") and chooseTeam.Container:FindFirstChild("Pirates") and chooseTeam.Container.Pirates:FindFirstChild("Frame") and chooseTeam.Container.Pirates.Frame:FindFirstChildWhichIsA("TextButton")
+                    if pBtn and pBtn.Visible and firesignal then
+                        firesignal(pBtn.Activated)
                     end
                 end
             end)
             
-            task.wait(0.6)
+            task.wait(0.8)
         end
     end)
 end
@@ -190,6 +211,7 @@ _G.Config = {
     SelectedWeapon = "Melee", -- Melee | Sword | Gun | Fruit
     BringMobs = true,
     AutoChestFarm = false,
+    ChestFarmMode = "Instant Teleport", -- "Instant Teleport" | "Tween Flight"
     
     -- Farm Distance Settings
     AdaptiveBossDistance = true,
@@ -2311,23 +2333,40 @@ BossesDB = {
 
 --============================== DYNAMIC SCAN FUNCTIONS (SEA FILTERED) ==============================
 local function GetSpawnedMobsList()
+    CurrentSea = DetectSea()
+    SeaName = (CurrentSea == 3 and "Third Sea") or (CurrentSea == 2 and "Second Sea") or "First Sea"
+    
     local list = {}
     local seen = {}
+    
+    local function AddMob(name)
+        if not name or name == "" or seen[name] then return end
+        if BossesDB and BossesDB[name] then return end
+        seen[name] = true
+        table.insert(list, name)
+    end
+    
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                if not seen[enemy.Name] and not BossesDB[enemy.Name] then
-                    seen[enemy.Name] = true
-                    table.insert(list, enemy.Name)
-                end
+                AddMob(enemy.Name)
             end
         end
     end
+    
+    local chars = Workspace:FindFirstChild("Characters")
+    if chars then
+        for _, c in ipairs(chars:GetChildren()) do
+            if c:IsA("Model") and c:FindFirstChild("Humanoid") and c.Humanoid.Health > 0 and not Players:GetPlayerFromCharacter(c) then
+                AddMob(c.Name)
+            end
+        end
+    end
+    
     for _, q in ipairs(QuestsDB) do
-        if q.Sea == CurrentSea and not seen[q.Mob] then
-            seen[q.Mob] = true
-            table.insert(list, q.Mob)
+        if q.Sea == CurrentSea then
+            AddMob(q.Mob)
         end
     end
     table.sort(list)
@@ -3150,48 +3189,41 @@ local function GetSpawnedChests()
     local seen = {}
     local now = tick()
     
-    local function CheckPart(part)
-        if not part or seen[part] or not part:IsA("BasePart") then return end
-        if part.Transparency >= 0.95 then return end -- Skip despawned/collected chests!
+    local function CheckModel(model)
+        if not model or not model:IsA("Model") or seen[model] then return end
+        if _collectedChests[model] and now < _collectedChests[model] then return end
+        local touchPart = model:FindFirstChild("PushBox") or model:FindFirstChild("RootPart") or model:FindFirstChild("BottomWood") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+        if not touchPart or seen[touchPart] then return end
+        if _collectedChests[touchPart] and now < _collectedChests[touchPart] then return end
         
-        local n = part.Name:lower()
-        local parentName = part.Parent and part.Parent.Name:lower() or ""
-        local isChest = n:find("chest") or parentName:find("chest")
-        if not isChest then return end
+        local visual = model:FindFirstChild("BottomWood") or model:FindFirstChild("TopWood")
+        if visual and visual:IsA("BasePart") and visual.Transparency >= 0.95 then return end
         
-        -- Check blacklist
-        if _collectedChests[part] and now < _collectedChests[part] then return end
-        if part.Parent and _collectedChests[part.Parent] and now < _collectedChests[part.Parent] then return end
-        
-        seen[part] = true
-        table.insert(chests, part)
+        seen[model] = true
+        seen[touchPart] = true
+        table.insert(chests, touchPart)
     end
     
-    local function Scan(container)
-        if not container then return end
-        for _, obj in ipairs(container:GetChildren()) do
-            if obj:IsA("BasePart") then
-                CheckPart(obj)
-            elseif obj:IsA("Model") then
-                local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                if p then CheckPart(p) end
-                for _, sub in ipairs(obj:GetChildren()) do
-                    if sub:IsA("BasePart") then CheckPart(sub) end
+    local cm = Workspace:FindFirstChild("ChestModels")
+    if cm then
+        for _, model in ipairs(cm:GetChildren()) do
+            CheckModel(model)
+        end
+    end
+    
+    local cFolder = Workspace:FindFirstChild("Chests")
+    if cFolder then
+        for _, obj in ipairs(cFolder:GetChildren()) do
+            if obj:IsA("Model") then
+                CheckModel(obj)
+            elseif obj:IsA("BasePart") and not seen[obj] then
+                if not (_collectedChests[obj] and now < _collectedChests[obj]) then
+                    seen[obj] = true
+                    table.insert(chests, obj)
                 end
             end
         end
     end
-    
-    Scan(Workspace:FindFirstChild("Chests"))
-    Scan(Workspace:FindFirstChild("ChestModels"))
-    local map = Workspace:FindFirstChild("Map")
-    if map then
-        for _, island in ipairs(map:GetChildren()) do
-            Scan(island:FindFirstChild("Chests"))
-            Scan(island)
-        end
-    end
-    Scan(Workspace)
     return chests
 end
 
@@ -3379,214 +3411,283 @@ local function StartChestFarmLoop()
         local targetDistance = 0
         
         while true do
-            task.wait(0.1)
+            task.wait(0.08)
             if _G.Config.AutoChestFarm then
                 pcall(function()
                     local root = GetRoot()
-                    if not root then return end
+                    local hum = GetHumanoid()
+                    if not root or not hum or hum.Health <= 0 then return end
                     EnableNoclip()
                     
                     local now = tick()
+                    local chests = GetSpawnedChests()
                     
-                    -- Check if current target expired, collected, or timed out (stuck prevention)
-                    if targetChest then
-                        local isCollected = (not targetChest.Parent) or targetChest.Transparency >= 0.95
-                        local timeoutLimit = math.clamp(targetDistance / 100, 8, 35)
-                        local isTimedOut = (now - targetStartTime) > timeoutLimit
-                        local dToChest = (targetChest.Position - root.Position).Magnitude
-                        
-                        -- Aggressive proximity touch interest collection
-                        if dToChest <= 25 and firetouchinterest then
-                            pcall(function()
-                                firetouchinterest(root, targetChest, 0)
-                                task.wait(0.02)
-                                firetouchinterest(root, targetChest, 1)
-                            end)
+                    if #chests > 0 then
+                        -- Pick closest valid chest
+                        local closest = nil
+                        local minDist = math.huge
+                        for _, c in ipairs(chests) do
+                            local d = (c.Position - root.Position).Magnitude
+                            if d < minDist then
+                                minDist = d
+                                closest = c
+                            end
                         end
                         
-                        if isCollected or isTimedOut then
-                            _collectedChests[targetChest] = now + (isCollected and 120 or 25)
-                            targetChest = nil
-                            StopTween()
-                            local r = GetRoot()
-                            if r then HoverLock(r.CFrame) end
-                        end
-                    end
-                    
-                    -- Find next closest active chest
-                    if not targetChest then
-                        local chests = GetSpawnedChests()
-                        if #chests > 0 then
-                            local closest = nil
-                            local minDist = math.huge
-                            for _, c in ipairs(chests) do
-                                local d = (c.Position - root.Position).Magnitude
-                                if d < minDist then
-                                    minDist = d
-                                    closest = c
-                                end
-                            end
-                            if closest then
-                                targetChest = closest
-                                targetStartTime = now
-                                targetDistance = minDist
-                                TweenTo(closest.CFrame * CFrame.new(0, 0.5, 0), "Chest (" .. closest.Name .. ")", false)
-                            end
-                        else
-                            -- No active chests on current island: patrol to next island in circuit
-                            local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[1]
-                            if circuit and #circuit > 0 then
-                                local nextIslandPos = circuit[_chestCircuitIndex] * CFrame.new(0, 25, 0)
-                                local dist = (nextIslandPos.Position - root.Position).Magnitude
-                                if dist > 35 then
-                                    TweenTo(nextIslandPos, "Chest Island Patrol")
+                        if closest then
+                            local chestModel = closest.Parent and closest.Parent:IsA("Model") and closest.Parent or closest
+                            local chestPos = closest.Position
+                            local chestCF = (closest:IsA("BasePart") and closest.CFrame or closest:GetPivot()) * CFrame.new(0, 1.8, 0)
+                            local dist = (chestPos - root.Position).Magnitude
+                            
+                            -- Movement mode: Instant Teleport vs Tween Flight
+                            if _G.Config.ChestFarmMode == "Instant Teleport" then
+                                if dist <= 180 then
+                                    root.CFrame = chestCF
+                                    root.AssemblyLinearVelocity = Vector3.zero
+                                    root.AssemblyAngularVelocity = Vector3.zero
                                 else
-                                    -- Arrived at island, give 1.2s for streaming to load
-                                    task.wait(1.2)
-                                    _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
-                                    StopTween()
-                                    local r = GetRoot()
-                                    if r then HoverLock(r.CFrame) end
+                                    -- Stepped micro-hops for distances > 180 studs to prevent server rubberbanding
+                                    local dir = (chestPos - root.Position).Unit
+                                    local hops = math.clamp(math.ceil(dist / 95), 1, 30)
+                                    for h = 1, hops do
+                                        if not _G.Config.AutoChestFarm then break end
+                                        local nextPos = (h == hops) and chestPos or (root.Position + dir * 95)
+                                        local safeY = math.max(nextPos.Y, 55)
+                                        root.CFrame = CFrame.new(nextPos.X, safeY, nextPos.Z)
+                                        root.AssemblyLinearVelocity = Vector3.zero
+                                        task.wait(0.025)
+                                    end
+                                    root.CFrame = chestCF
+                                    root.AssemblyLinearVelocity = Vector3.zero
                                 end
-                            end
-                        end
-                    end
-                    
-                    -- If we are at or near the target chest, collect it
-                    if targetChest and targetChest.Parent then
-                        local dist = (targetChest.Position - root.Position).Magnitude
-                        if dist <= 12 then
-                            -- Physical touch trigger
-                            if firetouchinterest then
-                                firetouchinterest(root, targetChest, 0)
-                                task.wait(0.02)
-                                firetouchinterest(root, targetChest, 1)
-                            end
-                            -- Proximity prompt trigger fallback
-                            local prompt = targetChest:FindFirstChildWhichIsA("ProximityPrompt", true) or (targetChest.Parent and targetChest.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
-                            if prompt and fireproximityprompt then
-                                pcall(function() fireproximityprompt(prompt) end)
+                            else
+                                -- Tween Flight mode
+                                TweenTo(chestCF, "Chest (" .. closest.Name .. ")", false)
+                                local tStart = tick()
+                                while (closest.Position - root.Position).Magnitude > 15 and (tick() - tStart) < 15 do
+                                    if not _G.Config.AutoChestFarm then break end
+                                    task.wait(0.1)
+                                end
                             end
                             
-                            task.wait(0.1)
-                            _collectedChests[targetChest] = now + 90
-                            targetChest = nil
-                            StopTween()
-                            local r = GetRoot()
-                            if r then HoverLock(r.CFrame) end
+                            -- CRITICAL: Wait at the chest until money is actually received!
+                            local beforeBeli = GetPlayerBeli()
+                            local tWait = tick()
+                            local gotReward = false
+                            
+                            while (tick() - tWait) < 0.85 do
+                                if not _G.Config.AutoChestFarm then break end
+                                root.CFrame = chestCF
+                                root.AssemblyLinearVelocity = Vector3.zero
+                                root.AssemblyAngularVelocity = Vector3.zero
+                                
+                                -- Physical touch trigger on PushBox & BaseParts
+                                if firetouchinterest then
+                                    pcall(function()
+                                        local pb = chestModel:FindFirstChild("PushBox") or closest
+                                        firetouchinterest(root, pb, 0)
+                                        task.wait(0.02)
+                                        firetouchinterest(root, pb, 1)
+                                        if pb ~= closest then
+                                            firetouchinterest(root, closest, 0)
+                                            task.wait(0.02)
+                                            firetouchinterest(root, closest, 1)
+                                        end
+                                    end)
+                                end
+                                
+                                -- Proximity prompt fallback
+                                local prompt = chestModel:FindFirstChildWhichIsA("ProximityPrompt", true)
+                                if prompt and fireproximityprompt then
+                                    pcall(function() fireproximityprompt(prompt) end)
+                                end
+                                
+                                if GetPlayerBeli() > beforeBeli then
+                                    gotReward = true
+                                    break -- Money received! Proceed to next chest immediately!
+                                end
+                                task.wait(0.05)
+                            end
+                            
+                            -- Mark chest on cooldown so it won't be re-targeted
+                            local cd = gotReward and 180 or 120
+                            _collectedChests[closest] = tick() + cd
+                            _collectedChests[chestModel] = tick() + cd
+                            task.wait(0.02)
+                        end
+                    else
+                        -- No active chests on current island: patrol to next island in circuit
+                        local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[2]
+                        if circuit and #circuit > 0 then
+                            _chestCircuitIndex = _chestCircuitIndex or 1
+                            local targetIslandCF = circuit[_chestCircuitIndex] * CFrame.new(0, 45, 0)
+                            local distToIsland = (targetIslandCF.Position - root.Position).Magnitude
+                            
+                            if distToIsland > 80 then
+                                if distToIsland > 1000 or _G.Config.ChestFarmMode ~= "Instant Teleport" then
+                                    TweenTo(targetIslandCF, "Chest Island Patrol (" .. _chestCircuitIndex .. ")", false)
+                                    local tStart = tick()
+                                    local maxWait = math.max(10, distToIsland / 250)
+                                    while (targetIslandCF.Position - root.Position).Magnitude > 80 and (tick() - tStart) < maxWait do
+                                        if not _G.Config.AutoChestFarm then break end
+                                        task.wait(0.2)
+                                    end
+                                else
+                                    local dir = (targetIslandCF.Position - root.Position).Unit
+                                    local hops = math.clamp(math.ceil(distToIsland / 100), 1, 40)
+                                    for h = 1, hops do
+                                        if not _G.Config.AutoChestFarm then break end
+                                        local nextPos = (h == hops) and targetIslandCF.Position or (root.Position + dir * 100)
+                                        root.CFrame = CFrame.new(nextPos.X, math.max(nextPos.Y, 120), nextPos.Z)
+                                        root.AssemblyLinearVelocity = Vector3.zero
+                                        task.wait(0.04)
+                                    end
+                                    root.CFrame = targetIslandCF
+                                end
+                            end
+                            
+                            -- Arrived at island: wait 1.2s for StreamingEnabled to load chest models
+                            task.wait(1.2)
+                            _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
                         end
                     end
                 end)
-            else
-                if targetChest then
-                    targetChest = nil
-                    ClearHover()
-                end
-            end
-        end
-    end)
-end
-
-local function StartESPLoops()
-    task.spawn(function()
-        task.wait(2)
-        while true do
-            task.wait(2.5)
-            pcall(function()
-                if _G.Config.PlayerESP then UpdatePlayerESP() else ClearESP("Players") end
-                if _G.Config.FruitESP then UpdateFruitESP() else ClearESP("Fruits") end
-                if _G.Config.ChestESP then UpdateChestESP() else ClearESP("Chests") end
-                if _G.Config.FlowerESP then UpdateFlowerESP() else ClearESP("Flowers") end
-                if _G.Config.MirageESP or _G.Config.SeaEventESP then UpdateSeaEventESP() else ClearESP("SeaEvents") end
-            end)
-        end
-    end)
-end
-
---============================== AUTO STATS ALLOCATOR ==============================
-local function StartAutoStatsLoop()
-    task.spawn(function()
-        task.wait(math.random(18, 38) / 10)
-        while true do
-            task.wait(0.5 + math.random() * 0.2)
-            if _G.Config.AutoStats then
-                local cf = CommF()
-                if cf then
-                    pcall(function()
-                        local data = LocalPlayer:FindFirstChild("Data")
-                        local ptsAvail = (data and data:FindFirstChild("Points") and data.Points.Value) or 0
-                        if ptsAvail > 0 then
-                            local pts = math.min(_G.Config.StatPoints or 1, ptsAvail)
-                            if _G.Config.Stats.Melee then cf:InvokeServer("AddPoint", "Melee", pts) end
-                            if _G.Config.Stats.Defense then cf:InvokeServer("AddPoint", "Defense", pts) end
-                            if _G.Config.Stats.Sword then cf:InvokeServer("AddPoint", "Sword", pts) end
-                            if _G.Config.Stats.Gun then cf:InvokeServer("AddPoint", "Gun", pts) end
-                            if _G.Config.Stats.Fruit then cf:InvokeServer("AddPoint", "Demon Fruit", pts) end
-                        end
-                    end)
-                end
             end
         end
     end)
 end
 
 --============================== ADVANCED RAIDS & DUNGEONS ENGINE ==============================
+local _currentRaidIsland = 1
+
 local function StartAdvancedRaidEngine()
     task.spawn(function()
         task.wait(2.5)
         while true do
-            task.wait(1.5)
+            task.wait(1.0)
             pcall(function()
                 local cf = CommF()
                 if not cf then return end
+                local root = GetRoot()
+                if not root then return end
+                
+                local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
+                local inRaid = locs and (locs:FindFirstChild("Island 1") or locs:FindFirstChild("Island1")) ~= nil
                 
                 -- Auto Buy Raid Chip
                 if _G.Config.AutoBuyChip then
-                    cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip)
+                    pcall(function()
+                        cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip or "Flame")
+                    end)
                 end
                 
-                -- Auto Start Raid
-                if _G.Config.AutoStartRaid then
-                    cf:InvokeServer("RaidsNpc", "Start")
+                -- Auto Start Raid (when not yet in raid)
+                if _G.Config.AutoStartRaid and not inRaid then
+                    pcall(function()
+                        -- In Second Sea, raid room pod is at CircleIsland / Hot and Cold (-6473.5, 250.5, -4490.5)
+                        if CurrentSea == 2 then
+                            local podPos = Vector3.new(-6473.5, 250.5, -4490.5)
+                            if (root.Position - podPos).Magnitude > 25 then
+                                root.CFrame = CFrame.new(podPos + Vector3.new(0, 3, 0))
+                                root.AssemblyLinearVelocity = Vector3.zero
+                                task.wait(0.5)
+                            end
+                        end
+                        cf:InvokeServer("RaidsNpc", "Start")
+                    end)
                 end
                 
                 -- Auto Farm Raid & Next Island Transition
-                if _G.Config.AutoFarmRaid then
+                if _G.Config.AutoFarmRaid and inRaid then
                     local enemies = Workspace:FindFirstChild("Enemies")
-                    local hasMobs = false
+                    local targetMob = nil
+                    
                     if enemies then
                         for _, mob in ipairs(enemies:GetChildren()) do
                             if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                                hasMobs = true
-                                local farmPos = mob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                                TweenTo(farmPos)
-                                EquipWeapon(_G.Config.SelectedWeapon)
+                                targetMob = mob
                                 break
                             end
                         end
                     end
                     
-                    if not hasMobs then
-                        local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-                        if locs then
-                            for i = 1, 5 do
-                                local island = locs:FindFirstChild("Island " .. i) or locs:FindFirstChild("Island" .. i)
-                                if island then
-                                    local root = GetRoot()
-                                    if root and (island.Position - root.Position).Magnitude > 250 then
-                                        TweenTo(island.CFrame * CFrame.new(0, 45, 0))
-                                        break
+                    if targetMob then
+                        -- Attack target mob from safe distance
+                        local farmPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance or 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        TweenTo(farmPos)
+                        EquipWeapon(_G.Config.SelectedWeapon)
+                    else
+                        -- NO MOBS CURRENTLY ALIVE:
+                        -- Advance to the target island and WAIT THERE for mobs to spawn!
+                        local islandName = "Island " .. _currentRaidIsland
+                        local islandNameAlt = "Island" .. _currentRaidIsland
+                        local island = locs:FindFirstChild(islandName) or locs:FindFirstChild(islandNameAlt)
+                        
+                        if island then
+                            local islandPos = island.Position + Vector3.new(0, 30, 0)
+                            local dist = (islandPos - root.Position).Magnitude
+                            
+                            if dist > 35 then
+                                -- Fly to next island
+                                TweenTo(CFrame.new(islandPos), "Raid Island " .. _currentRaidIsland)
+                            else
+                                -- Arrived at island: HOVER DIRECTLY ON THE ISLAND AND WAIT FOR MOBS TO SPAWN!
+                                HoverLock(CFrame.new(islandPos))
+                                task.wait(1.5)
+                                
+                                -- Check if mobs have spawned yet
+                                local anySpawned = false
+                                if enemies then
+                                    for _, m in ipairs(enemies:GetChildren()) do
+                                        if m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then
+                                            anySpawned = true
+                                            break
+                                        end
                                     end
+                                end
+                                
+                                -- If still no mobs after waiting on island, check if island cleared or need next
+                                if not anySpawned and _currentRaidIsland < 5 then
+                                    -- Check if next island exists in locations
+                                    local nextIsl = locs:FindFirstChild("Island " .. (_currentRaidIsland + 1)) or locs:FindFirstChild("Island" .. (_currentRaidIsland + 1))
+                                    if nextIsl then
+                                        -- Wait an extra 3 seconds before concluding island is empty
+                                        task.wait(2.5)
+                                        local recheck = false
+                                        if enemies then
+                                            for _, m in ipairs(enemies:GetChildren()) do
+                                                if m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then recheck = true; break end
+                                            end
+                                        end
+                                        if not recheck then
+                                            _currentRaidIsland = _currentRaidIsland + 1
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            -- Island not found or raid completed, check island 1..5
+                            for i = 1, 5 do
+                                local isl = locs:FindFirstChild("Island " .. i) or locs:FindFirstChild("Island" .. i)
+                                if isl and (isl.Position - root.Position).Magnitude > 50 then
+                                    _currentRaidIsland = i
+                                    break
                                 end
                             end
                         end
                     end
+                elseif not inRaid then
+                    -- Reset raid island index when outside raid
+                    _currentRaidIsland = 1
                 end
                 
                 -- Auto Awaken Fruit
-                if _G.Config.AutoAwaken then
-                    cf:InvokeServer("Awakener", "Check")
-                    cf:InvokeServer("Awakener", "Awaken")
+                if _G.Config.AutoAwaken and inRaid then
+                    pcall(function()
+                        cf:InvokeServer("Awakener", "Check")
+                        cf:InvokeServer("Awakener", "Awaken")
+                    end)
                 end
                 
                 -- Auto Law / Order Raid
@@ -5278,9 +5379,28 @@ local function CreateUI()
             
             local DropAPI = {}
             function DropAPI:SetOptions(newOpts)
-                allOptions = newOpts
-                filteredOptions = newOpts
-                Populate(newOpts)
+                allOptions = newOpts or {}
+                filteredOptions = allOptions
+                if #allOptions > 0 then
+                    local found = false
+                    for _, opt in ipairs(allOptions) do
+                        if opt == selected then found = true; break end
+                    end
+                    if not found then
+                        selected = allOptions[1]
+                        SelectBtn.Text = tostring(selected) .. " ▾"
+                        if callback then pcall(callback, selected) end
+                    end
+                else
+                    selected = ""
+                    SelectBtn.Text = "None ▾"
+                end
+                Populate(allOptions)
+            end
+            function DropAPI:Set(val)
+                selected = val
+                SelectBtn.Text = tostring(val) .. " ▾"
+                if callback then pcall(callback, val) end
             end
             function DropAPI:Get()
                 return selected
@@ -5449,14 +5569,22 @@ local function CreateUI()
         _G.Config.AutoChestFarm = v
         if not v then ClearHover() end
     end)
+    FarmTab:AddDropdown("Chest Farm Mode", {"Instant Teleport (Fastest)", "Tween Flight (Safe/Smooth)"}, "Instant Teleport (Fastest)", function(v)
+        if v:find("Instant") then
+            _G.Config.ChestFarmMode = "Instant Teleport"
+        else
+            _G.Config.ChestFarmMode = "Tween Flight"
+        end
+    end)
     
-    FarmTab:AddSection("Selected Mob Farming")
+    FarmTab:AddSection("Selected Mob Farming (" .. SeaName .. ")")
     local mobList = GetSpawnedMobsList()
     if mobList and mobList[1] then _G.Config.SelectedMob = mobList[1] end
     local MobDrop = FarmTab:AddSearchDropdown("Select Mob (" .. SeaName .. ")", mobList, mobList[1], function(v) _G.Config.SelectedMob = v end)
-    FarmTab:AddButton("Refresh Mobs List (" .. SeaName .. ")", function()
+    FarmTab:AddButton("🔄 Refresh Mobs List (" .. SeaName .. ")", function()
         local updated = GetSpawnedMobsList()
         MobDrop:SetOptions(updated)
+        ShowLiveToast("MOBS REFRESHED", "Loaded " .. #updated .. " mobs for " .. SeaName, Color3.fromRGB(0, 230, 255), 3)
     end)
     FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
         _G.Config.FarmSelectedMob = v
@@ -5464,13 +5592,14 @@ local function CreateUI()
     end)
     
     -- ==================== 2. BOSS FARM TAB ====================
-    BossTab:AddSection("Boss Selection")
+    BossTab:AddSection("Boss Selection (" .. SeaName .. ")")
     local bossList = GetActiveBossesList()
     if bossList and bossList[1] then _G.Config.SelectedBoss = bossList[1] end
     local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v) _G.Config.SelectedBoss = v end)
-    BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
+    BossTab:AddButton("🔄 Refresh Bosses List (Scan Active)", function()
         local updated = GetActiveBossesList()
         BossDrop:SetOptions(updated)
+        ShowLiveToast("BOSSES REFRESHED", "Found " .. #updated .. " active bosses in " .. SeaName, Color3.fromRGB(255, 180, 0), 3)
     end)
     BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
         _G.Config.FarmSelectedBoss = v
