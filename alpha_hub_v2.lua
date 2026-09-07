@@ -662,7 +662,10 @@ local function StopTween()
     CurrentTargetPos = nil
     IsTravelingSky = false
     local hum = GetHumanoid()
-    if hum and hum.Sit then hum.Sit = false end
+    if hum and hum.Parent then
+        hum.PlatformStand = false
+        if hum.Sit then hum.Sit = false end
+    end
     if FlightBodyVel then
         pcall(function() FlightBodyVel:Destroy() end)
         FlightBodyVel = nil
@@ -1506,7 +1509,7 @@ local function TweenTo(targetCFrame, destName)
     end
 
     -- Anti-spam: if already traveling to this exact position, let it continue
-    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and CurrentTween then
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 30 and CurrentTween then
         return CurrentTween
     end
 
@@ -1527,39 +1530,39 @@ local function TweenTo(targetCFrame, destName)
     if speed > 350 then speed = 325 end
 
     EnableNoclip()
+    if hum and hum.Parent then hum.PlatformStand = true end
 
     local pStart = root.Position
     local horizDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(pStart.X, pStart.Z)).Magnitude
 
-    -- Generate adaptive sky waypoints:
-    -- Sea 1: clears all island terrain, towers, and tree canopies (Y >= 280).
-    -- Sea 2: clears Snow Mountain peak at Y = 460 (Y >= 490).
-    -- Sea 3: clears Hydra Island peak at Y = 610 (Y >= 660).
-    local safeY = 280
-    if CurrentSea == 3 then
-        safeY = math.max(pStart.Y, targetPos.Y, 660) + 35
-    elseif CurrentSea == 2 then
-        safeY = math.max(pStart.Y, targetPos.Y, 490) + 35
-    else
-        safeY = math.max(pStart.Y, targetPos.Y, 280) + 30
-    end
-
-    -- Short island hop: low-altitude hop clearing local bushes and rocks
-    if horizDist <= 350 and (pStart.Y < 180 and targetPos.Y < 180) then
-        safeY = math.max(pStart.Y, targetPos.Y, 35) + 18
+    -- Adaptive altitude:
+    -- Short/combat range (<= 350 studs): fly DIRECTLY to target without high-altitude detour!
+    -- Moderate range (> 350 studs and <= 1200 studs): gentle hop (+25 studs) over local trees/rocks.
+    -- Long inter-island range (> 1200 studs): high sky altitude to clear mountain peaks and water.
+    local safeY = math.max(pStart.Y, targetPos.Y) + 15
+    if horizDist > 1200 then
+        if CurrentSea == 3 then
+            safeY = math.max(pStart.Y, targetPos.Y, 660) + 35
+        elseif CurrentSea == 2 then
+            safeY = math.max(pStart.Y, targetPos.Y, 490) + 35
+        else
+            safeY = math.max(pStart.Y, targetPos.Y, 280) + 30
+        end
+    elseif horizDist > 350 then
+        safeY = math.max(pStart.Y, targetPos.Y) + 25
     end
 
     local waypoints = {}
-    if horizDist > 75 then
+    if horizDist > 350 then
         table.insert(waypoints, CFrame.new(pStart.X, safeY, pStart.Z))
         table.insert(waypoints, CFrame.new(targetPos.X, safeY, targetPos.Z))
     end
     table.insert(waypoints, targetCFrame)
 
-    -- Weightless stabilizer BodyVelocity (eliminates gravity drag)
+    -- Weightless stabilizer BodyVelocity (only counteracts gravity in Y, allows free tweening in X/Z)
     local bv = Instance.new("BodyVelocity")
     bv.Name = "AlphaFlightBV"
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.MaxForce = Vector3.new(0, 9e9, 0)
     bv.Velocity = Vector3.zero
     bv.Parent = root
     FlightBodyVel = bv
@@ -1605,6 +1608,8 @@ local function TweenTo(targetCFrame, destName)
             HoverLock(r.CFrame)
         end
 
+        local h = GetHumanoid()
+        if h and h.Parent then h.PlatformStand = false end
         pcall(function() bv:Destroy() end)
         if SetTravelHUD then SetTravelHUD(false) end
 
@@ -1685,6 +1690,8 @@ local function TweenTo(targetCFrame, destName)
             IsTravelingSky = false
             CurrentTween = nil
             CurrentTargetPos = nil
+            local h = GetHumanoid()
+            if h and h.Parent then h.PlatformStand = false end
             if activeTweenObj then
                 pcall(function() activeTweenObj:Cancel() end)
                 activeTweenObj = nil
@@ -1999,14 +2006,33 @@ local function StartCombatLoop()
         while true do
             local cd = _G.Config.FastAttackSpeed or 0.015
             task.wait(cd)
-            if IsInCombatMode() and not IsTravelingSky then
-                if _G.Config.FastAttack and _G.Config.UseM1 then
-                    FastAttack()
+            if IsInCombatMode() then
+                local canFight = not IsTravelingSky
+                if not canFight then
+                    local root = GetRoot()
+                    local enemies = Workspace:FindFirstChild("Enemies")
+                    if root and enemies then
+                        for _, m in ipairs(enemies:GetChildren()) do
+                            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then
+                                local mRoot = GetMobRoot(m)
+                                if mRoot and (mRoot.Position - root.Position).Magnitude < 55 then
+                                    canFight = true
+                                    break
+                                end
+                            end
+                        end
+                    end
                 end
-                if _G.Config.UseSkills then
-                    CastNextSkill()
+                
+                if canFight then
+                    if _G.Config.FastAttack and _G.Config.UseM1 then
+                        FastAttack()
+                    end
+                    if _G.Config.UseSkills then
+                        CastNextSkill()
+                    end
+                    CheckBusoHaki()
                 end
-                CheckBusoHaki()
             end
         end
     end)
@@ -2339,18 +2365,24 @@ local function GetSpawnedMobsList()
     local list = {}
     local seen = {}
     
-    local function AddMob(name)
-        if not name or name == "" or seen[name] then return end
-        if BossesDB and BossesDB[name] then return end
-        seen[name] = true
-        table.insert(list, name)
+    local function AddMob(name, isSpawned)
+        if not name or name == "" then return end
+        local clean = name:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
+        if clean == "" or seen[clean] then return end
+        if BossesDB and BossesDB[clean] then return end
+        seen[clean] = true
+        if isSpawned then
+            table.insert(list, "[Spawned] " .. clean)
+        else
+            table.insert(list, clean)
+        end
     end
     
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
             if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                AddMob(enemy.Name)
+                AddMob(enemy.Name, true)
             end
         end
     end
@@ -2359,14 +2391,23 @@ local function GetSpawnedMobsList()
     if chars then
         for _, c in ipairs(chars:GetChildren()) do
             if c:IsA("Model") and c:FindFirstChild("Humanoid") and c.Humanoid.Health > 0 and not Players:GetPlayerFromCharacter(c) then
-                AddMob(c.Name)
+                AddMob(c.Name, true)
+            end
+        end
+    end
+
+    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    if spawnsFolder then
+        for _, s in ipairs(spawnsFolder:GetChildren()) do
+            if not s.Name:find("Boss") and not s.Name:find("boss") then
+                AddMob(s.Name, false)
             end
         end
     end
     
     for _, q in ipairs(QuestsDB) do
         if q.Sea == CurrentSea then
-            AddMob(q.Mob)
+            AddMob(q.Mob, false)
         end
     end
     table.sort(list)
@@ -2388,6 +2429,18 @@ local function GetSpawnedBossesList()
             end
         end
     end
+    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
+    if spawnsFolder then
+        for _, s in ipairs(spawnsFolder:GetChildren()) do
+            if s.Name:find("Boss") or s.Name:find("boss") then
+                local clean = s.Name:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
+                if clean ~= "" and not seen[clean] then
+                    seen[clean] = true
+                    table.insert(list, clean)
+                end
+            end
+        end
+    end
     for bName, bData in pairs(BossesDB) do
         if bData.Sea == CurrentSea and not seen[bName] then
             table.insert(list, bName)
@@ -2401,8 +2454,6 @@ end
 local GetActiveBossesList = GetSpawnedBossesList
 
 -- ClearHover and FullResetMovement are defined above
-
-
 
 -- Robust mob name matcher (handles exact names, stripped level tags, case insensitivity)
 local function IsMobMatch(mobName, targetName)
@@ -2423,6 +2474,7 @@ local function IsMobMatch(mobName, targetName)
 end
 
 local _knownMobPositions = {}
+local _lockedMobSpawn = {}
 local _mobSpawnPointsCache = {}
 local _mobSpawnPatrolIndex = 1
 local _lastMobPatrolStep = 0
@@ -2455,28 +2507,41 @@ end
 local function GetTrueMobSpawnCFrame(mobName, questInfo)
     if not mobName then return nil end
     
+    if _lockedMobSpawn[mobName] then
+        return _lockedMobSpawn[mobName]
+    end
+
     -- 1. Check live recorded position from recently active enemies
     if _knownMobPositions[mobName] then
+        _lockedMobSpawn[mobName] = _knownMobPositions[mobName]
         return _knownMobPositions[mobName]
     end
 
     -- 2. Query official Game Spawn Markers from Workspace._WorldOrigin.EnemySpawns
     local spawns = GetAllMobSpawns(mobName)
     if #spawns > 0 then
-        local now = tick()
-        -- If multiple spawn points exist, cycle between them every 2.5 seconds to wake up the whole camp!
-        if #spawns > 1 and (now - _lastMobPatrolStep) > 2.5 then
-            _mobSpawnPatrolIndex = (_mobSpawnPatrolIndex % #spawns) + 1
-            _lastMobPatrolStep = now
+        local root = GetRoot()
+        local best = spawns[1]
+        if root then
+            local minD = math.huge
+            for _, sp in ipairs(spawns) do
+                local d = (sp.Position - root.Position).Magnitude
+                if d < minD then
+                    minD = d
+                    best = sp
+                end
+            end
         end
-        local selectedIdx = math.clamp(_mobSpawnPatrolIndex, 1, #spawns)
-        return spawns[selectedIdx]
+        _lockedMobSpawn[mobName] = best
+        return best
     end
     
     -- 3. Fallback to Quest Database MobPos / Pos
     if questInfo and questInfo.MobPos then
+        _lockedMobSpawn[mobName] = questInfo.MobPos
         return questInfo.MobPos
     elseif questInfo and questInfo.Pos then
+        _lockedMobSpawn[mobName] = questInfo.Pos
         return questInfo.Pos
     end
     return nil
@@ -2609,7 +2674,7 @@ end
 -- Auto Farm Selected Mob Core
 local function StartAutoFarmSelectedMob()
     task.spawn(function()
-        task.wait(1.0)
+        task.wait(0.1)
         while true do
             task.wait(0.25)
             if _G.Config.FarmSelectedMob then
@@ -2642,6 +2707,8 @@ local function StartAutoFarmSelectedMob()
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                         else
+                            -- Mob is NOT currently spawned in server:
+                            -- Go to spawn area and STAY HOVERING THERE waiting for mobs to spawn!
                             local spawnCF = GetTrueMobSpawnCFrame(mobName)
                             if not spawnCF then
                                 for _, q in ipairs(QuestsDB) do
@@ -2652,10 +2719,11 @@ local function StartAutoFarmSelectedMob()
                                 end
                             end
                             if spawnCF then
-                                local triggerPos = spawnCF * CFrame.new(0, 8, 0)
+                                local triggerPos = spawnCF * CFrame.new(0, 15, 0)
                                 local distToTrigger = (triggerPos.Position - root.Position).Magnitude
-                                if distToTrigger < 12 then
+                                if distToTrigger < 20 then
                                     HoverLock(triggerPos)
+                                    task.wait(0.35)
                                 else
                                     TweenTo(triggerPos, mobName .. " Spawn Zone")
                                 end
@@ -2670,7 +2738,7 @@ end
 
 local function StartAutoFarmSelectedBoss()
     task.spawn(function()
-        task.wait(math.random(10, 25) / 10)
+        task.wait(0.1)
         while true do
             task.wait(0.3)
             if _G.Config.FarmSelectedBoss then
@@ -2704,14 +2772,16 @@ local function StartAutoFarmSelectedBoss()
                         end
                         EquipWeapon(_G.Config.SelectedWeapon)
                     else
-                        local spawnCF = GetTrueMobSpawnCFrame(bossName) or (bossData and bossData.Pos)
+                        -- Boss NOT spawned: Travel to boss spawn platform and WAIT THERE!
+                        local spawnCF = (bossData and bossData.Pos) or GetTrueMobSpawnCFrame(bossName)
                         if spawnCF then
-                            local triggerPos = spawnCF * CFrame.new(0, 12, 0)
+                            local triggerPos = spawnCF * CFrame.new(0, 20, 0)
                             local distToTrigger = (triggerPos.Position - root.Position).Magnitude
-                            if distToTrigger < 15 then
+                            if distToTrigger < 25 then
                                 HoverLock(triggerPos)
+                                task.wait(0.4)
                             else
-                                TweenTo(triggerPos, bossName .. " Spawn Zone")
+                                TweenTo(triggerPos, bossName .. " Spawn Platform")
                             end
                         end
                     end
@@ -3196,32 +3266,44 @@ local function GetSpawnedChests()
         if not touchPart or seen[touchPart] then return end
         if _collectedChests[touchPart] and now < _collectedChests[touchPart] then return end
         
-        local visual = model:FindFirstChild("BottomWood") or model:FindFirstChild("TopWood")
-        if visual and visual:IsA("BasePart") and visual.Transparency >= 0.95 then return end
-        
         seen[model] = true
         seen[touchPart] = true
         table.insert(chests, touchPart)
     end
     
-    local cm = Workspace:FindFirstChild("ChestModels")
-    if cm then
-        for _, model in ipairs(cm:GetChildren()) do
-            CheckModel(model)
-        end
-    end
-    
-    local cFolder = Workspace:FindFirstChild("Chests")
-    if cFolder then
-        for _, obj in ipairs(cFolder:GetChildren()) do
+    local function ScanContainer(container)
+        if not container then return end
+        for _, obj in ipairs(container:GetChildren()) do
             if obj:IsA("Model") then
-                CheckModel(obj)
+                local n = obj.Name:lower()
+                if n:find("chest") then
+                    CheckModel(obj)
+                else
+                    for _, sub in ipairs(obj:GetChildren()) do
+                        if sub:IsA("Model") and sub.Name:lower():find("chest") then
+                            CheckModel(sub)
+                        end
+                    end
+                end
             elseif obj:IsA("BasePart") and not seen[obj] then
-                if not (_collectedChests[obj] and now < _collectedChests[obj]) then
+                if obj.Name:lower():find("chest") and not (_collectedChests[obj] and now < _collectedChests[obj]) then
                     seen[obj] = true
                     table.insert(chests, obj)
                 end
             end
+        end
+    end
+    
+    ScanContainer(Workspace:FindFirstChild("ChestModels"))
+    ScanContainer(Workspace:FindFirstChild("Chests"))
+    
+    local map = Workspace:FindFirstChild("Map")
+    if map then
+        for _, island in ipairs(map:GetChildren()) do
+            ScanContainer(island:FindFirstChild("Chests"))
+            ScanContainer(island:FindFirstChild("ChestModels"))
+            local detail = island:FindFirstChild("Detail") or island:FindFirstChild("AllFlowers")
+            if detail then ScanContainer(detail) end
         end
     end
     return chests
@@ -3405,7 +3487,7 @@ local _chestCircuitIndex = 1
 
 local function StartChestFarmLoop()
     task.spawn(function()
-        task.wait(1.5)
+        task.wait(0.1)
         local targetChest = nil
         local targetStartTime = 0
         local targetDistance = 0
@@ -3442,21 +3524,20 @@ local function StartChestFarmLoop()
                             
                             -- Movement mode: Instant Teleport vs Tween Flight
                             if _G.Config.ChestFarmMode == "Instant Teleport" then
-                                if dist <= 180 then
+                                if dist <= 250 then
                                     root.CFrame = chestCF
                                     root.AssemblyLinearVelocity = Vector3.zero
                                     root.AssemblyAngularVelocity = Vector3.zero
                                 else
-                                    -- Stepped micro-hops for distances > 180 studs to prevent server rubberbanding
                                     local dir = (chestPos - root.Position).Unit
-                                    local hops = math.clamp(math.ceil(dist / 95), 1, 30)
+                                    local hops = math.clamp(math.ceil(dist / 110), 1, 35)
                                     for h = 1, hops do
                                         if not _G.Config.AutoChestFarm then break end
-                                        local nextPos = (h == hops) and chestPos or (root.Position + dir * 95)
-                                        local safeY = math.max(nextPos.Y, 55)
+                                        local nextPos = (h == hops) and chestPos or (root.Position + dir * 110)
+                                        local safeY = math.max(nextPos.Y, 40)
                                         root.CFrame = CFrame.new(nextPos.X, safeY, nextPos.Z)
                                         root.AssemblyLinearVelocity = Vector3.zero
-                                        task.wait(0.025)
+                                        task.wait(0.015)
                                     end
                                     root.CFrame = chestCF
                                     root.AssemblyLinearVelocity = Vector3.zero
@@ -3465,7 +3546,7 @@ local function StartChestFarmLoop()
                                 -- Tween Flight mode
                                 TweenTo(chestCF, "Chest (" .. closest.Name .. ")", false)
                                 local tStart = tick()
-                                while (closest.Position - root.Position).Magnitude > 15 and (tick() - tStart) < 15 do
+                                while (closest.Position - root.Position).Magnitude > 15 and (tick() - tStart) < 10 do
                                     if not _G.Config.AutoChestFarm then break end
                                     task.wait(0.1)
                                 end
@@ -3476,7 +3557,7 @@ local function StartChestFarmLoop()
                             local tWait = tick()
                             local gotReward = false
                             
-                            while (tick() - tWait) < 0.85 do
+                            while (tick() - tWait) < 0.75 do
                                 if not _G.Config.AutoChestFarm then break end
                                 root.CFrame = chestCF
                                 root.AssemblyLinearVelocity = Vector3.zero
@@ -3507,11 +3588,11 @@ local function StartChestFarmLoop()
                                     gotReward = true
                                     break -- Money received! Proceed to next chest immediately!
                                 end
-                                task.wait(0.05)
+                                task.wait(0.04)
                             end
                             
-                            -- Mark chest on cooldown so it won't be re-targeted
-                            local cd = gotReward and 180 or 120
+                            -- Mark chest on cooldown: 90s if rewarded, only 12s if empty
+                            local cd = gotReward and 90 or 12
                             _collectedChests[closest] = tick() + cd
                             _collectedChests[chestModel] = tick() + cd
                             task.wait(0.02)
@@ -5567,7 +5648,13 @@ local function CreateUI()
     FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
     FarmTab:AddToggle("Auto Chest Farm", false, function(v)
         _G.Config.AutoChestFarm = v
-        if not v then ClearHover() end
+        if v then
+            _collectedChests = {}
+            _chestCircuitIndex = 1
+        else
+            ClearHover()
+            StopTween()
+        end
     end)
     FarmTab:AddDropdown("Chest Farm Mode", {"Instant Teleport (Fastest)", "Tween Flight (Safe/Smooth)"}, "Instant Teleport (Fastest)", function(v)
         if v:find("Instant") then
@@ -5963,56 +6050,23 @@ end
 -- Step 1: UI first (immediate user feedback)
 CreateUI()
 
--- Step 2: Start all background loops with staggered delays
-task.spawn(function()
-    task.wait(0.5 + math.random() * 0.5)
-    StartCombatLoop()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartHakiLoop()
-    
-    task.wait(0.3 + math.random() * 0.3)
-    StartAutoFarmLevel()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartAutoFarmSelectedMob()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartAutoFarmSelectedBoss()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartAutoFarmAllBosses()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartRaidBossLoop()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartDevilFruitLoops()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartESPLoops()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartChestFarmLoop()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartAutoStatsLoop()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartAdvancedRaidEngine()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartSeaEventsEngine()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartRaceV4Engine()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartSpecialBossAndBoneEngine()
-    
-    task.wait(0.2 + math.random() * 0.3)
-    StartLiveUpdaterLoop()
-end)
+-- Step 2: Start all background loops immediately
+task.spawn(StartCombatLoop)
+task.spawn(StartHakiLoop)
+task.spawn(StartAutoFarmLevel)
+task.spawn(StartAutoFarmSelectedMob)
+task.spawn(StartAutoFarmSelectedBoss)
+task.spawn(StartAutoFarmAllBosses)
+task.spawn(StartRaidBossLoop)
+task.spawn(StartDevilFruitLoops)
+task.spawn(StartESPLoops)
+task.spawn(StartChestFarmLoop)
+task.spawn(StartAutoStatsLoop)
+task.spawn(StartAdvancedRaidEngine)
+task.spawn(StartSeaEventsEngine)
+task.spawn(StartRaceV4Engine)
+task.spawn(StartSpecialBossAndBoneEngine)
+task.spawn(StartLiveUpdaterLoop)
 
 print("--------------------------------------------------")
 print("[v2] Loaded successfully!")
