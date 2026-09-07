@@ -4118,7 +4118,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.1.0"
+local SCRIPT_VERSION = "2.2.0"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
@@ -4807,9 +4807,9 @@ local function CreateUI()
     LBLabel.Parent = LogoBadge
     
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(0, 220, 1, 0)
+    TitleLabel.Size = UDim2.new(0, 240, 1, 0)
     TitleLabel.Position = UDim2.new(0, 46, 0, 0)
-    TitleLabel.Text = "ALPHA // 3D CYBER EDITION"
+    TitleLabel.Text = "ALPHA // 3D CYBER EDITION v2.2"
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 13
@@ -6069,7 +6069,7 @@ task.spawn(StartSpecialBossAndBoneEngine)
 task.spawn(StartLiveUpdaterLoop)
 
 print("--------------------------------------------------")
-print("[v2] Loaded successfully!")
-print("[v2] Keyless Cyber 3D Edition active.")
-print("[v2] Current Location: " .. SeaName)
+print("[ALPHA v2.2] Loaded successfully! (Latest Fixed Edition)")
+print("[ALPHA v2.2] Auto Chest Farm (Map Scanner) & Mob Spawn-Wait Engine Active.")
+print("[ALPHA v2.2] Current Location: " .. SeaName)
 print("--------------------------------------------------")
