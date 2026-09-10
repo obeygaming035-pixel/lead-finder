@@ -17,7 +17,7 @@ end)
 
 pcall(function()
     game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Alpha Hub v2.8.0",
+        Title = "Alpha Hub v2.9.5",
         Text = "Loaded Successfully! Opening Cyber GUI...",
         Duration = 4
     })
@@ -3989,7 +3989,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.8.0"
+local SCRIPT_VERSION = "2.9.5"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
@@ -5945,7 +5945,7 @@ task.spawn(StartSpecialBossAndBoneEngine)
 task.spawn(StartLiveUpdaterLoop)
 
 print("--------------------------------------------------")
-print("[ALPHA v2.2] Loaded successfully! (Latest Fixed Edition)")
-print("[ALPHA v2.2] Auto Chest Farm (Map Scanner) & Mob Spawn-Wait Engine Active.")
-print("[ALPHA v2.2] Current Location: " .. SeaName)
+print("[ALPHA v2.9.5] Loaded successfully! (Stabilized Tween + Sea Patrol)")
+print("[ALPHA v2.9.5] Auto Chest Farm (Map Scanner) & Mob Spawn-Wait Engine Active.")
+print("[ALPHA v2.9.5] Current Location: " .. SeaName)
 print("--------------------------------------------------")
