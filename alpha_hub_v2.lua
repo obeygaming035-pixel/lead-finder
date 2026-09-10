@@ -280,6 +280,8 @@ _G.UIInteracting = false
 -- Universal Flight, Travel & Physics State Variables (scoped across entire file)
 local CurrentTween = nil
 local FlightBodyVel = nil
+local FlightCarpet = nil
+local CarpetConn = nil
 
 local CurrentTargetPos = nil
 local IsTravelingSky = false
@@ -615,6 +617,18 @@ local function StopTween()
     if _activeFlight then
         pcall(function() _activeFlight:Disconnect() end)
         _activeFlight = nil
+    end
+    if CarpetConn then
+        pcall(function() CarpetConn:Disconnect() end)
+        CarpetConn = nil
+    end
+    if FlightCarpet and FlightCarpet.Parent then
+        pcall(function() FlightCarpet:Destroy() end)
+        FlightCarpet = nil
+    end
+    if LandingPlatform and LandingPlatform.Parent then
+        pcall(function() LandingPlatform:Destroy() end)
+        LandingPlatform = nil
     end
     if CurrentTween then
         pcall(function() CurrentTween:Cancel() end)
@@ -1333,25 +1347,28 @@ local function TweenTo(targetCFrame, destName)
     CurrentTargetPos = targetPos
     local label = destName or "Destination"
     
-    -- Safe stable speed: 220-235 studs/s (anti-cheat safe, no rollback/rubberbanding)
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 230
-    if speed < 160 then speed = 220 end
-    if speed > 250 then speed = 235 end
+    -- Safe high-performance speed (250-280 studs/s)
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 260
+    if speed < 200 then speed = 240 end
+    if speed > 320 then speed = 280 end
     
     -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween at ground level
     if distance <= 150 then
         EnableNoclip()
-        hum.PlatformStand = true
+        hum.PlatformStand = false
         
         local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
         
         local time = distance / speed
         CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
         CurrentTween.Completed:Connect(function(playbackState)
             CurrentTween = nil
-            if hum and hum.Parent then hum.PlatformStand = false end
+            if hum and hum.Parent then
+                hum.PlatformStand = false
+                hum.Sit = false
+            end
             if playbackState == Enum.PlaybackState.Completed then
                 HoverLock(targetCFrame)
             end
@@ -1360,7 +1377,7 @@ local function TweenTo(targetCFrame, destName)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 150 studs): 3-Stage Auto-Cruise Cross-Island Sky Flight
+    -- 2. LONG RANGE (> 150 studs): Platform-Stabilized Segmented Ocean Cruise
     if IsTravelingSky then return CurrentTween end
     IsTravelingSky = true
     
@@ -1386,13 +1403,6 @@ local function TweenTo(targetCFrame, destName)
         LandingPlatform.Transparency = 1
         LandingPlatform.Parent = Workspace
         
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
         -- Safe Cruise Altitude: Y = 240 (or targetY + 45 if high mountain)
         local cruiseY = 240
         if targetPos.Y > 200 then
@@ -1400,6 +1410,38 @@ local function TweenTo(targetCFrame, destName)
         elseif root.Position.Y > 200 then
             cruiseY = math.max(root.Position.Y, 240)
         end
+        
+        -- Create dynamic anti-airborne float carpet under feet
+        -- (Keeps FloorMaterial = Plastic and completely resets server anti-cheat airborne timer)
+        if FlightCarpet and FlightCarpet.Parent then FlightCarpet:Destroy() end
+        FlightCarpet = Instance.new("Part")
+        FlightCarpet.Name = "AlphaFlightCarpet"
+        FlightCarpet.Size = Vector3.new(10, 1, 10)
+        FlightCarpet.Anchored = true
+        FlightCarpet.CanCollide = true
+        FlightCarpet.Transparency = 1
+        FlightCarpet.CFrame = CFrame.new(root.Position.X, root.Position.Y - 3.1, root.Position.Z)
+        FlightCarpet.Parent = Workspace
+        
+        -- Zero out BodyVelocity force during flight so physics does not oppose TweenService
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.MaxForce = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
+        hum.PlatformStand = false
+        
+        if CarpetConn then CarpetConn:Disconnect() end
+        CarpetConn = RunService.Stepped:Connect(function()
+            if not IsTravelingSky or not root or not root.Parent or not FlightCarpet or not FlightCarpet.Parent then return end
+            FlightCarpet.CFrame = CFrame.new(root.Position.X, root.Position.Y - 3.1, root.Position.Z)
+            local char = LocalPlayer.Character
+            if char then
+                for _, p in ipairs(char:GetDescendants()) do
+                    if p:IsA("BasePart") and p ~= FlightCarpet then
+                        p.CanCollide = false
+                    end
+                end
+            end
+        end)
         
         -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
         if root.Position.Y < (cruiseY - 20) then
@@ -1412,18 +1454,14 @@ local function TweenTo(targetCFrame, destName)
         end
         
         if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
+            StopTween()
             return
         end
         
-        -- Step 2: Segmented Waypoint Cruise (Anti-Cheat & Anti-Rubberband Safe)
-        -- Breaks long ocean crossings into 1,200-stud hops (under 5.5s each) to prevent server desync and airborne rollbacks
-        local currentPos = root.Position
+        -- Step 2: Segmented Waypoint Cruise (800 studs per hop)
+        -- Self-correcting direction vector, terrain pre-streaming, zero rollback
         local hTargetPos = Vector3.new(targetPos.X, cruiseY, targetPos.Z)
-        local totalHDist = (hTargetPos - currentPos).Magnitude
-        
-        local SEGMENT_SIZE = 1200
-        local numSegments = math.max(1, math.ceil(totalHDist / SEGMENT_SIZE))
+        local SEGMENT_SIZE = 800
         
         local monConn
         monConn = RunService.Heartbeat:Connect(function()
@@ -1435,52 +1473,49 @@ local function TweenTo(targetCFrame, destName)
             if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
         end)
         
-        for seg = 1, numSegments do
-            if not root or not root.Parent or not IsTravelingSky then break end
+        while IsTravelingSky and root and root.Parent and hum.Health > 0 do
+            local curPos = root.Position
+            local remHDist = (hTargetPos - curPos).Magnitude
+            if remHDist < 35 then break end
             
-            local segFraction = math.min(1.0, (seg * SEGMENT_SIZE) / totalHDist)
-            local segTargetPos = currentPos:Lerp(hTargetPos, segFraction)
-            local segDist = (segTargetPos - root.Position).Magnitude
+            local hopDist = math.min(SEGMENT_SIZE, remHDist)
+            local hopDir = (hTargetPos - curPos).Unit
+            local hopTargetPos = curPos + hopDir * hopDist
+            local hopCF = CFrame.lookAt(hopTargetPos, hopTargetPos + hopDir * 10)
             
-            if segDist > 15 then
-                local flyDir = (hTargetPos - currentPos).Unit
-                local lookAtPos = segTargetPos + flyDir * 10
-                local segCF = CFrame.lookAt(segTargetPos, lookAtPos)
-                
-                -- Pre-stream chunk ahead so terrain & collision data exist
-                pcall(function()
-                    if LocalPlayer.RequestStreamAroundAsync then
-                        LocalPlayer:RequestStreamAroundAsync(segTargetPos)
-                    end
-                end)
-                
-                local segTime = segDist / speed
-                local segTween = TweenService:Create(root, TweenInfo.new(segTime, Enum.EasingStyle.Linear), {CFrame = segCF})
-                CurrentTween = segTween
-                segTween:Play()
-                
-                local arrivedAtSeg = false
-                local conn = segTween.Completed:Connect(function()
-                    arrivedAtSeg = true
-                end)
-                
-                local tStart = tick()
-                while not arrivedAtSeg and (tick() - tStart) < (segTime + 2.0) and IsTravelingSky and root and root.Parent do
-                    task.wait(0.2)
+            -- Pre-stream chunk ahead so terrain & collision data exist
+            pcall(function()
+                if LocalPlayer.RequestStreamAroundAsync then
+                    LocalPlayer:RequestStreamAroundAsync(hopTargetPos)
                 end
-                if conn then conn:Disconnect() end
-                
-                -- Sync physics and reset server replication accumulator
-                root.AssemblyLinearVelocity = Vector3.zero
-                root.AssemblyAngularVelocity = Vector3.zero
-                task.wait(0.04)
+            end)
+            
+            local hopTime = hopDist / speed
+            local hopTween = TweenService:Create(root, TweenInfo.new(hopTime, Enum.EasingStyle.Linear), {CFrame = hopCF})
+            CurrentTween = hopTween
+            hopTween:Play()
+            
+            local arrivedHop = false
+            local hopConn = hopTween.Completed:Connect(function()
+                arrivedHop = true
+            end)
+            
+            local tStart = tick()
+            while not arrivedHop and (tick() - tStart) < (hopTime + 1.5) and IsTravelingSky and root and root.Parent do
+                task.wait(0.1)
             end
+            if hopConn then hopConn:Disconnect() end
+            
+            -- Waypoint touch reset: zero velocity and reset server replication accumulator
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            task.wait(0.04)
         end
         
         if monConn then monConn:Disconnect() end
         
         if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
+            StopTween()
             return
         end
         
@@ -1499,11 +1534,12 @@ local function TweenTo(targetCFrame, destName)
         downTween:Play()
         downTween.Completed:Wait()
         
-        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding)
-        local finalBv = GetOrCreateBodyVelocity(root)
-        finalBv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding, solid ground lock)
+        if CarpetConn then CarpetConn:Disconnect(); CarpetConn = nil end
+        if FlightCarpet and FlightCarpet.Parent then FlightCarpet:Destroy(); FlightCarpet = nil end
+        
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
         root.CFrame = landCF
         
         if hum and hum.Parent then
