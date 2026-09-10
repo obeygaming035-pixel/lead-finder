@@ -5586,13 +5586,7 @@ local function CreateUI()
             StopTween()
         end
     end)
-    ", "Tween Flight (Safe/Smooth)"}, "Instant Teleport (Fastest)", function(v)
-        if v:find("Instant") then
-            _G.Config.ChestFarmMode = "Instant Teleport"
-        else
-            _G.Config.ChestFarmMode = "Tween Flight"
-        end
-    end)
+
     
     FarmTab:AddSection("Selected Mob Farming (" .. SeaName .. ")")
     local mobList = GetSpawnedMobsList()
