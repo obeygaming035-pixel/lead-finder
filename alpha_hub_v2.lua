@@ -7,17 +7,21 @@
 _G.AlphaInstanceId = tick()
 local MyInstanceId = _G.AlphaInstanceId
 
---============================== STAGGERED STARTUP ==============================
+--============================== INSTANT BULLETPROOF STARTUP ==============================
 pcall(function()
-    if not game:IsLoaded() then
-        game.Loaded:Wait()
+    local t0 = tick()
+    while not game:IsLoaded() and (tick() - t0) < 5 do
+        task.wait(0.1)
     end
 end)
 
--- Randomized startup delay to avoid frame-0 detection (skipped during live hot-reload)
-if not _G.AlphaV2HotReloaded then
-    task.wait(math.random(20, 50) / 10)
-end
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Alpha Hub v2.8.0",
+        Text = "Loaded Successfully! Opening Cyber GUI...",
+        Duration = 4
+    })
+end)
 _G.AlphaV2HotReloaded = true
 
 --============================== CORE SERVICES ==============================
@@ -3163,16 +3167,7 @@ local function GetSpawnedChests()
             end
         end
     end
-    
-    -- 1. Scan direct Workspace children
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") then
-            CheckModel(obj)
-        elseif obj:IsA("BasePart") and obj.Name:lower():find("chest") then
-            AddChest(obj, nil)
-        end
-    end
-    
+    -- 1. Scan ChestModels & Chests folders (skip expensive workspace root iteration)
     -- 2. Scan ChestModels & Chests folders
     local cm = Workspace:FindFirstChild("ChestModels")
     if cm then
@@ -3379,7 +3374,12 @@ local ChestIslandCircuits = {
         CFrame.new(-12463.87, 374.91, -7523.77),-- Floating Turtle Mansion
         CFrame.new(-5085.24, 314.52, -3156.26), -- Castle on the Sea
         CFrame.new(-9516.99, 172.01, 6078.47),  -- Haunted Castle
-        CFrame.new(-2100.12, 70.12, -12150.34)  -- Tiki Outpost
+        CFrame.new(-2100.12, 70.12, -12150.34), -- Tiki Outpost
+        CFrame.new(-2159.17, 38.24, -10193.24), -- Cake Land / Chocolate Island
+        CFrame.new(-710.23, 381.12, -11150.45), -- Ice Cream Island
+        CFrame.new(-1500.50, 45.0, -9200.00),   -- Peanut Island
+        CFrame.new(-900.00, 50.0, -10800.00),   -- CandyCane / CakeLoaf
+        CFrame.new(-1800.00, 55.0, -11500.00)   -- Fishmen Island
     }
 }
 
@@ -3387,22 +3387,24 @@ local _chestCircuitIndex = 1
 
 local function StartChestFarmLoop()
     task.spawn(function()
-        task.wait(0.5)
+        task.wait(1.0)
         local isFarmingChest = false
         
         while true do
-            task.wait(0.1)
+            task.wait(0.5) -- Throttled: 0.5s between scans (was 0.1s — caused crashes)
             if _G.Config.AutoChestFarm and not isFarmingChest then
-                local root = GetRoot()
-                local hum = GetHumanoid()
-                if root and hum and hum.Health > 0 then
+                local ok, err = pcall(function()
+                    local root = GetRoot()
+                    local hum = GetHumanoid()
+                    if not root or not hum or hum.Health <= 0 then return end
+                    
                     local chests = GetSpawnedChests()
                     if #chests > 0 then
                         -- Find closest spawned chest
                         local closest = nil
                         local minDist = math.huge
                         for _, c in ipairs(chests) do
-                            local pos = c:IsA("BasePart") and c.Position or (c:IsA("Model") and c:GetPivot().Position)
+                            local pos = c:IsA("BasePart") and c.Position or nil
                             if pos then
                                 local d = (pos - root.Position).Magnitude
                                 if d < minDist then
@@ -3415,70 +3417,82 @@ local function StartChestFarmLoop()
                         if closest then
                             isFarmingChest = true
                             task.spawn(function()
-                                local chestModel = closest.Parent and closest.Parent:IsA("Model") and closest.Parent or closest
-                                local targetPart = closest:IsA("BasePart") and closest or (closest:FindFirstChildWhichIsA("BasePart") or closest.PrimaryPart)
-                                if not targetPart then
-                                    isFarmingChest = false
-                                    return
-                                end
-                                
-                                local chestCF = targetPart.CFrame * CFrame.new(0, 1.8, 0)
-                                local targetPos = targetPart.Position
-                                
-                                -- Fly directly to chest using TweenTo
-                                TweenTo(chestCF, "Chest (" .. closest.Name .. ")")
-                                
-                                -- Wait until arrived or timeout
-                                local tStart = tick()
-                                local flightTimeout = math.clamp((targetPos - root.Position).Magnitude / 150, 4, 25)
-                                while _G.Config.AutoChestFarm and (targetPart.Position - root.Position).Magnitude > 15 and (tick() - tStart) < flightTimeout do
-                                    task.wait(0.1)
-                                    if not targetPart.Parent then break end
-                                end
-                                
-                                if _G.Config.AutoChestFarm and targetPart.Parent then
-                                    -- Cashout collection at chest
-                                    local beforeBeli = GetPlayerBeli()
-                                    local tCollect = tick()
-                                    
-                                    while _G.Config.AutoChestFarm and (tick() - tCollect) < 2.0 do
-                                        root.CFrame = chestCF
-                                        root.AssemblyLinearVelocity = Vector3.zero
-                                        root.AssemblyAngularVelocity = Vector3.zero
-                                        
-                                        if firetouchinterest then
-                                            pcall(function()
-                                                local pb = chestModel:FindFirstChild("PushBox") or targetPart
-                                                firetouchinterest(root, pb, 0)
-                                                task.wait(0.02)
-                                                firetouchinterest(root, pb, 1)
-                                                if pb ~= targetPart then
-                                                    firetouchinterest(root, targetPart, 0)
-                                                    task.wait(0.02)
-                                                    firetouchinterest(root, targetPart, 1)
-                                                end
-                                            end)
-                                        end
-                                        
-                                        local prompt = targetPart:FindFirstChildWhichIsA("ProximityPrompt", true) or (chestModel and chestModel:FindFirstChildWhichIsA("ProximityPrompt", true))
-                                        if prompt and fireproximityprompt then
-                                            pcall(function() fireproximityprompt(prompt) end)
-                                        end
-                                        
-                                        if GetPlayerBeli() > beforeBeli then
-                                            break
-                                        end
-                                        task.wait(0.08)
+                                local success2, err2 = pcall(function()
+                                    local chestModel = closest.Parent and closest.Parent:IsA("Model") and closest.Parent or closest
+                                    local targetPart = closest:IsA("BasePart") and closest or (closest:FindFirstChildWhichIsA("BasePart") or closest.PrimaryPart)
+                                    if not targetPart then
+                                        isFarmingChest = false
+                                        return
                                     end
+                                    
+                                    local chestCF = targetPart.CFrame * CFrame.new(0, 1.8, 0)
+                                    local targetPos = targetPart.Position
+                                    
+                                    -- Fly directly to chest using TweenTo
+                                    TweenTo(chestCF, "Chest (" .. closest.Name .. ")")
+                                    
+                                    -- Wait until arrived or timeout (throttled checks)
+                                    local tStart = tick()
+                                    local flightTimeout = math.clamp((targetPos - root.Position).Magnitude / 150, 4, 25)
+                                    while _G.Config.AutoChestFarm and (targetPart.Position - root.Position).Magnitude > 15 and (tick() - tStart) < flightTimeout do
+                                        task.wait(0.25) -- Was 0.1 — reduced frequency
+                                        if not targetPart.Parent then break end
+                                    end
+                                    
+                                    if _G.Config.AutoChestFarm and targetPart.Parent then
+                                        -- Cashout collection at chest
+                                        local beforeBeli = GetPlayerBeli()
+                                        local tCollect = tick()
+                                        
+                                        while _G.Config.AutoChestFarm and (tick() - tCollect) < 2.5 do
+                                            root.CFrame = chestCF
+                                            root.AssemblyLinearVelocity = Vector3.zero
+                                            root.AssemblyAngularVelocity = Vector3.zero
+                                            
+                                            if firetouchinterest then
+                                                pcall(function()
+                                                    local pb = chestModel:FindFirstChild("PushBox") or targetPart
+                                                    firetouchinterest(root, pb, 0)
+                                                    task.wait(0.03)
+                                                    firetouchinterest(root, pb, 1)
+                                                    if pb ~= targetPart then
+                                                        firetouchinterest(root, targetPart, 0)
+                                                        task.wait(0.03)
+                                                        firetouchinterest(root, targetPart, 1)
+                                                    end
+                                                    -- Also try RootPart if different
+                                                    local rp = chestModel:FindFirstChild("RootPart")
+                                                    if rp and rp ~= pb and rp ~= targetPart then
+                                                        firetouchinterest(root, rp, 0)
+                                                        task.wait(0.03)
+                                                        firetouchinterest(root, rp, 1)
+                                                    end
+                                                end)
+                                            end
+                                            
+                                            local prompt = targetPart:FindFirstChildWhichIsA("ProximityPrompt", true) or (chestModel and chestModel:FindFirstChildWhichIsA("ProximityPrompt", true))
+                                            if prompt and fireproximityprompt then
+                                                pcall(function() fireproximityprompt(prompt) end)
+                                            end
+                                            
+                                            if GetPlayerBeli() > beforeBeli then
+                                                break
+                                            end
+                                            task.wait(0.12) -- Was 0.08 — slightly slower to reduce load
+                                        end
+                                    end
+                                    
+                                    _collectedChests[closest] = tick() + 90
+                                    _collectedChests[targetPart] = tick() + 90
+                                    if chestModel ~= closest then _collectedChests[chestModel] = tick() + 90 end
+                                    
+                                    StopTween()
+                                    if root and root.Parent then HoverLock(root.CFrame) end
+                                    task.wait(0.3) -- Was 0.15 — more breathing room
+                                end)
+                                if not success2 then
+                                    warn("[ChestFarm] Error: " .. tostring(err2))
                                 end
-                                
-                                _collectedChests[closest] = tick() + 90
-                                _collectedChests[targetPart] = tick() + 90
-                                if chestModel ~= closest then _collectedChests[chestModel] = tick() + 90 end
-                                
-                                StopTween()
-                                if root and root.Parent then HoverLock(root.CFrame) end
-                                task.wait(0.15)
                                 isFarmingChest = false
                             end)
                         end
@@ -3495,24 +3509,29 @@ local function StartChestFarmLoop()
                                 task.spawn(function()
                                     local pStart = tick()
                                     while _G.Config.AutoChestFarm and (nextIslandPos.Position - root.Position).Magnitude > 35 and (tick() - pStart) < 25 do
-                                        task.wait(0.2)
+                                        task.wait(0.5) -- Was 0.2 — throttled
                                         if #GetSpawnedChests() > 0 then break end
                                     end
                                     _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
-                                    task.wait(1.0)
+                                    task.wait(1.5) -- Was 1.0 — more time between islands
                                     isFarmingChest = false
                                 end)
                             else
                                 _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
-                                task.wait(1.0)
+                                task.wait(1.5) -- Was 1.0
                             end
                         end
                     end
+                end)
+                if not ok then
+                    warn("[ChestFarm] Scan error: " .. tostring(err))
+                    task.wait(2) -- Back off on error
                 end
             end
         end
     end)
 end
+
 
 local function StartAdvancedRaidEngine()
     task.spawn(function()
