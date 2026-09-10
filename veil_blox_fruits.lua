@@ -157,43 +157,7 @@ local function GetNetRemote(subName)
     end
 end
 
---============================== AUTO SELECT TEAM (PIRATES) ==============================
--- Ensures character is spawned into the world immediately after game load or crash recovery
-local function AutoSelectPirates()
-    task.spawn(function()
-        for attempt = 1, 15 do
-            if LocalPlayer.Team ~= nil and tostring(LocalPlayer.Team) ~= "Neutral" and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                break
-            end
-            
-            -- Method 1: Direct Server Remote (CommF_ SetTeam)
-            pcall(function()
-                local cf = CommF()
-                if cf then
-                    cf:InvokeServer("SetTeam", "Pirates")
-                end
-            end)
-            
-            -- Method 2: Safe targeted UI click only if ChooseTeam frame exists
-            pcall(function()
-                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-                local main = pGui and pGui:FindFirstChild("Main")
-                local chooseTeam = main and main:FindFirstChild("ChooseTeam")
-                if chooseTeam and chooseTeam.Visible then
-                    local pBtn = chooseTeam:FindFirstChild("Container") and chooseTeam.Container:FindFirstChild("Pirates") and chooseTeam.Container.Pirates:FindFirstChild("Frame") and chooseTeam.Container.Pirates.Frame:FindFirstChildWhichIsA("TextButton")
-                    if pBtn and pBtn.Visible and firesignal then
-                        firesignal(pBtn.Activated)
-                    end
-                end
-            end)
-            
-            task.wait(0.8)
-        end
-    end)
-end
-
--- Run auto-team selection immediately
-AutoSelectPirates()
+-- AutoSelectPirates removed to prevent premature firesignal crash
 
 --============================== CONFIGURATION ==============================
 _G.Config = {
