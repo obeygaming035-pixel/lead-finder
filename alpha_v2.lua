@@ -1416,27 +1416,68 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Step 2: Smooth horizontal cruise across sky to target X, Z (facing destination)
-        local skyTargetCF = CFrame.lookAt(Vector3.new(targetPos.X, cruiseY, targetPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
-        local hDist = (Vector3.new(targetPos.X, cruiseY, targetPos.Z) - root.Position).Magnitude
-        if hDist > 20 then
-            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
-            CurrentTween = hTween
-            hTween:Play()
+        -- Step 2: Segmented Waypoint Cruise (Anti-Cheat & Anti-Rubberband Safe)
+        -- Breaks long ocean crossings into 1,200-stud hops (under 5.5s each) to prevent server desync and airborne rollbacks
+        local currentPos = root.Position
+        local hTargetPos = Vector3.new(targetPos.X, cruiseY, targetPos.Z)
+        local totalHDist = (hTargetPos - currentPos).Magnitude
+        
+        local SEGMENT_SIZE = 1200
+        local numSegments = math.max(1, math.ceil(totalHDist / SEGMENT_SIZE))
+        
+        local monConn
+        monConn = RunService.Heartbeat:Connect(function()
+            if not IsTravelingSky or not root or not root.Parent then
+                if monConn then monConn:Disconnect() end
+                return
+            end
+            local curDist = (targetPos - root.Position).Magnitude
+            if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
+        end)
+        
+        for seg = 1, numSegments do
+            if not root or not root.Parent or not IsTravelingSky then break end
             
-            local monConn
-            monConn = RunService.Heartbeat:Connect(function()
-                if not IsTravelingSky or not root or not root.Parent then
-                    if monConn then monConn:Disconnect() end
-                    return
+            local segFraction = math.min(1.0, (seg * SEGMENT_SIZE) / totalHDist)
+            local segTargetPos = currentPos:Lerp(hTargetPos, segFraction)
+            local segDist = (segTargetPos - root.Position).Magnitude
+            
+            if segDist > 15 then
+                local flyDir = (hTargetPos - currentPos).Unit
+                local lookAtPos = segTargetPos + flyDir * 10
+                local segCF = CFrame.lookAt(segTargetPos, lookAtPos)
+                
+                -- Pre-stream chunk ahead so terrain & collision data exist
+                pcall(function()
+                    if LocalPlayer.RequestStreamAroundAsync then
+                        LocalPlayer:RequestStreamAroundAsync(segTargetPos)
+                    end
+                end)
+                
+                local segTime = segDist / speed
+                local segTween = TweenService:Create(root, TweenInfo.new(segTime, Enum.EasingStyle.Linear), {CFrame = segCF})
+                CurrentTween = segTween
+                segTween:Play()
+                
+                local arrivedAtSeg = false
+                local conn = segTween.Completed:Connect(function()
+                    arrivedAtSeg = true
+                end)
+                
+                local tStart = tick()
+                while not arrivedAtSeg and (tick() - tStart) < (segTime + 2.0) and IsTravelingSky and root and root.Parent do
+                    task.wait(0.2)
                 end
-                local curDist = (targetPos - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
-            end)
-            
-            hTween.Completed:Wait()
-            if monConn then monConn:Disconnect() end
+                if conn then conn:Disconnect() end
+                
+                -- Sync physics and reset server replication accumulator
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+                task.wait(0.04)
+            end
         end
+        
+        if monConn then monConn:Disconnect() end
         
         if not root or not root.Parent or not IsTravelingSky then
             if SetTravelHUD then SetTravelHUD(false) end
