@@ -1348,11 +1348,9 @@ local function TweenTo(targetCFrame, destName)
     local distance = (targetPos - root.Position).Magnitude
     
     -- Within reach: lock position immediately
-    if distance <= 15 then
+    if distance < 15 then
         StopTween()
-        root.CFrame = targetCFrame
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
+        HoverLock(targetCFrame)
         return {
             Cancel = function() end,
             Completed = {
@@ -1362,126 +1360,179 @@ local function TweenTo(targetCFrame, destName)
         }
     end
     
-    -- Anti-thrash guard: If already actively tweening to nearly the same spot, let it continue!
-    if CurrentTween and CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 then
+    -- Anti-spam: already heading to nearly the same spot
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 15 and CurrentTween then
         return CurrentTween
     end
     
     StopTween()
-    
     CurrentTargetPos = targetPos
-    IsTravelingSky = true
     local label = destName or "Destination"
     
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 235
-    if speed < 180 then speed = 235 end
-    if speed > 275 then speed = 250 end
+    -- Safe stable speed: 220-235 studs/s (anti-cheat safe, no rollback/rubberbanding)
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 230
+    if speed < 160 then speed = 220 end
+    if speed > 250 then speed = 235 end
     
-    EnableNoclip()
-    hum.PlatformStand = true
-    
-    -- BodyGyro keeps character perfectly upright and facing the direction of travel!
-    local bg = Instance.new("BodyGyro")
-    bg.Name = "AlphaTweenGyro"
-    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    bg.P = 9e4
-    bg.CFrame = CFrame.lookAt(root.Position, targetPos)
-    bg.Parent = root
-    
-    -- BodyVelocity cancels gravity so player never falls into ocean water
-    local bv = GetOrCreateBodyVelocity(root)
-    bv.Velocity = Vector3.zero
-    bv.MaxForce = Vector3.new(0, 9e9, 0)
-    root.AssemblyLinearVelocity = Vector3.zero
-    root.AssemblyAngularVelocity = Vector3.zero
-    
-    -- Stream target chunk ahead of arrival
-    pcall(function()
-        if LocalPlayer.RequestStreamAroundAsync then
-            LocalPlayer:RequestStreamAroundAsync(targetPos)
-        end
-    end)
-    
-    local flightCFrame = targetCFrame
-    -- Water safety for long distance: keep flight altitude safe above ocean
-    if distance > 250 and targetCFrame.Y < 45 then
-        flightCFrame = CFrame.new(targetCFrame.X, 45, targetCFrame.Z)
+    -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween at ground level
+    if distance <= 150 then
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        local time = distance / speed
+        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween.Completed:Connect(function(playbackState)
+            CurrentTween = nil
+            if hum and hum.Parent then hum.PlatformStand = false end
+            if playbackState == Enum.PlaybackState.Completed then
+                HoverLock(targetCFrame)
+            end
+        end)
+        CurrentTween:Play()
+        return CurrentTween
     end
     
-    local dur = distance / speed
-    local twInfo = TweenInfo.new(dur, Enum.EasingStyle.Linear)
-    local tw = TweenService:Create(root, twInfo, {CFrame = flightCFrame})
-    CurrentTween = tw
-    tw:Play()
+    -- 2. LONG RANGE (> 150 studs): 3-Stage Auto-Cruise Cross-Island Sky Flight
+    if IsTravelingSky then return CurrentTween end
+    IsTravelingSky = true
     
-    if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
-    
-    local completedCallbacks = {}
-    local completed = false
-    
-    tw.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed then
-            completed = true
-            CurrentTween = nil
-            CurrentTargetPos = nil
-            IsTravelingSky = false
-            
-            local r = GetRoot()
-            local h = GetHumanoid()
-            if r and r.Parent then
-                r.CFrame = targetCFrame
-                r.AssemblyLinearVelocity = Vector3.zero
-                r.AssemblyAngularVelocity = Vector3.zero
+    task.spawn(function()
+        local totalDist = distance
+        if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
+        
+        -- Pre-stream destination chunks immediately so terrain loads
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetPos)
             end
-            if h and h.Parent then
-                h.PlatformStand = false
-            end
-            
-            pcall(function() bg:Destroy() end)
-            if FlightBodyVel then pcall(function() FlightBodyVel:Destroy() end) FlightBodyVel = nil end
-            DisableNoclip()
-            if SetTravelHUD then SetTravelHUD(false) end
-            
-            if _G.Config.AutoSetSpawn then
-                task.spawn(function()
-                    task.wait(0.3)
-                    local cf = CommF()
-                    if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
-                end)
-            end
-            
-            for _, cb in ipairs(completedCallbacks) do
-                pcall(cb, Enum.PlaybackState.Completed)
-            end
-        else
-            -- Cancelled early: do NOT snap character! Just clean up!
-            completed = true
-            pcall(function() bg:Destroy() end)
-            if FlightBodyVel then pcall(function() FlightBodyVel:Destroy() end) FlightBodyVel = nil end
-            DisableNoclip()
-            if SetTravelHUD then SetTravelHUD(false) end
+        end)
+        
+        -- Create solid invisible landing platform so player NEVER falls into water or void
+        if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
+        LandingPlatform = Instance.new("Part")
+        LandingPlatform.Name = "AlphaLandingPlatform"
+        LandingPlatform.Size = Vector3.new(60, 2, 60)
+        LandingPlatform.CFrame = CFrame.new(targetPos.X, targetPos.Y - 1, targetPos.Z)
+        LandingPlatform.Anchored = true
+        LandingPlatform.CanCollide = true
+        LandingPlatform.Transparency = 1
+        LandingPlatform.Parent = Workspace
+        
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        -- Safe Cruise Altitude: Y = 240 (or targetY + 45 if high mountain)
+        local cruiseY = 240
+        if targetPos.Y > 200 then
+            cruiseY = targetPos.Y + 45
+        elseif root.Position.Y > 200 then
+            cruiseY = math.max(root.Position.Y, 240)
         end
+        
+        -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
+        if root.Position.Y < (cruiseY - 20) then
+            local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
+            local upDist = math.abs(cruiseY - root.Position.Y)
+            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
+            CurrentTween = upTween
+            upTween:Play()
+            upTween.Completed:Wait()
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Step 2: Smooth horizontal cruise across sky to target X, Z (facing destination)
+        local skyTargetCF = CFrame.lookAt(Vector3.new(targetPos.X, cruiseY, targetPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
+        local hDist = (Vector3.new(targetPos.X, cruiseY, targetPos.Z) - root.Position).Magnitude
+        if hDist > 20 then
+            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
+            CurrentTween = hTween
+            hTween:Play()
+            
+            local monConn
+            monConn = RunService.Heartbeat:Connect(function()
+                if not IsTravelingSky or not root or not root.Parent then
+                    if monConn then monConn:Disconnect() end
+                    return
+                end
+                local curDist = (targetPos - root.Position).Magnitude
+                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
+            end)
+            
+            hTween.Completed:Wait()
+            if monConn then monConn:Disconnect() end
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Pre-stream terrain again directly above destination
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetPos)
+            end
+        end)
+        
+        -- Step 3: Gentle straight descent onto destination + 2.5 studs above ground
+        local landCF = targetCFrame * CFrame.new(0, 2.5, 0)
+        local downDist = (landCF.Position - root.Position).Magnitude
+        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
+        CurrentTween = downTween
+        downTween:Play()
+        downTween.Completed:Wait()
+        
+        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding)
+        local finalBv = GetOrCreateBodyVelocity(root)
+        finalBv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        root.CFrame = landCF
+        
+        if hum and hum.Parent then
+            hum.PlatformStand = false
+            hum.Sit = false
+        end
+        
+        IsTravelingSky = false
+        CurrentTween = nil
+        CurrentTargetPos = nil
+        HoverLock(landCF)
+        if SetTravelHUD then SetTravelHUD(false) end
+        
+        if _G.Config.AutoSetSpawn then
+            task.spawn(function()
+                task.wait(0.3)
+                local cf = CommF()
+                if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
+            end)
+        end
+        
+        -- Hold landing platform for 3 seconds so terrain geometry loads completely
+        task.spawn(function()
+            task.wait(0.5)
+            DisableNoclip()
+            task.wait(2.5)
+            if LandingPlatform and LandingPlatform.Parent then
+                LandingPlatform:Destroy()
+                LandingPlatform = nil
+            end
+        end)
     end)
     
-    local mockTween = {
-        Cancel = function()
-            pcall(function() tw:Cancel() end)
-            StopTween()
-        end,
-        Completed = {
-            Wait = function()
-                while not completed and CurrentTween == tw do task.wait(0.05) end
-            end,
-            Connect = function(self, cb)
-                if completed then
-                    pcall(cb, Enum.PlaybackState.Completed)
-                else
-                    table.insert(completedCallbacks, cb)
-                end
-            end
-        }
-    }
-    return mockTween
+    return CurrentTween
 end
 local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.AutoFarmLevel = false
