@@ -885,6 +885,11 @@ function Validator.RecordPosition()
 end
 
 function Validator.IsStuck()
+    -- Never flag as stuck if hovering, not actively tweening, or during chest farming
+    if IsHovering or CurrentTween == nil or _G.Config.AutoChestFarm then
+        Validator.ConsecutiveStuckCount = 0
+        return false
+    end
     if #Validator.PositionHistory < Validator.MaxHistorySize then return false end
     
     -- Check if any farming mode is actually active
@@ -1322,23 +1327,33 @@ local function RecoverFromPhantomDesync(expectedCF)
 end
 
 -- -------------------------------------------------------------------------
--- UNIFIED AUTO-CRUISE TWEEN ENGINE (Restored Working Structure)
--- Short distance (<= 150 studs): Direct straight-line farm tween.
--- Long distance (> 150 studs): Auto-Cruise over ocean at uniform Y=240,
--- pre-streaming, and clean landing on solid ground without rubberbanding!
+-- UNIFIED TRAVEL & TELEPORT ENGINE (Restored Original Working Standard)
+-- Short distance (<= 150 studs): Instant snap without tween delays or rubberbanding.
+-- Long distance (> 150 studs): Smooth linear glide with TweenService:Create.
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum or hum.Health <= 0 then return end
     if hum.Sit then hum.Sit = false end
-    
-    local distance = (targetCFrame.Position - root.Position).Magnitude
-    
-    -- Within reach: lock position immediately
-    if distance < 15 then
-        StopTween()
+
+    local targetPos = targetCFrame.Position
+    local distance = (targetPos - root.Position).Magnitude
+
+    local bv = GetOrCreateBodyVelocity(root)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(0, 100000, 0) -- Only counteract gravity; zero horizontal resistance!
+    EnableNoclip()
+
+    -- 1. Within close range (<= 20 studs): lock immediately
+    if distance <= 20 then
+        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+        CurrentTween = nil
+        CurrentTargetPos = nil
+        IsTravelingSky = false
+        root.CFrame = targetCFrame
         HoverLock(targetCFrame)
+        if SetTravelHUD then SetTravelHUD(false) end
         return {
             Cancel = function() end,
             Completed = {
@@ -1347,199 +1362,112 @@ local function TweenTo(targetCFrame, destName)
             }
         }
     end
-    
-    -- Safe speed from Validator auto-tuner (adapts to server rollback detection)
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
-    if speed < 150 then speed = 250 end
-    if speed > 275 then speed = 260 end
-    
-    -- Anti-spam check: already heading to nearly the same spot
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 and CurrentTween then
-        return CurrentTween
-    end
-    
-    if CurrentTween then
-        pcall(function() CurrentTween:Cancel() end)
-        CurrentTween = nil
-    end
-    
-    CurrentTargetPos = targetCFrame.Position
-    local label = destName or "Destination"
-    
-    -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween
+
+    -- 2. Same-island close range (<= 150 studs): instant snap!
+    -- Matches top Blox Fruits hubs: local mob farming snaps instantly without tween delays
     if distance <= 150 then
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        local time = distance / speed
-        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-        CurrentTween.Completed:Connect(function()
-            CurrentTween = nil
-            if hum and hum.Parent then hum.PlatformStand = false end
-            HoverLock(targetCFrame)
-        end)
-        CurrentTween:Play()
+        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+        CurrentTween = nil
+        CurrentTargetPos = nil
+        IsTravelingSky = false
+        root.CFrame = targetCFrame
+        if SetTravelHUD then SetTravelHUD(false) end
+        return {
+            Cancel = function() end,
+            Completed = {
+                Wait = function() end,
+                Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
+            }
+        }
+    end
+
+    -- 3. Native server entrance portal bypass
+    if _G.Config.BypassTeleport then
+        local bestPortal = nil
+        local bestDist = math.huge
+        for _, portal in ipairs(ENTRANCE_PORTALS) do
+            if portal.Sea == CurrentSea and portal.IsEntrance then
+                local pDist = (targetPos - portal.Pos).Magnitude
+                if pDist < bestDist then
+                    bestDist = pDist
+                    bestPortal = portal
+                end
+            end
+        end
+        if bestPortal and bestDist < 450 then
+            local cf = CommF()
+            if cf then
+                pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
+                task.wait(0.3)
+                root = GetRoot()
+                if root and (targetPos - root.Position).Magnitude < 150 then
+                    root.CFrame = targetCFrame
+                    IsTravelingSky = false
+                    if SetTravelHUD then SetTravelHUD(false) end
+                    if _G.Config.AutoSetSpawn then
+                        pcall(function() cf:InvokeServer("SetSpawnPoint") end)
+                    end
+                    return {
+                        Cancel = function() end,
+                        Completed = {
+                            Wait = function() end,
+                            Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
+                        }
+                    }
+                end
+            end
+        end
+    end
+
+    -- 4. Cross-Island Long Distance Glide (> 150 studs)
+    -- Anti-spam: if already gliding to this exact target, let it continue
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 15 and CurrentTween then
         return CurrentTween
     end
-    
-    -- 2. LONG RANGE (> 150 studs): Auto-Cruise Cross-Island Flight
-    if IsTravelingSky then return end
+
+    if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+
+    CurrentTargetPos = targetPos
     IsTravelingSky = true
-    
-    task.spawn(function()
-        local totalDist = distance
-        if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
-        
-        -- Pre-stream destination chunks immediately so terrain loads
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
-            end
-        end)
-        
-        -- Create solid invisible landing platform so player NEVER falls into water or through unstreamed terrain
-        if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
-        LandingPlatform = Instance.new("Part")
-        LandingPlatform.Name = "AlphaLandingPlatform"
-        LandingPlatform.Size = Vector3.new(60, 2, 60)
-        LandingPlatform.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
-        LandingPlatform.Anchored = true
-        LandingPlatform.CanCollide = true
-        LandingPlatform.Transparency = 1
-        LandingPlatform.Parent = Workspace
-        
-        EnableNoclip()
-        hum.PlatformStand = true
-        
-        local bv = GetOrCreateBodyVelocity(root)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        
-        -- Safe Cruise Altitude: Y = 240 uniform for all islands!
-        local cruiseY = 240
-        if targetCFrame.Position.Y > 200 then
-            cruiseY = targetCFrame.Position.Y + 45
-        elseif root.Position.Y > 200 then
-            cruiseY = math.max(root.Position.Y, 240)
-        end
-        
-        -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
-        if root.Position.Y < (cruiseY - 20) then
-            local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
-            local upDist = (upCF.Position - root.Position).Magnitude
-            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
-            CurrentTween = upTween
-            upTween:Play()
-            upTween.Completed:Wait()
-        end
-        
-        if not root or not root.Parent or not IsTravelingSky then
+    local label = destName or "Destination"
+
+    local speed = _G.Config.TweenSpeed or 275
+    if speed < 180 then speed = 250 end
+    if speed > 350 then speed = 300 end
+
+    -- Water safety: during flights across the ocean, keep Y at least 40 so player never touches ocean water!
+    local flightCFrame = targetCFrame
+    if distance > 250 and targetCFrame.Y < 40 then
+        flightCFrame = CFrame.new(targetCFrame.X, 40, targetCFrame.Z)
+    end
+
+    local dur = distance / speed
+    local twInfo = TweenInfo.new(dur, Enum.EasingStyle.Linear)
+    local tw = TweenService:Create(root, twInfo, {CFrame = flightCFrame})
+    CurrentTween = tw
+    tw:Play()
+
+    if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
+
+    tw.Completed:Connect(function(playbackState)
+        if playbackState == Enum.PlaybackState.Completed then
+            CurrentTween = nil
+            CurrentTargetPos = nil
+            IsTravelingSky = false
+            root.CFrame = targetCFrame
+            HoverLock(targetCFrame)
             if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
-        
-        -- Step 2: Cruise horizontally across sky to target X, Z
-        local skyTargetCF = CFrame.new(targetCFrame.Position.X, cruiseY, targetCFrame.Position.Z)
-        local hDist = (skyTargetCF.Position - root.Position).Magnitude
-        if hDist > 20 then
-            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
-            CurrentTween = hTween
-            hTween:Play()
-            
-            local monConn
-            monConn = RunService.Heartbeat:Connect(function()
-                if not IsTravelingSky or not root or not root.Parent then
-                    if monConn then monConn:Disconnect() end
-                    return
-                end
-                local curDist = (targetCFrame.Position - root.Position).Magnitude
-                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
-            end)
-            
-            hTween.Completed:Wait()
-            if monConn then monConn:Disconnect() end
-        end
-        
-        if not root or not root.Parent or not IsTravelingSky then
-            if SetTravelHUD then SetTravelHUD(false) end
-            return
-        end
-        
-        -- Pre-stream terrain again directly above destination
-        pcall(function()
-            if LocalPlayer.RequestStreamAroundAsync then
-                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
-            end
-        end)
-        
-        -- Step 3: Descend directly to target position + 3.5 studs above ground
-        local landCF = targetCFrame * CFrame.new(0, 3.5, 0)
-        local downDist = (landCF.Position - root.Position).Magnitude
-        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
-        CurrentTween = downTween
-        downTween:Play()
-        downTween.Completed:Wait()
-        
-        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding):
-        -- Keep BodyVelocity active with zero velocity for stability
-        local finalBv = GetOrCreateBodyVelocity(root)
-        finalBv.Velocity = Vector3.new(0, 0, 0)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        root.CFrame = landCF
-        
-        if hum and hum.Parent then
-            hum.PlatformStand = false
-            hum.Sit = false
-        end
-        
-        IsTravelingSky = false
-        CurrentTween = nil
-        if SetTravelHUD then SetTravelHUD(false) end
-        
-        -- Auto-set spawn point on island arrival if configured
-        if _G.Config.AutoSetSpawn then
-            task.spawn(function()
-                task.wait(0.3)
-                local cf = CommF()
-                if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
-            end)
-        end
-        
-        -- Hold platform for 4 seconds so terrain geometry completely loads and server acknowledges position
-        task.spawn(function()
-            task.wait(0.5)
-            DisableNoclip()
-            task.wait(3.5)
-            if LandingPlatform and LandingPlatform.Parent then
-                LandingPlatform:Destroy()
-                LandingPlatform = nil
-            end
-        end)
-    end)
-    
-    local travelHandle = {
-        Cancel = function()
-            StopTween()
-        end,
-        Completed = {
-            Wait = function()
-                while IsTravelingSky do task.wait(0.05) end
-            end,
-            Connect = function(self, cb)
+
+            if _G.Config.AutoSetSpawn then
                 task.spawn(function()
-                    while IsTravelingSky do task.wait(0.05) end
-                    if cb then pcall(cb, Enum.PlaybackState.Completed) end
+                    task.wait(0.3)
+                    local cf = CommF()
+                    if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
                 end)
             end
-        }
-    }
-    CurrentTween = travelHandle
-    return travelHandle
+        end
+    end)
+    return tw
 end
 
 local function TeleportToIsland(targetCFrame, islandName)
@@ -2361,7 +2289,21 @@ local function GetTrueMobSpawnCFrame(mobName, questInfo)
         return best
     end
     
-    -- 3. Fallback to Quest Database MobPos / Pos
+    -- 3. Check BossesDB by exact name and fuzzy match
+    if BossesDB and BossesDB[mobName] and BossesDB[mobName].Pos then
+        _lockedMobSpawn[mobName] = BossesDB[mobName].Pos
+        return BossesDB[mobName].Pos
+    end
+    if BossesDB then
+        for bName, bData in pairs(BossesDB) do
+            if IsMobMatch(bName, mobName) and bData.Pos then
+                _lockedMobSpawn[mobName] = bData.Pos
+                return bData.Pos
+            end
+        end
+    end
+
+    -- 4. Fallback to Quest Database MobPos / Pos
     if questInfo and questInfo.MobPos then
         _lockedMobSpawn[mobName] = questInfo.MobPos
         return questInfo.MobPos
@@ -2370,9 +2312,18 @@ local function GetTrueMobSpawnCFrame(mobName, questInfo)
         return questInfo.Pos
     end
     
-    -- 4. Fallback search across entire QuestsDB for mobName
+    -- 5. Fallback search across entire QuestsDB for mobName (current sea first, then any)
     for _, q in ipairs(QuestsDB) do
         if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
+            local cf = q.MobPos or q.Pos
+            if cf then
+                _lockedMobSpawn[mobName] = cf
+                return cf
+            end
+        end
+    end
+    for _, q in ipairs(QuestsDB) do
+        if IsMobMatch(q.Mob, mobName) then
             local cf = q.MobPos or q.Pos
             if cf then
                 _lockedMobSpawn[mobName] = cf
@@ -2512,7 +2463,7 @@ local function StartAutoFarmSelectedMob()
     task.spawn(function()
         task.wait(0.1)
         while true do
-            task.wait(0.25)
+            task.wait(0.2)
             if _G.Config.FarmSelectedMob then
                 pcall(function()
                     local char = GetCharacter()
@@ -2535,7 +2486,8 @@ local function StartAutoFarmSelectedMob()
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
-                            if distToFarm < 15 then
+                            if distToFarm <= 150 then
+                                root.CFrame = farmPos
                                 HoverLock(farmPos)
                             else
                                 TweenTo(farmPos, mobName)
@@ -2544,7 +2496,7 @@ local function StartAutoFarmSelectedMob()
                             BringMobsTo(mobName, target.HumanoidRootPart.CFrame)
                         else
                             -- Mob is NOT currently spawned in server:
-                            -- Go to spawn area and STAY HOVERING THERE waiting for mobs to spawn!
+                            -- Go to spawn area, hover safely in air, and WAIT for server proximity spawn!
                             local spawnCF = GetTrueMobSpawnCFrame(mobName)
                             if not spawnCF then
                                 for _, q in ipairs(QuestsDB) do
@@ -2554,14 +2506,23 @@ local function StartAutoFarmSelectedMob()
                                     end
                                 end
                             end
+                            if not spawnCF and BossesDB then
+                                for bName, bData in pairs(BossesDB) do
+                                    if IsMobMatch(bName, mobName) and bData.Pos then
+                                        spawnCF = bData.Pos
+                                        break
+                                    end
+                                end
+                            end
                             if spawnCF then
-                                local triggerPos = spawnCF * CFrame.new(0, 15, 0)
-                                local distToTrigger = (triggerPos.Position - root.Position).Magnitude
-                                if distToTrigger < 20 then
-                                    HoverLock(triggerPos)
-                                    task.wait(0.35)
+                                local waitPos = spawnCF * CFrame.new(0, 15, 0)
+                                local distToWait = (waitPos.Position - root.Position).Magnitude
+                                if distToWait <= 150 then
+                                    root.CFrame = waitPos
+                                    HoverLock(waitPos)
+                                    task.wait(0.2)
                                 else
-                                    TweenTo(triggerPos, mobName .. " Spawn Zone")
+                                    TweenTo(waitPos, mobName .. " Spawn Zone")
                                 end
                             end
                         end
@@ -2576,7 +2537,7 @@ local function StartAutoFarmSelectedBoss()
     task.spawn(function()
         task.wait(0.1)
         while true do
-            task.wait(0.3)
+            task.wait(0.25)
             if _G.Config.FarmSelectedBoss then
                 if not _G.Config.SelectedBoss or _G.Config.SelectedBoss == "" then
                     local spawned = GetSpawnedBossesList()
@@ -2585,43 +2546,53 @@ local function StartAutoFarmSelectedBoss()
                     end
                 end
                 if _G.Config.SelectedBoss and _G.Config.SelectedBoss ~= "" then
-                pcall(function()
-                    local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
-                    local bossData = BossesDB[bossName]
-                    local target = FindEnemy(bossName)
-                    local root = GetRoot()
-                    if not root then return end
-                    
-                    if target and target:FindFirstChild("HumanoidRootPart") then
-                        if bossData and bossData.Quest and not HasQuest() then
-                            local cf = CommF()
-                            if cf then cf:InvokeServer("StartQuest", bossData.Quest, bossData.Level) end
-                            task.wait(0.35)
-                        end
-                        local dist = GetOptimalFarmDistance(target)
-                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        local distToFarm = (farmPos.Position - root.Position).Magnitude
-                        if distToFarm < 15 then
-                            HoverLock(farmPos)
-                        else
-                            TweenTo(farmPos, bossName)
-                        end
-                        EquipWeapon(_G.Config.SelectedWeapon)
-                    else
-                        -- Boss NOT spawned: Travel to boss spawn platform and WAIT THERE!
-                        local spawnCF = (bossData and bossData.Pos) or GetTrueMobSpawnCFrame(bossName)
-                        if spawnCF then
-                            local triggerPos = spawnCF * CFrame.new(0, 20, 0)
-                            local distToTrigger = (triggerPos.Position - root.Position).Magnitude
-                            if distToTrigger < 25 then
-                                HoverLock(triggerPos)
-                                task.wait(0.4)
+                    pcall(function()
+                        local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
+                        local bossData = BossesDB[bossName]
+                        local target = FindEnemy(bossName)
+                        local root = GetRoot()
+                        if not root then return end
+                        
+                        if target and target:FindFirstChild("HumanoidRootPart") then
+                            if bossData and bossData.Quest and not HasQuest() then
+                                local cf = CommF()
+                                if cf then cf:InvokeServer("StartQuest", bossData.Quest, bossData.Level) end
+                                task.wait(0.3)
+                            end
+                            local dist = GetOptimalFarmDistance(target)
+                            local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                            local distToFarm = (farmPos.Position - root.Position).Magnitude
+                            if distToFarm <= 150 then
+                                root.CFrame = farmPos
+                                HoverLock(farmPos)
                             else
-                                TweenTo(triggerPos, bossName .. " Spawn Platform")
+                                TweenTo(farmPos, bossName)
+                            end
+                            EquipWeapon(_G.Config.SelectedWeapon)
+                        else
+                            -- Boss NOT spawned: Travel to boss spawn platform and WAIT THERE!
+                            local spawnCF = (bossData and bossData.Pos) or GetTrueMobSpawnCFrame(bossName)
+                            if not spawnCF and BossesDB then
+                                for bName, bData in pairs(BossesDB) do
+                                    if IsMobMatch(bName, bossName) and bData.Pos then
+                                        spawnCF = bData.Pos
+                                        break
+                                    end
+                                end
+                            end
+                            if spawnCF then
+                                local waitPos = spawnCF * CFrame.new(0, 20, 0)
+                                local distToWait = (waitPos.Position - root.Position).Magnitude
+                                if distToWait <= 150 then
+                                    root.CFrame = waitPos
+                                    HoverLock(waitPos)
+                                    task.wait(0.25)
+                                else
+                                    TweenTo(waitPos, bossName .. " Spawn Platform")
+                                end
                             end
                         end
-                    end
-                end)
+                    end)
                 end
             end
         end
@@ -3144,9 +3115,27 @@ local function GetSpawnedChests()
         end
     end
     
+    -- 1. CRITICAL: Scan Workspace directly! In Blox Fruits, chests are direct children of Workspace!
+    for _, item in ipairs(Workspace:GetChildren()) do
+        if item:IsA("Model") then
+            local n = item.Name:lower()
+            if n:find("chest") then
+                CheckModel(item)
+            end
+        elseif item:IsA("BasePart") and not seen[item] then
+            local n = item.Name:lower()
+            if (n:find("chest") or item:FindFirstChild("TouchInterest")) and not (_collectedChests[item] and now < _collectedChests[item]) then
+                seen[item] = true
+                table.insert(chests, item)
+            end
+        end
+    end
+    
+    -- 2. Scan Chests and ChestModels folders
     ScanContainer(Workspace:FindFirstChild("ChestModels"))
     ScanContainer(Workspace:FindFirstChild("Chests"))
     
+    -- 3. Scan Map islands
     local map = Workspace:FindFirstChild("Map")
     if map then
         for _, island in ipairs(map:GetChildren()) do
@@ -3973,7 +3962,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.3.0"
+local SCRIPT_VERSION = "2.4.0"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
@@ -4664,7 +4653,7 @@ local function CreateUI()
     local TitleLabel = Instance.new("TextLabel")
     TitleLabel.Size = UDim2.new(0, 240, 1, 0)
     TitleLabel.Position = UDim2.new(0, 46, 0, 0)
-    TitleLabel.Text = "ALPHA // 3D CYBER EDITION v2.2"
+    TitleLabel.Text = "ALPHA // 3D CYBER EDITION v" .. SCRIPT_VERSION
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 13
@@ -5898,7 +5887,7 @@ local function CreateUI()
     MiscTab:AddToggle("Auto-Set Spawn Point on Arrival", _G.Config.AutoSetSpawn ~= false, function(v)
         _G.Config.AutoSetSpawn = v
     end)
-    MiscTab:AddSlider("Tween Flight Speed (Safe 200-260)", 150, 300, 240, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("Tween Flight Speed", 150, 350, 280, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
         if hum then hum.WalkSpeed = v end
