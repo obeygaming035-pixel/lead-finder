@@ -56,17 +56,6 @@ local function DetectSea()
         end
     end
     
-    local pGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
-    if pGui then
-        local hud = pGui:FindFirstChild("HUDRoot")
-        if hud then
-            for _, d in ipairs(hud:GetDescendants()) do
-                if d:IsA("TextLabel") and d.Text:find("Sea2") then return 2 end
-                if d:IsA("TextLabel") and d.Text:find("Sea3") then return 3 end
-                if d:IsA("TextLabel") and d.Text:find("Sea1") then return 1 end
-            end
-        end
-    end
     return 2 -- Default to Sea 2 if uncertain in current game
 end
 
@@ -1332,124 +1321,24 @@ local function RecoverFromPhantomDesync(expectedCF)
     end
 end
 
--- Multi-Waypoint Sky Cruise using Heartbeat CFrame Stepping
--- Key insight: TweenService tweens on HumanoidRootPart are CLIENT-ONLY visual effects.
--- The server does NOT replicate tween position changes - it sees the player at the original position
--- and periodically "corrects" (rubberbands) them back. Setting root.CFrame every Heartbeat frame
--- IS replicated because the client has network ownership of its character's HumanoidRootPart.
-
--- _activeFlight declared at top of flight engine section (line ~478)
-
-local function StopActiveFlight()
-    if _activeFlight then
-        pcall(function() _activeFlight:Disconnect() end)
-        _activeFlight = nil
-    end
-    CurrentTween = nil -- clear compat flag
-end
-
--- Heartbeat-driven CFrame movement: moves root from A to B at given speed
--- Returns a "tween-like" object with :Cancel() and .Completed event for compat
-local function HeartbeatMove(root, targetCFrame, speed, onStep)
-    local startCF = root.CFrame
-    local startPos = startCF.Position
-    local endPos = targetCFrame.Position
-    local totalDist = (endPos - startPos).Magnitude
-    if totalDist < 1 then
-        root.CFrame = targetCFrame
-        return {
-            Cancel = function() end,
-            Completed = {
-                Wait = function() end,
-                Connect = function(a, b)
-                    local cb = (type(a) == "function" and a) or (type(b) == "function" and b)
-                    if cb then pcall(cb) end
-                end
-            }
-        }
-    end
-    local duration = totalDist / math.max(speed, 50)
-    local elapsed = 0
-    local done = false
-    local completedCallbacks = {}
-    
-    StopActiveFlight()
-    
-    local conn
-    conn = RunService.Heartbeat:Connect(function(dt)
-        if done or not root or not root.Parent then
-            if conn then conn:Disconnect() end
-            _activeFlight = nil
-            done = true
-            for _, cb in ipairs(completedCallbacks) do pcall(cb) end
-            return
-        end
-        
-        elapsed = elapsed + dt
-        local alpha = math.clamp(elapsed / duration, 0, 1)
-        local newPos = startPos:Lerp(endPos, alpha)
-        root.CFrame = CFrame.new(newPos)
-        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        
-        if onStep then pcall(onStep, alpha, newPos) end
-        
-        if alpha >= 1 then
-            done = true
-            conn:Disconnect()
-            _activeFlight = nil
-            root.CFrame = targetCFrame
-            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            for _, cb in ipairs(completedCallbacks) do pcall(cb, Enum.PlaybackState.Completed) end
-        end
-    end)
-    _activeFlight = conn
-    
-    local mockTween = {}
-    mockTween.Cancel = function()
-        done = true
-        if conn then pcall(function() conn:Disconnect() end) end
-        _activeFlight = nil
-    end
-    mockTween.Completed = {
-        Wait = function()
-            while not done do task.wait(0.05) end
-        end,
-        Connect = function(a, b)
-            local cb = (type(a) == "function" and a) or (type(b) == "function" and b)
-            if not cb then return end
-            if done then pcall(cb) else table.insert(completedCallbacks, cb) end
-        end
-    }
-    CurrentTween = mockTween -- compat: so StopTween() can cancel it
-    return mockTween
-end
-
 -- -------------------------------------------------------------------------
--- UNIFIED TRAVEL & TELEPORT ENGINE
--- Short distance (<= 350 studs): Heartbeat-driven CFrame glide for mob farming.
--- Long distance (> 350 studs or forceInstant): Instant direct CFrame teleport
--- with terrain pre-streaming, landing platform, position reinforcement,
--- and server spawn-point authority (eliminates rubberbanding completely).
+-- UNIFIED AUTO-CRUISE TWEEN ENGINE (Restored Working Structure)
+-- Short distance (<= 150 studs): Direct straight-line farm tween.
+-- Long distance (> 150 studs): Auto-Cruise over ocean at uniform Y=240,
+-- pre-streaming, and clean landing on solid ground without rubberbanding!
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
     local hum = GetHumanoid()
     if not root or not root.Parent or not hum or hum.Health <= 0 then return end
     if hum.Sit then hum.Sit = false end
-
-    local targetPos = targetCFrame.Position
-    local distance = (targetPos - root.Position).Magnitude
-
-    -- 1. Very close range (<= 25 studs): lock immediately
-    if distance <= 25 then
+    
+    local distance = (targetCFrame.Position - root.Position).Magnitude
+    
+    -- Within reach: lock position immediately
+    if distance < 15 then
         StopTween()
-        root.CFrame = targetCFrame
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
         HoverLock(targetCFrame)
-        if SetTravelHUD then SetTravelHUD(false) end
         return {
             Cancel = function() end,
             Completed = {
@@ -1458,161 +1347,161 @@ local function TweenTo(targetCFrame, destName)
             }
         }
     end
-
-    -- 2. Native server entrance portal bypass (for sub-dimension entrances like Underwater City, Cursed Ship, Mansion)
-    if _G.Config.BypassTeleport and distance > 500 then
-        local cf = CommF()
-        if cf then
-            -- Sea 1: Underwater City
-            if CurrentSea == 1 then
-                if targetPos.X > 50000 and pStart.X < 50000 then
-                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(3864.69, 6.74, -1926.21)) end)
-                    task.wait(0.5)
-                elseif targetPos.X < 50000 and pStart.X > 50000 then
-                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(61163.85, 11.68, 1819.78)) end)
-                    task.wait(0.5)
-                end
-            -- Sea 2: Cursed Ship
-            elseif CurrentSea == 2 then
-                if targetPos.Z > 25000 and pStart.Z < 25000 then
-                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(923.21, 126.98, 32852.83)) end)
-                    task.wait(0.5)
-                elseif targetPos.Z < 25000 and pStart.Z > 25000 then
-                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-6508.56, 89.03, -132.84)) end)
-                    task.wait(0.5)
-                end
-            -- Sea 3: Floating Turtle Mansion
-            elseif CurrentSea == 3 then
-                local turtleDist = (targetPos - Vector3.new(-12463.87, 374.91, -7523.77)).Magnitude
-                if turtleDist < 800 and distance > 3000 then
-                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-12463.87, 374.91, -7523.77)) end)
-                    task.wait(0.5)
-                end
-            end
-            
-            root = GetRoot()
-            if root and (targetPos - root.Position).Magnitude < 250 then
-                root.CFrame = targetCFrame
-                root.AssemblyLinearVelocity = Vector3.zero
-                root.AssemblyAngularVelocity = Vector3.zero
-                HoverLock(targetCFrame)
-                if SetTravelHUD then SetTravelHUD(false) end
-                return {
-                    Cancel = function() end,
-                    Completed = {
-                        Wait = function() end,
-                        Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
-                    }
-                }
-            end
-        end
-    end
-
-    -- Anti-spam: if already traveling to this exact position, let it continue
-    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 30 and CurrentTween then
+    
+    -- Safe speed from Validator auto-tuner (adapts to server rollback detection)
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 250
+    if speed < 150 then speed = 250 end
+    if speed > 275 then speed = 260 end
+    
+    -- Anti-spam check: already heading to nearly the same spot
+    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 and CurrentTween then
         return CurrentTween
     end
-
-    StopTween()
-
-    CurrentTargetPos = targetPos
-    IsTravelingSky = true
-    local label = destName or "Destination"
-
-    local baseSpeed = 270
-    if CurrentSea == 3 then
-        baseSpeed = 325
-    elseif CurrentSea == 2 then
-        baseSpeed = 295
-    end
-    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or baseSpeed
-    if speed < 220 then speed = 250 end
-    if speed > 350 then speed = 325 end
-
-    EnableNoclip()
-    if hum and hum.Parent then hum.PlatformStand = true end
-
-    local pStart = root.Position
-    local horizDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(pStart.X, pStart.Z)).Magnitude
-
-    -- Adaptive altitude:
-    -- Short/combat range (<= 350 studs): fly DIRECTLY to target without high-altitude detour!
-    -- Moderate range (> 350 studs and <= 1200 studs): gentle hop (+25 studs) over local trees/rocks.
-    -- Long inter-island range (> 1200 studs): high sky altitude to clear mountain peaks and water.
-    local safeY = math.max(pStart.Y, targetPos.Y) + 15
-    if horizDist > 1200 then
-        if CurrentSea == 3 then
-            safeY = math.max(pStart.Y, targetPos.Y, 660) + 35
-        elseif CurrentSea == 2 then
-            safeY = math.max(pStart.Y, targetPos.Y, 490) + 35
-        else
-            safeY = math.max(pStart.Y, targetPos.Y, 280) + 30
-        end
-    elseif horizDist > 350 then
-        safeY = math.max(pStart.Y, targetPos.Y) + 25
-    end
-
-    local waypoints = {}
-    if horizDist > 350 then
-        table.insert(waypoints, CFrame.new(pStart.X, safeY, pStart.Z))
-        table.insert(waypoints, CFrame.new(targetPos.X, safeY, targetPos.Z))
-    end
-    table.insert(waypoints, targetCFrame)
-
-    -- Weightless stabilizer BodyVelocity (only counteracts gravity in Y, allows free tweening in X/Z)
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "AlphaFlightBV"
-    bv.MaxForce = Vector3.new(0, 9e9, 0)
-    bv.Velocity = Vector3.zero
-    bv.Parent = root
-    FlightBodyVel = bv
-
-    if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
-
-    local completed = false
-    local completedCallbacks = {}
-    local currentStep = 1
-    local activeTweenObj = nil
-
-    local function FinishFlight()
-        if completed then return end
-        completed = true
-        IsTravelingSky = false
+    
+    if CurrentTween then
+        pcall(function() CurrentTween:Cancel() end)
         CurrentTween = nil
-        CurrentTargetPos = nil
-
-        if activeTweenObj then
-            pcall(function() activeTweenObj:Cancel() end)
-            activeTweenObj = nil
+    end
+    
+    CurrentTargetPos = targetCFrame.Position
+    local label = destName or "Destination"
+    
+    -- 1. SHORT RANGE (<= 150 studs): Direct linear farm tween
+    if distance <= 150 then
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        local time = distance / speed
+        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween.Completed:Connect(function()
+            CurrentTween = nil
+            if hum and hum.Parent then hum.PlatformStand = false end
+            HoverLock(targetCFrame)
+        end)
+        CurrentTween:Play()
+        return CurrentTween
+    end
+    
+    -- 2. LONG RANGE (> 150 studs): Auto-Cruise Cross-Island Flight
+    if IsTravelingSky then return end
+    IsTravelingSky = true
+    
+    task.spawn(function()
+        local totalDist = distance
+        if SetTravelHUD then SetTravelHUD(true, label, distance, speed, totalDist) end
+        
+        -- Pre-stream destination chunks immediately so terrain loads
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+            end
+        end)
+        
+        -- Create solid invisible landing platform so player NEVER falls into water or through unstreamed terrain
+        if LandingPlatform and LandingPlatform.Parent then LandingPlatform:Destroy() end
+        LandingPlatform = Instance.new("Part")
+        LandingPlatform.Name = "AlphaLandingPlatform"
+        LandingPlatform.Size = Vector3.new(60, 2, 60)
+        LandingPlatform.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 1, targetCFrame.Position.Z)
+        LandingPlatform.Anchored = true
+        LandingPlatform.CanCollide = true
+        LandingPlatform.Transparency = 1
+        LandingPlatform.Parent = Workspace
+        
+        EnableNoclip()
+        hum.PlatformStand = true
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        
+        -- Safe Cruise Altitude: Y = 240 uniform for all islands!
+        local cruiseY = 240
+        if targetCFrame.Position.Y > 200 then
+            cruiseY = targetCFrame.Position.Y + 45
+        elseif root.Position.Y > 200 then
+            cruiseY = math.max(root.Position.Y, 240)
         end
-
-        local r = GetRoot()
-        if r and r.Parent then
-            r.CFrame = targetCFrame
-            r.AssemblyLinearVelocity = Vector3.zero
-            r.AssemblyAngularVelocity = Vector3.zero
-
-            -- Temporary landing platform guarantees zero void/water fall-through
-            pcall(function()
-                local pad = Instance.new("Part")
-                pad.Name = "AlphaLandingPlatform"
-                pad.Size = Vector3.new(30, 2, 30)
-                pad.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 2.5, targetCFrame.Position.Z)
-                pad.Anchored = true
-                pad.CanCollide = true
-                pad.Transparency = 1
-                pad.Parent = Workspace
-                task.delay(4.0, function() pcall(function() pad:Destroy() end) end)
+        
+        -- Step 1: Smooth vertical ascent to cruise altitude (if currently below)
+        if root.Position.Y < (cruiseY - 20) then
+            local upCF = CFrame.new(root.Position.X, cruiseY, root.Position.Z)
+            local upDist = (upCF.Position - root.Position).Magnitude
+            local upTween = TweenService:Create(root, TweenInfo.new(upDist / speed, Enum.EasingStyle.Linear), {CFrame = upCF})
+            CurrentTween = upTween
+            upTween:Play()
+            upTween.Completed:Wait()
+        end
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Step 2: Cruise horizontally across sky to target X, Z
+        local skyTargetCF = CFrame.new(targetCFrame.Position.X, cruiseY, targetCFrame.Position.Z)
+        local hDist = (skyTargetCF.Position - root.Position).Magnitude
+        if hDist > 20 then
+            local hTween = TweenService:Create(root, TweenInfo.new(hDist / speed, Enum.EasingStyle.Linear), {CFrame = skyTargetCF})
+            CurrentTween = hTween
+            hTween:Play()
+            
+            local monConn
+            monConn = RunService.Heartbeat:Connect(function()
+                if not IsTravelingSky or not root or not root.Parent then
+                    if monConn then monConn:Disconnect() end
+                    return
+                end
+                local curDist = (targetCFrame.Position - root.Position).Magnitude
+                if SetTravelHUD then SetTravelHUD(true, label, curDist, speed, totalDist) end
             end)
             
-            HoverLock(r.CFrame)
+            hTween.Completed:Wait()
+            if monConn then monConn:Disconnect() end
         end
-
-        local h = GetHumanoid()
-        if h and h.Parent then h.PlatformStand = false end
-        pcall(function() bv:Destroy() end)
+        
+        if not root or not root.Parent or not IsTravelingSky then
+            if SetTravelHUD then SetTravelHUD(false) end
+            return
+        end
+        
+        -- Pre-stream terrain again directly above destination
+        pcall(function()
+            if LocalPlayer.RequestStreamAroundAsync then
+                LocalPlayer:RequestStreamAroundAsync(targetCFrame.Position)
+            end
+        end)
+        
+        -- Step 3: Descend directly to target position + 3.5 studs above ground
+        local landCF = targetCFrame * CFrame.new(0, 3.5, 0)
+        local downDist = (landCF.Position - root.Position).Magnitude
+        local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
+        CurrentTween = downTween
+        downTween:Play()
+        downTween.Completed:Wait()
+        
+        -- CLEAN SAFE ARRIVAL (Zero Rubberbanding):
+        -- Keep BodyVelocity active with zero velocity for stability
+        local finalBv = GetOrCreateBodyVelocity(root)
+        finalBv.Velocity = Vector3.new(0, 0, 0)
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        root.CFrame = landCF
+        
+        if hum and hum.Parent then
+            hum.PlatformStand = false
+            hum.Sit = false
+        end
+        
+        IsTravelingSky = false
+        CurrentTween = nil
         if SetTravelHUD then SetTravelHUD(false) end
-
+        
+        -- Auto-set spawn point on island arrival if configured
         if _G.Config.AutoSetSpawn then
             task.spawn(function()
                 task.wait(0.3)
@@ -1620,101 +1509,37 @@ local function TweenTo(targetCFrame, destName)
                 if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
             end)
         end
-
-        for _, cb in ipairs(completedCallbacks) do
-            pcall(cb, Enum.PlaybackState.Completed)
-        end
-    end
-
-    local function PlayNextLeg()
-        if completed or not IsTravelingSky then return end
-        local r = GetRoot()
-        local h = GetHumanoid()
-        if not r or not r.Parent or not h or h.Health <= 0 then
-            FinishFlight()
-            return
-        end
-
-        if currentStep > #waypoints then
-            FinishFlight()
-            return
-        end
-
-        local targetCF = waypoints[currentStep]
-        local legDist = (targetCF.Position - r.Position).Magnitude
-        local legTime = legDist / speed
-        if legTime < 0.05 then legTime = 0.05 end
-
-        local twInfo = TweenInfo.new(legTime, Enum.EasingStyle.Linear)
-        local tw = TweenService:Create(r, twInfo, {CFrame = targetCF})
-        activeTweenObj = tw
-
-        tw.Completed:Connect(function(playbackState)
-            if playbackState == Enum.PlaybackState.Completed then
-                currentStep = currentStep + 1
-                PlayNextLeg()
+        
+        -- Hold platform for 4 seconds so terrain geometry completely loads and server acknowledges position
+        task.spawn(function()
+            task.wait(0.5)
+            DisableNoclip()
+            task.wait(3.5)
+            if LandingPlatform and LandingPlatform.Parent then
+                LandingPlatform:Destroy()
+                LandingPlatform = nil
             end
         end)
-        tw:Play()
-    end
-
-    PlayNextLeg()
-
-    -- HUD updater task
-    local hudThread = task.spawn(function()
-        while IsTravelingSky and not completed do
-            task.wait(0.1)
-            local r = GetRoot()
-            if r and SetTravelHUD then
-                local rem = (targetPos - r.Position).Magnitude
-                SetTravelHUD(true, label, rem, speed, distance)
-            end
-        end
     end)
-
-    -- Accurate watchdog timeout with 6.0s buffer
-    local pathDist = distance
-    if horizDist > 120 then
-        pathDist = math.abs(safeY - pStart.Y) + horizDist + math.abs(safeY - targetPos.Y)
-    end
-    local watchdogDuration = (pathDist / speed) + 6.0
-    task.delay(watchdogDuration, function()
-        if not completed and IsTravelingSky then
-            FinishFlight()
-        end
-    end)
-
-    local mockTween = {
+    
+    local travelHandle = {
         Cancel = function()
-            completed = true
-            IsTravelingSky = false
-            CurrentTween = nil
-            CurrentTargetPos = nil
-            local h = GetHumanoid()
-            if h and h.Parent then h.PlatformStand = false end
-            if activeTweenObj then
-                pcall(function() activeTweenObj:Cancel() end)
-                activeTweenObj = nil
-            end
-            pcall(function() task.cancel(hudThread) end)
-            pcall(function() bv:Destroy() end)
-            if SetTravelHUD then SetTravelHUD(false) end
+            StopTween()
         end,
         Completed = {
             Wait = function()
-                while not completed do task.wait(0.05) end
+                while IsTravelingSky do task.wait(0.05) end
             end,
             Connect = function(self, cb)
-                if completed then
-                    pcall(cb, Enum.PlaybackState.Completed)
-                else
-                    table.insert(completedCallbacks, cb)
-                end
+                task.spawn(function()
+                    while IsTravelingSky do task.wait(0.05) end
+                    if cb then pcall(cb, Enum.PlaybackState.Completed) end
+                end)
             end
         }
     }
-    CurrentTween = mockTween
-    return mockTween
+    CurrentTween = travelHandle
+    return travelHandle
 end
 
 local function TeleportToIsland(targetCFrame, islandName)
@@ -2544,6 +2369,17 @@ local function GetTrueMobSpawnCFrame(mobName, questInfo)
         _lockedMobSpawn[mobName] = questInfo.Pos
         return questInfo.Pos
     end
+    
+    -- 4. Fallback search across entire QuestsDB for mobName
+    for _, q in ipairs(QuestsDB) do
+        if q.Sea == CurrentSea and IsMobMatch(q.Mob, mobName) then
+            local cf = q.MobPos or q.Pos
+            if cf then
+                _lockedMobSpawn[mobName] = cf
+                return cf
+            end
+        end
+    end
     return nil
 end
 
@@ -3254,6 +3090,20 @@ end
 -- 3. Chest ESP & Auto Chest Collection (Active Spawns Only)
 local _collectedChests = {}
 
+local function GetPlayerBeli()
+    local lp = LocalPlayer
+    if not lp then return 0 end
+    local data = lp:FindFirstChild("Data")
+    if data and data:FindFirstChild("Beli") then
+        return tonumber(data.Beli.Value) or 0
+    end
+    local ls = lp:FindFirstChild("leaderstats")
+    if ls and ls:FindFirstChild("Beli") then
+        return tonumber(ls.Beli.Value) or 0
+    end
+    return 0
+end
+
 local function GetSpawnedChests()
     local chests = {}
     local seen = {}
@@ -3300,6 +3150,11 @@ local function GetSpawnedChests()
     local map = Workspace:FindFirstChild("Map")
     if map then
         for _, island in ipairs(map:GetChildren()) do
+            for _, c in ipairs(island:GetChildren()) do
+                if c:IsA("Model") and c.Name:lower():find("chest") then
+                    CheckModel(c)
+                end
+            end
             ScanContainer(island:FindFirstChild("Chests"))
             ScanContainer(island:FindFirstChild("ChestModels"))
             local detail = island:FindFirstChild("Detail") or island:FindFirstChild("AllFlowers")
@@ -3544,7 +3399,7 @@ local function StartChestFarmLoop()
                                 end
                             else
                                 -- Tween Flight mode
-                                TweenTo(chestCF, "Chest (" .. closest.Name .. ")", false)
+                                TweenTo(chestCF, "Chest (" .. closest.Name .. ")")
                                 local tStart = tick()
                                 while (closest.Position - root.Position).Magnitude > 15 and (tick() - tStart) < 10 do
                                     if not _G.Config.AutoChestFarm then break end
@@ -3557,16 +3412,16 @@ local function StartChestFarmLoop()
                             local tWait = tick()
                             local gotReward = false
                             
-                            while (tick() - tWait) < 0.75 do
+                            while (tick() - tWait) < 1.3 do
                                 if not _G.Config.AutoChestFarm then break end
                                 root.CFrame = chestCF
                                 root.AssemblyLinearVelocity = Vector3.zero
                                 root.AssemblyAngularVelocity = Vector3.zero
                                 
-                                -- Physical touch trigger on PushBox & BaseParts
+                                -- Physical touch trigger on PushBox, RootPart, BottomWood & BaseParts
                                 if firetouchinterest then
                                     pcall(function()
-                                        local pb = chestModel:FindFirstChild("PushBox") or closest
+                                        local pb = chestModel:FindFirstChild("PushBox") or chestModel:FindFirstChild("RootPart") or chestModel:FindFirstChild("BottomWood") or closest
                                         firetouchinterest(root, pb, 0)
                                         task.wait(0.02)
                                         firetouchinterest(root, pb, 1)
@@ -3591,8 +3446,8 @@ local function StartChestFarmLoop()
                                 task.wait(0.04)
                             end
                             
-                            -- Mark chest on cooldown: 90s if rewarded, only 12s if empty
-                            local cd = gotReward and 90 or 12
+                            -- Mark chest on cooldown: 90s if rewarded, only 15s if empty
+                            local cd = gotReward and 90 or 15
                             _collectedChests[closest] = tick() + cd
                             _collectedChests[chestModel] = tick() + cd
                             task.wait(0.02)
@@ -4118,7 +3973,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.2.0"
+local SCRIPT_VERSION = "2.3.0"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
@@ -5463,11 +5318,22 @@ local function CreateUI()
                 allOptions = newOpts or {}
                 filteredOptions = allOptions
                 if #allOptions > 0 then
+                    local cleanSelected = tostring(selected):gsub("^%[Spawned%] ", "")
                     local found = false
+                    local matchedOpt = nil
                     for _, opt in ipairs(allOptions) do
-                        if opt == selected then found = true; break end
+                        local cleanOpt = tostring(opt):gsub("^%[Spawned%] ", "")
+                        if opt == selected or (cleanSelected ~= "" and cleanOpt == cleanSelected) then
+                            found = true
+                            matchedOpt = opt
+                            break
+                        end
                     end
-                    if not found then
+                    if found and matchedOpt then
+                        selected = matchedOpt
+                        SelectBtn.Text = tostring(selected) .. " ▾"
+                        if callback then pcall(callback, selected) end
+                    else
                         selected = allOptions[1]
                         SelectBtn.Text = tostring(selected) .. " ▾"
                         if callback then pcall(callback, selected) end
