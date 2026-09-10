@@ -5982,23 +5982,23 @@ end
 -- Step 1: UI first (immediate user feedback)
 CreateUI()
 
--- Step 2: Start all background loops immediately
-task.spawn(StartCombatLoop)
-task.spawn(StartHakiLoop)
-task.spawn(StartAutoFarmLevel)
-task.spawn(StartAutoFarmSelectedMob)
-task.spawn(StartAutoFarmSelectedBoss)
-task.spawn(StartAutoFarmAllBosses)
-task.spawn(StartRaidBossLoop)
-task.spawn(StartDevilFruitLoops)
-task.spawn(StartESPLoops)
-task.spawn(StartChestFarmLoop)
-task.spawn(StartAutoStatsLoop)
-task.spawn(StartAdvancedRaidEngine)
-task.spawn(StartSeaEventsEngine)
-task.spawn(StartRaceV4Engine)
-task.spawn(StartSpecialBossAndBoneEngine)
-task.spawn(StartLiveUpdaterLoop)
+-- Step 2: Start all background loops immediately (safely guarded)
+if StartCombatLoop then task.spawn(StartCombatLoop) end
+if StartHakiLoop then task.spawn(StartHakiLoop) end
+if StartAutoFarmLevel then task.spawn(StartAutoFarmLevel) end
+if StartAutoFarmSelectedMob then task.spawn(StartAutoFarmSelectedMob) end
+if StartAutoFarmSelectedBoss then task.spawn(StartAutoFarmSelectedBoss) end
+if StartAutoFarmAllBosses then task.spawn(StartAutoFarmAllBosses) end
+if StartRaidBossLoop then task.spawn(StartRaidBossLoop) end
+if StartDevilFruitLoops then task.spawn(StartDevilFruitLoops) end
+if StartESPLoops then task.spawn(StartESPLoops) end
+if StartChestFarmLoop then task.spawn(StartChestFarmLoop) end
+if StartAutoStatsLoop then task.spawn(StartAutoStatsLoop) end
+if StartAdvancedRaidEngine then task.spawn(StartAdvancedRaidEngine) end
+if StartSeaEventsEngine then task.spawn(StartSeaEventsEngine) end
+if StartRaceV4Engine then task.spawn(StartRaceV4Engine) end
+if StartSpecialBossAndBoneEngine then task.spawn(StartSpecialBossAndBoneEngine) end
+if StartLiveUpdaterLoop then task.spawn(StartLiveUpdaterLoop) end
 
 print("--------------------------------------------------")
 print("[ALPHA v2.9.5] Loaded successfully! (Stabilized Tween + Sea Patrol)")
