@@ -39,7 +39,7 @@ local Camera = Workspace.CurrentCamera
 local PlaceId = game.PlaceId
 
 local function DetectSea()
-    if PlaceId == 7449423635 then return 3 end
+    if PlaceId == 7449423635 or PlaceId == 100117331123089 then return 3 end
     if PlaceId == 4442272183 or PlaceId == 79091703265657 then return 2 end
     if PlaceId == 2753915549 then return 1 end
     
@@ -56,9 +56,13 @@ local function DetectSea()
         end
     end
     
-    return 2 -- Default to Sea 2 if uncertain in current game
+    -- Level based fallback if sub-place ID is completely new
+    local lp = Players.LocalPlayer
+    local lvl = lp and lp:FindFirstChild("Data") and lp.Data:FindFirstChild("Level") and lp.Data.Level.Value or 0
+    if lvl >= 1500 then return 3 end
+    if lvl >= 700 then return 2 end
+    return 1
 end
-
 local CurrentSea = DetectSea()
 local Sea1 = (CurrentSea == 1)
 local Sea2 = (CurrentSea == 2)
@@ -1351,13 +1355,13 @@ local function TweenTo(targetCFrame, destName)
         }
     end
     
-    -- Safe stable farm speed (220-240 studs/s, smooth, no rollback)
+    -- Safe stable farm speed (200-240 studs/s, smooth, no rollback)
     local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or 220
     if speed < 150 then speed = 220 end
-    if speed > 260 then speed = 240 end
+    if speed > 250 then speed = 230 end
     
-    -- Anti-spam: already heading to nearly the same spot
-    if CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 20 and IsTravelingSky then
+    -- Anti-thrash guard: If already actively tweening to the exact same destination, NEVER cancel!
+    if CurrentTween and CurrentTargetPos and (CurrentTargetPos - targetCFrame.Position).Magnitude < 15 then
         return CurrentTween
     end
     
@@ -1469,7 +1473,7 @@ local function TweenTo(targetCFrame, destName)
             return
         end
         
-        -- Step 3: Descend directly to target position + 1.5 studs
+        -- Step 3: Gentle straight descent onto destination (+1.5 studs above ground)
         local landCF = targetCFrame * CFrame.new(0, 1.5, 0)
         local downDist = (landCF.Position - root.Position).Magnitude
         local downTween = TweenService:Create(root, TweenInfo.new(downDist / speed, Enum.EasingStyle.Linear), {CFrame = landCF})
@@ -1477,18 +1481,26 @@ local function TweenTo(targetCFrame, destName)
         downTween:Play()
         downTween.Completed:Wait()
         
-        -- Arrival cleanup
+        -- Touchdown complete: release sky state, restore physics
         IsTravelingSky = false
         CurrentTween = nil
         CurrentTargetPos = nil
         if hum and hum.Parent then hum.PlatformStand = false end
+        HoverLock(landCF)
+        DisableNoclip()
         if SetTravelHUD then SetTravelHUD(false) end
-        HoverLock(targetCFrame)
+        
+        -- Clean landing platform after delay
+        task.delay(4, function()
+            if LandingPlatform and LandingPlatform.Parent then
+                LandingPlatform:Destroy()
+                LandingPlatform = nil
+            end
+        end)
     end)
     
     return CurrentTween
 end
-
 local function TeleportToIsland(targetCFrame, islandName)
     _G.Config.AutoFarmLevel = false
     _G.Config.FarmSelectedMob = false
@@ -2388,6 +2400,8 @@ local function StartAutoFarmLevel()
     task.spawn(function()
         task.wait(1.0)
         local _failedQuestAttempts = 0
+        local isNavigatingToSpawn = false
+        
         while true do
             task.wait(0.2)
             if _G.Config.AutoFarmLevel then
@@ -2416,6 +2430,7 @@ local function StartAutoFarmLevel()
                     local target = FindEnemy(questInfo.Mob)
                     
                     if not HasQuest() and _failedQuestAttempts < 3 then
+                        isNavigatingToSpawn = false
                         local npcCF = GetQuestNpcCFrame(questInfo)
                         local distToNPC = (npcCF.Position - root.Position).Magnitude
                         
@@ -2429,18 +2444,15 @@ local function StartAutoFarmLevel()
                                 task.wait(0.4)
                                 if HasQuest() or tostring(res) == "1" then
                                     _failedQuestAttempts = 0
-                                    local spawnCF = GetTrueMobSpawnCFrame(questInfo.Mob, questInfo)
-                                    if spawnCF then
-                                        TweenTo(spawnCF * CFrame.new(0, 8, 0), questInfo.Mob .. " Spawn Zone")
-                                    end
                                 else
                                     _failedQuestAttempts = _failedQuestAttempts + 1
                                 end
                             end
                         end
                     else
-                        -- Quest is active OR fallback after retries: fly straight to mob spawn point to trigger server spawn
+                        -- Quest is active OR fallback after retries: engage mob or fly to spawn point
                         if target and target:FindFirstChild("HumanoidRootPart") then
+                            isNavigatingToSpawn = false
                             _failedQuestAttempts = 0
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
@@ -2448,39 +2460,56 @@ local function StartAutoFarmLevel()
                             
                             if distToFarm < 15 then
                                 HoverLock(farmPos)
+                                if _G.Config.FastAttack and _G.Config.UseM1 then
+                                    FastAttack()
+                                end
                             else
                                 TweenTo(farmPos, questInfo.Mob)
                             end
                             EquipWeapon(_G.Config.SelectedWeapon)
                             BringMobsTo(questInfo.Mob, target.HumanoidRootPart.CFrame)
                         else
-                            -- Mobs not spawned yet: fly directly to the TRUE spawn point and hover at tight 8-stud altitude
-                            -- to immediately satisfy the server's player proximity spawn trigger!
+                            -- Mobs not spawned yet: fly directly to TRUE spawn point and hover to trigger server proximity spawn!
                             local spawnCF = GetTrueMobSpawnCFrame(questInfo.Mob, questInfo)
                             if spawnCF then
                                 local triggerPos = spawnCF * CFrame.new(0, 8, 0)
                                 local distToTrigger = (triggerPos.Position - root.Position).Magnitude
-                                if distToTrigger < 12 then
+                                if distToTrigger < 15 then
+                                    isNavigatingToSpawn = false
                                     HoverLock(triggerPos)
                                     if not HasQuest() and _failedQuestAttempts >= 3 then
                                         _failedQuestAttempts = 0
                                     end
                                 else
-                                    TweenTo(triggerPos, questInfo.Mob .. " Spawn Zone")
+                                    if not isNavigatingToSpawn then
+                                        isNavigatingToSpawn = true
+                                        TweenTo(triggerPos, questInfo.Mob .. " Spawn Zone")
+                                        task.spawn(function()
+                                            local startNav = tick()
+                                            while _G.Config.AutoFarmLevel and isNavigatingToSpawn and (triggerPos.Position - root.Position).Magnitude > 15 and (tick() - startNav) < 20 do
+                                                task.wait(0.2)
+                                                if FindEnemy(questInfo.Mob) then break end
+                                            end
+                                            isNavigatingToSpawn = false
+                                        end)
+                                    end
                                 end
                             end
                         end
                     end
                 end)
+            else
+                isNavigatingToSpawn = false
             end
         end
     end)
 end
 
--- Auto Farm Selected Mob Core
 local function StartAutoFarmSelectedMob()
     task.spawn(function()
         task.wait(0.1)
+        local isNavigatingToSpawn = false
+        
         while true do
             task.wait(0.2)
             if _G.Config.FarmSelectedMob then
@@ -2502,6 +2531,7 @@ local function StartAutoFarmSelectedMob()
                         local target = FindEnemy(mobName)
                         
                         if target and target:FindFirstChild("HumanoidRootPart") then
+                            isNavigatingToSpawn = false
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
@@ -2539,20 +2569,33 @@ local function StartAutoFarmSelectedMob()
                                 local waitPos = spawnCF * CFrame.new(0, 8, 0)
                                 local distToWait = (waitPos.Position - root.Position).Magnitude
                                 if distToWait < 15 then
+                                    isNavigatingToSpawn = false
                                     HoverLock(waitPos)
                                     task.wait(0.25)
                                 else
-                                    TweenTo(waitPos, mobName .. " Spawn Zone")
+                                    if not isNavigatingToSpawn then
+                                        isNavigatingToSpawn = true
+                                        TweenTo(waitPos, mobName .. " Spawn Zone")
+                                        task.spawn(function()
+                                            local startNav = tick()
+                                            while _G.Config.FarmSelectedMob and isNavigatingToSpawn and (waitPos.Position - root.Position).Magnitude > 15 and (tick() - startNav) < 20 do
+                                                task.wait(0.2)
+                                                if FindEnemy(mobName) then break end
+                                            end
+                                            isNavigatingToSpawn = false
+                                        end)
+                                    end
                                 end
                             end
                         end
                     end
                 end)
+            else
+                isNavigatingToSpawn = false
             end
         end
     end)
 end
-
 local function StartAutoFarmSelectedBoss()
     task.spawn(function()
         task.wait(0.1)
@@ -3320,24 +3363,23 @@ local ChestIslandCircuits = {
         CFrame.new(5127.13, 59.50, 4105.45)   -- Fountain City
     },
     [2] = {
-        CFrame.new(-380.47, 77.22, 255.82),
-        CFrame.new(878.01, 121.98, 1235.35),
-        CFrame.new(-2448.53, 73.02, -3210.63),
-        CFrame.new(-5418.89, 48.52, -774.75),
-        CFrame.new(608.24, 401.52, -5372.46),
-        CFrame.new(-6026.96, 15.96, -5071.29),
-        CFrame.new(5422.31, 28.25, -6767.13),
-        CFrame.new(-3054.44, 237.15, -10142.82)
+        CFrame.new(-380.47, 77.22, 255.82),     -- Kingdom of Rose / Cafe
+        CFrame.new(-288.45, 306.13, 597.53),    -- Mansion
+        CFrame.new(-2448.53, 73.02, -3210.63),  -- Green Bit
+        CFrame.new(608.24, 401.52, -5372.46),   -- Snow Mountain
+        CFrame.new(5422.31, 28.25, -6767.13),   -- Ice Castle / Hot & Cold
+        CFrame.new(-3054.44, 237.15, -10142.82),-- Forgotten Island
+        CFrame.new(-5418.89, 48.52, -774.75),   -- Graveyard / Zombie Island
+        CFrame.new(878.01, 121.98, 1235.35)     -- Cursed Ship
     },
     [3] = {
-        CFrame.new(-290.74, 15.0, 5343.55),
-        CFrame.new(5749.73, 610.42, -267.78),
-        CFrame.new(2681.27, 1682.80, -7190.99),
-        CFrame.new(-12463.87, 374.91, -7523.77),
-        CFrame.new(-5085.24, 314.52, -3156.26),
-        CFrame.new(-9516.99, 172.01, 6078.47),
-        CFrame.new(-2100.12, 70.12, -12150.34),
-        CFrame.new(-16106.33, 15.0, 440.38)
+        CFrame.new(-290.74, 15.0, 5343.55),     -- Port Town
+        CFrame.new(5749.73, 610.42, -267.78),   -- Hydra Island
+        CFrame.new(2681.27, 1682.80, -7190.99), -- Great Tree
+        CFrame.new(-12463.87, 374.91, -7523.77),-- Floating Turtle Mansion
+        CFrame.new(-5085.24, 314.52, -3156.26), -- Castle on the Sea
+        CFrame.new(-9516.99, 172.01, 6078.47),  -- Haunted Castle
+        CFrame.new(-2100.12, 70.12, -12150.34)  -- Tiki Outpost
     }
 }
 
@@ -3356,7 +3398,7 @@ local function StartChestFarmLoop()
                 if root and hum and hum.Health > 0 then
                     local chests = GetSpawnedChests()
                     if #chests > 0 then
-                        -- Find closest chest
+                        -- Find closest spawned chest
                         local closest = nil
                         local minDist = math.huge
                         for _, c in ipairs(chests) do
@@ -3399,7 +3441,7 @@ local function StartChestFarmLoop()
                                     local beforeBeli = GetPlayerBeli()
                                     local tCollect = tick()
                                     
-                                    while _G.Config.AutoChestFarm and (tick() - tCollect) < 1.0 do
+                                    while _G.Config.AutoChestFarm and (tick() - tCollect) < 2.0 do
                                         root.CFrame = chestCF
                                         root.AssemblyLinearVelocity = Vector3.zero
                                         root.AssemblyAngularVelocity = Vector3.zero
@@ -3426,7 +3468,7 @@ local function StartChestFarmLoop()
                                         if GetPlayerBeli() > beforeBeli then
                                             break
                                         end
-                                        task.wait(0.05)
+                                        task.wait(0.08)
                                     end
                                 end
                                 
@@ -3441,7 +3483,7 @@ local function StartChestFarmLoop()
                             end)
                         end
                     else
-                        -- Patrol island circuit
+                        -- Patrol island circuit: All chests on current island collected / blacklisted!
                         local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[1]
                         if circuit and #circuit > 0 then
                             _chestCircuitIndex = _chestCircuitIndex or 1
@@ -3452,7 +3494,7 @@ local function StartChestFarmLoop()
                                 TweenTo(nextIslandPos, "Chest Island Patrol")
                                 task.spawn(function()
                                     local pStart = tick()
-                                    while _G.Config.AutoChestFarm and (nextIslandPos.Position - root.Position).Magnitude > 35 and (tick() - pStart) < 20 do
+                                    while _G.Config.AutoChestFarm and (nextIslandPos.Position - root.Position).Magnitude > 35 and (tick() - pStart) < 25 do
                                         task.wait(0.2)
                                         if #GetSpawnedChests() > 0 then break end
                                     end
@@ -3948,7 +3990,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.7.0"
+local SCRIPT_VERSION = "2.8.0"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
