@@ -207,7 +207,7 @@ _G.Config = {
     MobFarmDistance = 14,
     BossFarmDistance = 20,
     FarmDistance = 14,
-    TweenSpeed = 280,
+    TweenSpeed = 220,
     
     -- Teleport & Movement Engine
     BypassTeleport = true,
@@ -723,7 +723,7 @@ local FullResetMovement = ClearHover
 
 local Validator = {
     -- Speed Auto-Tuner state
-    CurrentSafeSpeed = _G.Config.TweenSpeed or 250,
+    CurrentSafeSpeed = _G.Config.TweenSpeed or 220,
     RollbackCount = 0,
     LastRollbackReset = tick(),
     MinSpeed = 180,
@@ -821,8 +821,8 @@ function Validator.SpeedAutoTunerTick()
         Validator.LastRollbackReset = now
         Validator.RollbackCount = 0
         -- Gradually try to recover speed (increase by half a step)
-        if Validator.CurrentSafeSpeed < (_G.Config.TweenSpeed or 250) then
-            local recovered = math.min(Validator.CurrentSafeSpeed + 10, 250)
+        if Validator.CurrentSafeSpeed < (_G.Config.TweenSpeed or 220) then
+            local recovered = math.min(Validator.CurrentSafeSpeed + 10, _G.Config.TweenSpeed or 220)
             Validator.CurrentSafeSpeed = recovered
             _G.Config.TweenSpeed = recovered
             print("[VALIDATOR] Speed recovery: " .. recovered .. " studs/s (stable for 5 min)")
@@ -1327,9 +1327,8 @@ local function RecoverFromPhantomDesync(expectedCF)
 end
 
 -- -------------------------------------------------------------------------
--- UNIFIED TRAVEL & TELEPORT ENGINE (Restored Original Working Standard)
--- Short distance (<= 150 studs): Instant snap without tween delays or rubberbanding.
--- Long distance (> 150 studs): Smooth linear glide with TweenService:Create.
+-- UNIFIED ADAPTIVE SKY TWEEN ENGINE (Restored from Verified Working Standard)
+-- Stable, slower (220-240 studs/s), anti-rollback, adaptive sky clearance
 -- -------------------------------------------------------------------------
 local function TweenTo(targetCFrame, destName)
     local root = GetRoot()
@@ -1340,18 +1339,12 @@ local function TweenTo(targetCFrame, destName)
     local targetPos = targetCFrame.Position
     local distance = (targetPos - root.Position).Magnitude
 
-    local bv = GetOrCreateBodyVelocity(root)
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(0, 100000, 0) -- Only counteract gravity; zero horizontal resistance!
-    EnableNoclip()
-
-    -- 1. Within close range (<= 20 studs): lock immediately
-    if distance <= 20 then
-        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
-        CurrentTween = nil
-        CurrentTargetPos = nil
-        IsTravelingSky = false
+    -- 1. Very close range (<= 25 studs): lock immediately
+    if distance <= 25 then
+        StopTween()
         root.CFrame = targetCFrame
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
         HoverLock(targetCFrame)
         if SetTravelHUD then SetTravelHUD(false) end
         return {
@@ -1363,111 +1356,257 @@ local function TweenTo(targetCFrame, destName)
         }
     end
 
-    -- 2. Same-island close range (<= 150 studs): instant snap!
-    -- Matches top Blox Fruits hubs: local mob farming snaps instantly without tween delays
-    if distance <= 150 then
-        if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
-        CurrentTween = nil
-        CurrentTargetPos = nil
-        IsTravelingSky = false
-        root.CFrame = targetCFrame
-        if SetTravelHUD then SetTravelHUD(false) end
-        return {
-            Cancel = function() end,
-            Completed = {
-                Wait = function() end,
-                Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
-            }
-        }
-    end
-
-    -- 3. Native server entrance portal bypass
-    if _G.Config.BypassTeleport then
-        local bestPortal = nil
-        local bestDist = math.huge
-        for _, portal in ipairs(ENTRANCE_PORTALS) do
-            if portal.Sea == CurrentSea and portal.IsEntrance then
-                local pDist = (targetPos - portal.Pos).Magnitude
-                if pDist < bestDist then
-                    bestDist = pDist
-                    bestPortal = portal
+    -- 2. Native server entrance portal bypass (for sub-dimension entrances like Underwater City, Cursed Ship, Mansion)
+    if _G.Config.BypassTeleport and distance > 500 then
+        local cf = CommF()
+        if cf then
+            local pStart = root.Position
+            -- Sea 1: Underwater City
+            if CurrentSea == 1 then
+                if targetPos.X > 50000 and pStart.X < 50000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(3864.69, 6.74, -1926.21)) end)
+                    task.wait(0.5)
+                elseif targetPos.X < 50000 and pStart.X > 50000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(61163.85, 11.68, 1819.78)) end)
+                    task.wait(0.5)
+                end
+            -- Sea 2: Cursed Ship
+            elseif CurrentSea == 2 then
+                if targetPos.Z > 25000 and pStart.Z < 25000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(923.21, 126.98, 32852.83)) end)
+                    task.wait(0.5)
+                elseif targetPos.Z < 25000 and pStart.Z > 25000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-6508.56, 89.03, -132.84)) end)
+                    task.wait(0.5)
+                end
+            -- Sea 3: Floating Turtle Mansion
+            elseif CurrentSea == 3 then
+                local turtleDist = (targetPos - Vector3.new(-12463.87, 374.91, -7523.77)).Magnitude
+                if turtleDist < 800 and distance > 3000 then
+                    pcall(function() cf:InvokeServer("requestEntrance", Vector3.new(-12463.87, 374.91, -7523.77)) end)
+                    task.wait(0.5)
                 end
             end
-        end
-        if bestPortal and bestDist < 450 then
-            local cf = CommF()
-            if cf then
-                pcall(function() cf:InvokeServer("requestEntrance", bestPortal.Pos) end)
-                task.wait(0.3)
-                root = GetRoot()
-                if root and (targetPos - root.Position).Magnitude < 150 then
-                    root.CFrame = targetCFrame
-                    IsTravelingSky = false
-                    if SetTravelHUD then SetTravelHUD(false) end
-                    if _G.Config.AutoSetSpawn then
-                        pcall(function() cf:InvokeServer("SetSpawnPoint") end)
-                    end
-                    return {
-                        Cancel = function() end,
-                        Completed = {
-                            Wait = function() end,
-                            Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
-                        }
+            
+            root = GetRoot()
+            if root and (targetPos - root.Position).Magnitude < 250 then
+                root.CFrame = targetCFrame
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+                HoverLock(targetCFrame)
+                if SetTravelHUD then SetTravelHUD(false) end
+                return {
+                    Cancel = function() end,
+                    Completed = {
+                        Wait = function() end,
+                        Connect = function(self, cb) if cb then task.spawn(cb, Enum.PlaybackState.Completed) end end
                     }
-                end
+                }
             end
         end
     end
 
-    -- 4. Cross-Island Long Distance Glide (> 150 studs)
-    -- Anti-spam: if already gliding to this exact target, let it continue
-    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 15 and CurrentTween then
+    -- Anti-spam: if already traveling to this exact position, let it continue
+    if CurrentTargetPos and (CurrentTargetPos - targetPos).Magnitude < 12 and CurrentTween then
         return CurrentTween
     end
 
-    if CurrentTween then pcall(function() CurrentTween:Cancel() end) end
+    StopTween()
 
     CurrentTargetPos = targetPos
     IsTravelingSky = true
     local label = destName or "Destination"
 
-    local speed = _G.Config.TweenSpeed or 275
-    if speed < 180 then speed = 250 end
-    if speed > 350 then speed = 300 end
+    -- Safe, stable slower speed: 220 in Sea 1, 235 in Sea 2, 250 in Sea 3
+    local baseSpeed = 220
+    if CurrentSea == 3 then
+        baseSpeed = 250
+    elseif CurrentSea == 2 then
+        baseSpeed = 235
+    end
+    local speed = Validator.CurrentSafeSpeed or _G.Config.TweenSpeed or baseSpeed
+    if speed < 180 then speed = 215 end
+    if speed > 260 then speed = 240 end
 
-    -- Water safety: during flights across the ocean, keep Y at least 40 so player never touches ocean water!
-    local flightCFrame = targetCFrame
-    if distance > 250 and targetCFrame.Y < 40 then
-        flightCFrame = CFrame.new(targetCFrame.X, 40, targetCFrame.Z)
+    EnableNoclip()
+
+    local pStart = root.Position
+    local horizDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(pStart.X, pStart.Z)).Magnitude
+
+    -- Adaptive sky waypoints:
+    local safeY = 280
+    if CurrentSea == 3 then
+        safeY = math.max(pStart.Y, targetPos.Y, 660) + 35
+    elseif CurrentSea == 2 then
+        safeY = math.max(pStart.Y, targetPos.Y, 490) + 35
+    else
+        safeY = math.max(pStart.Y, targetPos.Y, 280) + 30
     end
 
-    local dur = distance / speed
-    local twInfo = TweenInfo.new(dur, Enum.EasingStyle.Linear)
-    local tw = TweenService:Create(root, twInfo, {CFrame = flightCFrame})
-    CurrentTween = tw
-    tw:Play()
+    -- Short island hop: low-altitude hop clearing local obstacles
+    if horizDist <= 350 and (pStart.Y < 180 and targetPos.Y < 180) then
+        safeY = math.max(pStart.Y, targetPos.Y, 35) + 18
+    end
+
+    local waypoints = {}
+    if horizDist > 75 then
+        table.insert(waypoints, CFrame.new(pStart.X, safeY, pStart.Z))
+        table.insert(waypoints, CFrame.new(targetPos.X, safeY, targetPos.Z))
+    end
+    table.insert(waypoints, targetCFrame)
+
+    -- Weightless stabilizer BodyVelocity (eliminates gravity drag)
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "AlphaFlightBV"
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Velocity = Vector3.zero
+    bv.Parent = root
+    FlightBodyVel = bv
 
     if SetTravelHUD then SetTravelHUD(true, label, distance, speed, distance) end
 
-    tw.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed then
-            CurrentTween = nil
-            CurrentTargetPos = nil
-            IsTravelingSky = false
-            root.CFrame = targetCFrame
-            HoverLock(targetCFrame)
-            if SetTravelHUD then SetTravelHUD(false) end
+    local completed = false
+    local completedCallbacks = {}
+    local currentStep = 1
+    local activeTweenObj = nil
 
-            if _G.Config.AutoSetSpawn then
-                task.spawn(function()
-                    task.wait(0.3)
-                    local cf = CommF()
-                    if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
-                end)
+    local function FinishFlight()
+        if completed then return end
+        completed = true
+        IsTravelingSky = false
+        CurrentTween = nil
+        CurrentTargetPos = nil
+
+        if activeTweenObj then
+            pcall(function() activeTweenObj:Cancel() end)
+            activeTweenObj = nil
+        end
+
+        local r = GetRoot()
+        if r and r.Parent then
+            r.CFrame = targetCFrame
+            r.AssemblyLinearVelocity = Vector3.zero
+            r.AssemblyAngularVelocity = Vector3.zero
+
+            -- Temporary landing platform guarantees zero void/water fall-through
+            pcall(function()
+                local pad = Instance.new("Part")
+                pad.Name = "AlphaLandingPlatform"
+                pad.Size = Vector3.new(30, 2, 30)
+                pad.CFrame = CFrame.new(targetCFrame.Position.X, targetCFrame.Position.Y - 2.5, targetCFrame.Position.Z)
+                pad.Anchored = true
+                pad.CanCollide = true
+                pad.Transparency = 1
+                pad.Parent = Workspace
+                task.delay(4.0, function() pcall(function() pad:Destroy() end) end)
+            end)
+            
+            HoverLock(r.CFrame)
+        end
+
+        pcall(function() bv:Destroy() end)
+        if SetTravelHUD then SetTravelHUD(false) end
+
+        if _G.Config.AutoSetSpawn then
+            task.spawn(function()
+                task.wait(0.3)
+                local cf = CommF()
+                if cf then pcall(function() cf:InvokeServer("SetSpawnPoint") end) end
+            end)
+        end
+
+        for _, cb in ipairs(completedCallbacks) do
+            pcall(cb, Enum.PlaybackState.Completed)
+        end
+    end
+
+    local function PlayNextLeg()
+        if completed or not IsTravelingSky then return end
+        local r = GetRoot()
+        local h = GetHumanoid()
+        if not r or not r.Parent or not h or h.Health <= 0 then
+            FinishFlight()
+            return
+        end
+
+        if currentStep > #waypoints then
+            FinishFlight()
+            return
+        end
+
+        local targetCF = waypoints[currentStep]
+        local legDist = (targetCF.Position - r.Position).Magnitude
+        local legTime = legDist / speed
+        if legTime < 0.05 then legTime = 0.05 end
+
+        local twInfo = TweenInfo.new(legTime, Enum.EasingStyle.Linear)
+        local tw = TweenService:Create(r, twInfo, {CFrame = targetCF})
+        activeTweenObj = tw
+
+        tw.Completed:Connect(function(playbackState)
+            if playbackState == Enum.PlaybackState.Completed then
+                currentStep = currentStep + 1
+                PlayNextLeg()
+            end
+        end)
+        tw:Play()
+    end
+
+    PlayNextLeg()
+
+    -- HUD updater task
+    local hudThread = task.spawn(function()
+        while IsTravelingSky and not completed do
+            task.wait(0.1)
+            local r = GetRoot()
+            if r and SetTravelHUD then
+                local rem = (targetPos - r.Position).Magnitude
+                SetTravelHUD(true, label, rem, speed, distance)
             end
         end
     end)
-    return tw
+
+    -- Accurate watchdog timeout with 6.0s buffer
+    local pathDist = distance
+    if horizDist > 120 then
+        pathDist = math.abs(safeY - pStart.Y) + horizDist + math.abs(safeY - targetPos.Y)
+    end
+    local watchdogDuration = (pathDist / speed) + 6.0
+    task.delay(watchdogDuration, function()
+        if not completed and IsTravelingSky then
+            FinishFlight()
+        end
+    end)
+
+    local mockTween = {
+        Cancel = function()
+            completed = true
+            IsTravelingSky = false
+            CurrentTween = nil
+            CurrentTargetPos = nil
+            if activeTweenObj then
+                pcall(function() activeTweenObj:Cancel() end)
+                activeTweenObj = nil
+            end
+            pcall(function() task.cancel(hudThread) end)
+            pcall(function() bv:Destroy() end)
+            if SetTravelHUD then SetTravelHUD(false) end
+        end,
+        Completed = {
+            Wait = function()
+                while not completed do task.wait(0.05) end
+            end,
+            Connect = function(self, cb)
+                if completed then
+                    pcall(cb, Enum.PlaybackState.Completed)
+                else
+                    table.insert(completedCallbacks, cb)
+                end
+            end
+        }
+    }
+    CurrentTween = mockTween
+    return mockTween
 end
 
 local function TeleportToIsland(targetCFrame, islandName)
@@ -2486,9 +2625,11 @@ local function StartAutoFarmSelectedMob()
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
-                            if distToFarm <= 150 then
-                                root.CFrame = farmPos
+                            if distToFarm < 15 then
                                 HoverLock(farmPos)
+                                if _G.Config.FastAttack and _G.Config.UseM1 then
+                                    FastAttack()
+                                end
                             else
                                 TweenTo(farmPos, mobName)
                             end
@@ -2515,12 +2656,11 @@ local function StartAutoFarmSelectedMob()
                                 end
                             end
                             if spawnCF then
-                                local waitPos = spawnCF * CFrame.new(0, 15, 0)
+                                local waitPos = spawnCF * CFrame.new(0, 8, 0)
                                 local distToWait = (waitPos.Position - root.Position).Magnitude
-                                if distToWait <= 150 then
-                                    root.CFrame = waitPos
+                                if distToWait < 15 then
                                     HoverLock(waitPos)
-                                    task.wait(0.2)
+                                    task.wait(0.25)
                                 else
                                     TweenTo(waitPos, mobName .. " Spawn Zone")
                                 end
@@ -2562,9 +2702,11 @@ local function StartAutoFarmSelectedBoss()
                             local dist = GetOptimalFarmDistance(target)
                             local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, dist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
                             local distToFarm = (farmPos.Position - root.Position).Magnitude
-                            if distToFarm <= 150 then
-                                root.CFrame = farmPos
+                            if distToFarm < 15 then
                                 HoverLock(farmPos)
+                                if _G.Config.FastAttack and _G.Config.UseM1 then
+                                    FastAttack()
+                                end
                             else
                                 TweenTo(farmPos, bossName)
                             end
@@ -2581,10 +2723,9 @@ local function StartAutoFarmSelectedBoss()
                                 end
                             end
                             if spawnCF then
-                                local waitPos = spawnCF * CFrame.new(0, 20, 0)
+                                local waitPos = spawnCF * CFrame.new(0, 8, 0)
                                 local distToWait = (waitPos.Position - root.Position).Magnitude
-                                if distToWait <= 150 then
-                                    root.CFrame = waitPos
+                                if distToWait < 15 then
                                     HoverLock(waitPos)
                                     task.wait(0.25)
                                 else
@@ -3080,76 +3221,48 @@ local function GetSpawnedChests()
     local seen = {}
     local now = tick()
     
-    local function CheckModel(model)
-        if not model or not model:IsA("Model") or seen[model] then return end
-        if _collectedChests[model] and now < _collectedChests[model] then return end
-        local touchPart = model:FindFirstChild("PushBox") or model:FindFirstChild("RootPart") or model:FindFirstChild("BottomWood") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-        if not touchPart or seen[touchPart] then return end
-        if _collectedChests[touchPart] and now < _collectedChests[touchPart] then return end
+    local function CheckPart(part)
+        if not part or seen[part] or not part:IsA("BasePart") then return end
+        if part.Transparency >= 0.95 then return end -- Skip despawned/collected chests!
         
-        seen[model] = true
-        seen[touchPart] = true
-        table.insert(chests, touchPart)
+        local n = part.Name:lower()
+        local parentName = part.Parent and part.Parent.Name:lower() or ""
+        local isChest = n:find("chest") or parentName:find("chest")
+        if not isChest then return end
+        
+        -- Check blacklist
+        if _collectedChests[part] and now < _collectedChests[part] then return end
+        if part.Parent and _collectedChests[part.Parent] and now < _collectedChests[part.Parent] then return end
+        
+        seen[part] = true
+        table.insert(chests, part)
     end
     
-    local function ScanContainer(container)
+    local function Scan(container)
         if not container then return end
         for _, obj in ipairs(container:GetChildren()) do
-            if obj:IsA("Model") then
-                local n = obj.Name:lower()
-                if n:find("chest") then
-                    CheckModel(obj)
-                else
-                    for _, sub in ipairs(obj:GetChildren()) do
-                        if sub:IsA("Model") and sub.Name:lower():find("chest") then
-                            CheckModel(sub)
-                        end
-                    end
-                end
-            elseif obj:IsA("BasePart") and not seen[obj] then
-                if obj.Name:lower():find("chest") and not (_collectedChests[obj] and now < _collectedChests[obj]) then
-                    seen[obj] = true
-                    table.insert(chests, obj)
+            if obj:IsA("BasePart") then
+                CheckPart(obj)
+            elseif obj:IsA("Model") then
+                local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                if p then CheckPart(p) end
+                for _, sub in ipairs(obj:GetChildren()) do
+                    if sub:IsA("BasePart") then CheckPart(sub) end
                 end
             end
         end
     end
     
-    -- 1. CRITICAL: Scan Workspace directly! In Blox Fruits, chests are direct children of Workspace!
-    for _, item in ipairs(Workspace:GetChildren()) do
-        if item:IsA("Model") then
-            local n = item.Name:lower()
-            if n:find("chest") then
-                CheckModel(item)
-            end
-        elseif item:IsA("BasePart") and not seen[item] then
-            local n = item.Name:lower()
-            if (n:find("chest") or item:FindFirstChild("TouchInterest")) and not (_collectedChests[item] and now < _collectedChests[item]) then
-                seen[item] = true
-                table.insert(chests, item)
-            end
-        end
-    end
-    
-    -- 2. Scan Chests and ChestModels folders
-    ScanContainer(Workspace:FindFirstChild("ChestModels"))
-    ScanContainer(Workspace:FindFirstChild("Chests"))
-    
-    -- 3. Scan Map islands
+    Scan(Workspace:FindFirstChild("Chests"))
+    Scan(Workspace:FindFirstChild("ChestModels"))
     local map = Workspace:FindFirstChild("Map")
     if map then
         for _, island in ipairs(map:GetChildren()) do
-            for _, c in ipairs(island:GetChildren()) do
-                if c:IsA("Model") and c.Name:lower():find("chest") then
-                    CheckModel(c)
-                end
-            end
-            ScanContainer(island:FindFirstChild("Chests"))
-            ScanContainer(island:FindFirstChild("ChestModels"))
-            local detail = island:FindFirstChild("Detail") or island:FindFirstChild("AllFlowers")
-            if detail then ScanContainer(detail) end
+            Scan(island:FindFirstChild("Chests"))
+            Scan(island)
         end
     end
+    Scan(Workspace)
     return chests
 end
 
@@ -3331,160 +3444,122 @@ local _chestCircuitIndex = 1
 
 local function StartChestFarmLoop()
     task.spawn(function()
-        task.wait(0.1)
+        task.wait(1.5)
         local targetChest = nil
         local targetStartTime = 0
         local targetDistance = 0
         
         while true do
-            task.wait(0.08)
+            task.wait(0.12)
             if _G.Config.AutoChestFarm then
                 pcall(function()
                     local root = GetRoot()
-                    local hum = GetHumanoid()
-                    if not root or not hum or hum.Health <= 0 then return end
+                    if not root then return end
                     EnableNoclip()
                     
                     local now = tick()
-                    local chests = GetSpawnedChests()
                     
-                    if #chests > 0 then
-                        -- Pick closest valid chest
-                        local closest = nil
-                        local minDist = math.huge
-                        for _, c in ipairs(chests) do
-                            local d = (c.Position - root.Position).Magnitude
-                            if d < minDist then
-                                minDist = d
-                                closest = c
-                            end
+                    -- Check if current target expired, collected, or timed out (stuck prevention)
+                    if targetChest then
+                        local isCollected = (not targetChest.Parent) or (targetChest:IsA("BasePart") and targetChest.Transparency >= 0.95)
+                        local timeoutLimit = math.clamp(targetDistance / 90, 8, 30)
+                        local isTimedOut = (now - targetStartTime) > timeoutLimit
+                        local dToChest = (targetChest.Position - root.Position).Magnitude
+                        
+                        -- Touch interest collection within 25 studs
+                        if dToChest <= 25 and firetouchinterest then
+                            pcall(function()
+                                firetouchinterest(root, targetChest, 0)
+                                task.wait(0.02)
+                                firetouchinterest(root, targetChest, 1)
+                            end)
                         end
                         
-                        if closest then
-                            local chestModel = closest.Parent and closest.Parent:IsA("Model") and closest.Parent or closest
-                            local chestPos = closest.Position
-                            local chestCF = (closest:IsA("BasePart") and closest.CFrame or closest:GetPivot()) * CFrame.new(0, 1.8, 0)
-                            local dist = (chestPos - root.Position).Magnitude
-                            
-                            -- Movement mode: Instant Teleport vs Tween Flight
-                            if _G.Config.ChestFarmMode == "Instant Teleport" then
-                                if dist <= 250 then
-                                    root.CFrame = chestCF
-                                    root.AssemblyLinearVelocity = Vector3.zero
-                                    root.AssemblyAngularVelocity = Vector3.zero
-                                else
-                                    local dir = (chestPos - root.Position).Unit
-                                    local hops = math.clamp(math.ceil(dist / 110), 1, 35)
-                                    for h = 1, hops do
-                                        if not _G.Config.AutoChestFarm then break end
-                                        local nextPos = (h == hops) and chestPos or (root.Position + dir * 110)
-                                        local safeY = math.max(nextPos.Y, 40)
-                                        root.CFrame = CFrame.new(nextPos.X, safeY, nextPos.Z)
-                                        root.AssemblyLinearVelocity = Vector3.zero
-                                        task.wait(0.015)
-                                    end
-                                    root.CFrame = chestCF
-                                    root.AssemblyLinearVelocity = Vector3.zero
-                                end
-                            else
-                                -- Tween Flight mode
-                                TweenTo(chestCF, "Chest (" .. closest.Name .. ")")
-                                local tStart = tick()
-                                while (closest.Position - root.Position).Magnitude > 15 and (tick() - tStart) < 10 do
-                                    if not _G.Config.AutoChestFarm then break end
-                                    task.wait(0.1)
-                                end
-                            end
-                            
-                            -- CRITICAL: Wait at the chest until money is actually received!
-                            local beforeBeli = GetPlayerBeli()
-                            local tWait = tick()
-                            local gotReward = false
-                            
-                            while (tick() - tWait) < 1.3 do
-                                if not _G.Config.AutoChestFarm then break end
-                                root.CFrame = chestCF
-                                root.AssemblyLinearVelocity = Vector3.zero
-                                root.AssemblyAngularVelocity = Vector3.zero
-                                
-                                -- Physical touch trigger on PushBox, RootPart, BottomWood & BaseParts
-                                if firetouchinterest then
-                                    pcall(function()
-                                        local pb = chestModel:FindFirstChild("PushBox") or chestModel:FindFirstChild("RootPart") or chestModel:FindFirstChild("BottomWood") or closest
-                                        firetouchinterest(root, pb, 0)
-                                        task.wait(0.02)
-                                        firetouchinterest(root, pb, 1)
-                                        if pb ~= closest then
-                                            firetouchinterest(root, closest, 0)
-                                            task.wait(0.02)
-                                            firetouchinterest(root, closest, 1)
-                                        end
-                                    end)
-                                end
-                                
-                                -- Proximity prompt fallback
-                                local prompt = chestModel:FindFirstChildWhichIsA("ProximityPrompt", true)
-                                if prompt and fireproximityprompt then
-                                    pcall(function() fireproximityprompt(prompt) end)
-                                end
-                                
-                                if GetPlayerBeli() > beforeBeli then
-                                    gotReward = true
-                                    break -- Money received! Proceed to next chest immediately!
-                                end
-                                task.wait(0.04)
-                            end
-                            
-                            -- Mark chest on cooldown: 90s if rewarded, only 15s if empty
-                            local cd = gotReward and 90 or 15
-                            _collectedChests[closest] = tick() + cd
-                            _collectedChests[chestModel] = tick() + cd
-                            task.wait(0.02)
+                        if isCollected or isTimedOut then
+                            _collectedChests[targetChest] = now + (isCollected and 90 or 20)
+                            targetChest = nil
+                            StopTween()
+                            local r = GetRoot()
+                            if r then HoverLock(r.CFrame) end
                         end
-                    else
-                        -- No active chests on current island: patrol to next island in circuit
-                        local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[2]
-                        if circuit and #circuit > 0 then
-                            _chestCircuitIndex = _chestCircuitIndex or 1
-                            local targetIslandCF = circuit[_chestCircuitIndex] * CFrame.new(0, 45, 0)
-                            local distToIsland = (targetIslandCF.Position - root.Position).Magnitude
-                            
-                            if distToIsland > 80 then
-                                if distToIsland > 1000 or _G.Config.ChestFarmMode ~= "Instant Teleport" then
-                                    TweenTo(targetIslandCF, "Chest Island Patrol (" .. _chestCircuitIndex .. ")", false)
-                                    local tStart = tick()
-                                    local maxWait = math.max(10, distToIsland / 250)
-                                    while (targetIslandCF.Position - root.Position).Magnitude > 80 and (tick() - tStart) < maxWait do
-                                        if not _G.Config.AutoChestFarm then break end
-                                        task.wait(0.2)
-                                    end
-                                else
-                                    local dir = (targetIslandCF.Position - root.Position).Unit
-                                    local hops = math.clamp(math.ceil(distToIsland / 100), 1, 40)
-                                    for h = 1, hops do
-                                        if not _G.Config.AutoChestFarm then break end
-                                        local nextPos = (h == hops) and targetIslandCF.Position or (root.Position + dir * 100)
-                                        root.CFrame = CFrame.new(nextPos.X, math.max(nextPos.Y, 120), nextPos.Z)
-                                        root.AssemblyLinearVelocity = Vector3.zero
-                                        task.wait(0.04)
-                                    end
-                                    root.CFrame = targetIslandCF
+                    end
+                    
+                    -- Find next closest active chest
+                    if not targetChest then
+                        local chests = GetSpawnedChests()
+                        if #chests > 0 then
+                            local closest = nil
+                            local minDist = math.huge
+                            for _, c in ipairs(chests) do
+                                local d = (c.Position - root.Position).Magnitude
+                                if d < minDist then
+                                    minDist = d
+                                    closest = c
                                 end
                             end
-                            
-                            -- Arrived at island: wait 1.2s for StreamingEnabled to load chest models
-                            task.wait(1.2)
-                            _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
+                            if closest then
+                                targetChest = closest
+                                targetStartTime = now
+                                targetDistance = minDist
+                                TweenTo(closest.CFrame * CFrame.new(0, 0.5, 0), "Chest (" .. closest.Name .. ")", false)
+                            end
+                        else
+                            -- No active chests on current island: patrol to next island in circuit
+                            local circuit = ChestIslandCircuits[CurrentSea] or ChestIslandCircuits[1]
+                            if circuit and #circuit > 0 then
+                                _chestCircuitIndex = _chestCircuitIndex or 1
+                                local nextIslandPos = circuit[_chestCircuitIndex] * CFrame.new(0, 25, 0)
+                                local dist = (nextIslandPos.Position - root.Position).Magnitude
+                                if dist > 35 then
+                                    TweenTo(nextIslandPos, "Chest Island Patrol")
+                                else
+                                    task.wait(1.2)
+                                    _chestCircuitIndex = (_chestCircuitIndex % #circuit) + 1
+                                    StopTween()
+                                    local r = GetRoot()
+                                    if r then HoverLock(r.CFrame) end
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- If we are at or near the target chest, collect it
+                    if targetChest and targetChest.Parent then
+                        local dist = (targetChest.Position - root.Position).Magnitude
+                        if dist <= 14 then
+                            -- Physical touch interest trigger
+                            if firetouchinterest then
+                                pcall(function()
+                                    firetouchinterest(root, targetChest, 0)
+                                    task.wait(0.02)
+                                    firetouchinterest(root, targetChest, 1)
+                                end)
+                            end
+                            -- Proximity prompt trigger fallback
+                            local prompt = targetChest:FindFirstChildWhichIsA("ProximityPrompt", true) or (targetChest.Parent and targetChest.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
+                            if prompt and fireproximityprompt then
+                                pcall(function() fireproximityprompt(prompt) end)
+                            end
+                            -- Physical contact guarantee
+                            root.CFrame = targetChest.CFrame * CFrame.new(0, 1.0, 0)
+                            task.wait(0.15)
+                            _collectedChests[targetChest] = now + 90
+                            targetChest = nil
+                            StopTween()
+                            local r = GetRoot()
+                            if r then HoverLock(r.CFrame) end
                         end
                     end
                 end)
+            else
+                if targetChest then
+                    targetChest = nil
+                    ClearHover()
+                end
             end
         end
     end)
 end
-
---============================== ADVANCED RAIDS & DUNGEONS ENGINE ==============================
-local _currentRaidIsland = 1
 
 local function StartAdvancedRaidEngine()
     task.spawn(function()
@@ -3962,7 +4037,7 @@ if _G.Config.AntiAFK then EnableAntiAFK() end
 -- Featuring: 3D Depth layering, smooth TweenService micro-animations, real-time Searchable Dropdowns, and Per-Sea filtering!
 
 --============================== LIVE BROADCAST & CLOUD AUTO-UPDATER ENGINE ==============================
-local SCRIPT_VERSION = "2.4.0"
+local SCRIPT_VERSION = "2.5.0"
 local SCRIPT_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/alpha_v2.lua"
 local LIVE_CONFIG_URL = "https://raw.githubusercontent.com/obeygaming035-pixel/lead-finder/main/live_config.json"
 
@@ -5511,7 +5586,7 @@ local function CreateUI()
             StopTween()
         end
     end)
-    FarmTab:AddDropdown("Chest Farm Mode", {"Instant Teleport (Fastest)", "Tween Flight (Safe/Smooth)"}, "Instant Teleport (Fastest)", function(v)
+    ", "Tween Flight (Safe/Smooth)"}, "Instant Teleport (Fastest)", function(v)
         if v:find("Instant") then
             _G.Config.ChestFarmMode = "Instant Teleport"
         else
@@ -5887,7 +5962,7 @@ local function CreateUI()
     MiscTab:AddToggle("Auto-Set Spawn Point on Arrival", _G.Config.AutoSetSpawn ~= false, function(v)
         _G.Config.AutoSetSpawn = v
     end)
-    MiscTab:AddSlider("Tween Flight Speed", 150, 350, 280, function(v) _G.Config.TweenSpeed = v end)
+    MiscTab:AddSlider("Tween Flight Speed (Safe 200-240)", 150, 300, 220, function(v) _G.Config.TweenSpeed = v end)
     MiscTab:AddSlider("WalkSpeed", 16, 250, 16, function(v)
         local hum = GetHumanoid()
         if hum then hum.WalkSpeed = v end
