@@ -1716,7 +1716,7 @@ end
 -- Fast M1 Clicks
 local function FastAttack()
     if not _G.Config.FastAttack or not _G.Config.UseM1 then return end
-    if _G.UIInteracting or IsTravelingSky then return end
+    if IsTravelingSky then return end
     
     local char = GetCharacter()
     if not char then return end
@@ -1784,7 +1784,7 @@ local _skillCooldowns = { Z = 0, X = 0, C = 0, V = 0, F = 0 }
 local _skillBaseCooldowns = { Z = 3.5, X = 5.0, C = 8.0, V = 12.0, F = 9.0 }
 
 local function CastNextSkill()
-    if not _G.Config.UseSkills or _G.UIInteracting or IsTravelingSky then return end
+    if not _G.Config.UseSkills or IsTravelingSky then return end
     
     local now = tick()
     if (now - _lastSkillCastTime) < 0.5 then return end
@@ -4790,7 +4790,7 @@ local function CreateUI()
     MainFrame:GetPropertyChangedSignal("Position"):Connect(SyncShadow)
     MainFrame:GetPropertyChangedSignal("Visible"):Connect(SyncShadow)
     
-    MainFrame.MouseEnter:Connect(function() _G.UIInteracting = true end)
+    MainFrame.MouseEnter:Connect(function() _G.UIInteracting = false end)
     MainFrame.MouseLeave:Connect(function() _G.UIInteracting = false end)
     
     local MainCorner = Instance.new("UICorner")
@@ -6140,6 +6140,61 @@ local function CreateUI()
     end)
     
     SwitchTab("⚔️ Main Farm")
+end
+
+
+--============================== AUTO STATS ALLOCATOR ==============================
+local function StartAutoStatsLoop()
+    task.spawn(function()
+        task.wait(2.0)
+        while true do
+            task.wait(0.5)
+            if _G.Config.AutoStats and _G.Config.Stats then
+                pcall(function()
+                    local cf = CommF()
+                    if not cf then return end
+                    local lp = Players.LocalPlayer
+                    local data = lp and lp:FindFirstChild("Data")
+                    local ptsAvail = (data and data:FindFirstChild("Points") and data.Points.Value) or 0
+                    if ptsAvail > 0 then
+                        local pts = math.clamp(_G.Config.StatPoints or 1, 1, ptsAvail)
+                        
+                        -- Allocate according to user toggles in _G.Config.Stats
+                        if _G.Config.Stats.Melee and ptsAvail > 0 then
+                            local toAdd = math.min(pts, ptsAvail)
+                            cf:InvokeServer("AddPoint", "Melee", toAdd)
+                            ptsAvail = ptsAvail - toAdd
+                            task.wait(0.08)
+                        end
+                        if _G.Config.Stats.Defense and ptsAvail > 0 then
+                            local toAdd = math.min(pts, ptsAvail)
+                            cf:InvokeServer("AddPoint", "Defense", toAdd)
+                            ptsAvail = ptsAvail - toAdd
+                            task.wait(0.08)
+                        end
+                        if _G.Config.Stats.Sword and ptsAvail > 0 then
+                            local toAdd = math.min(pts, ptsAvail)
+                            cf:InvokeServer("AddPoint", "Sword", toAdd)
+                            ptsAvail = ptsAvail - toAdd
+                            task.wait(0.08)
+                        end
+                        if _G.Config.Stats.Gun and ptsAvail > 0 then
+                            local toAdd = math.min(pts, ptsAvail)
+                            cf:InvokeServer("AddPoint", "Gun", toAdd)
+                            ptsAvail = ptsAvail - toAdd
+                            task.wait(0.08)
+                        end
+                        if _G.Config.Stats.Fruit and ptsAvail > 0 then
+                            local toAdd = math.min(pts, ptsAvail)
+                            cf:InvokeServer("AddPoint", "Demon Fruit", toAdd)
+                            ptsAvail = ptsAvail - toAdd
+                            task.wait(0.08)
+                        end
+                    end
+                end)
+            end
+        end
+    end)
 end
 
 
