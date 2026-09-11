@@ -2228,9 +2228,9 @@ BossesDB = {
     ["Smoke Admiral"] = {Sea = 2, Quest = "IceSideQuest", Level = 2, Pos = CFrame.new(-5075.23, 15.96, -5360.45)},
     ["Awakened Ice Admiral"] = {Sea = 2, Quest = "FrostQuest", Level = 3, Pos = CFrame.new(6472.12, 296.12, -6852.34)},
     ["Tide Keeper"] = {Sea = 2, Quest = "ForgottenQuest", Level = 3, Pos = CFrame.new(-3810.45, 77.15, -11520.12)},
-    ["Darkbeard"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(3780.03, 22.65, -3498.94)},
-    ["Cursed Captain"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(915.24, 180.12, 33458.12)},
-    ["Order"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(-6500.12, 250.12, -4500.12)},
+    ["Darkbeard"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(3780.03, 22.65, -3498.94), Special = true},
+    ["Cursed Captain"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(915.24, 180.12, 33458.12), Special = true},
+    ["Order"] = {Sea = 2, Quest = nil, Level = 1, Pos = CFrame.new(-6500.12, 250.12, -4500.12), Special = true},
 
     -- Sea 3 (Third Sea)
     ["Stone"] = {Sea = 3, Quest = "PiratePortQuest", Level = 3, Pos = CFrame.new(-1050.23, 40.12, 6780.45)},
@@ -2239,12 +2239,12 @@ BossesDB = {
     ["Captain Elephant"] = {Sea = 3, Quest = "DeepForestIsland2", Level = 3, Pos = CFrame.new(-13390.23, 332.12, -8420.45)},
     ["Beautiful Pirate"] = {Sea = 3, Quest = "DeepForestIsland3", Level = 5, Pos = CFrame.new(-12463.87, 374.91, -7523.77)},
     ["Longma"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(5220.12, 385.12, -340.23)},
-    ["Soul Reaper"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-9516.99, 172.01, 6078.47)},
+    ["Soul Reaper"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-9516.99, 172.01, 6078.47), Special = true},
     ["Cake Queen"] = {Sea = 3, Quest = "IceCreamIslandQuest", Level = 3, Pos = CFrame.new(-710.23, 381.12, -11150.45)},
-    ["Cake Prince"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
-    ["Dough King"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34)},
-    ["Rip Indra"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-5330.12, 314.52, -2780.45)},
-    ["Tyrant of the Skies"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-16300.12, 850.12, 450.23)}
+    ["Cake Prince"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34), Special = true},
+    ["Dough King"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-2100.12, 70.12, -12150.34), Special = true},
+    ["Rip Indra"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-5330.12, 314.52, -2780.45), Special = true},
+    ["Tyrant of the Skies"] = {Sea = 3, Quest = nil, Level = 1, Pos = CFrame.new(-16300.12, 850.12, 450.23), Special = true}
 }
 
 --============================== DYNAMIC SCAN FUNCTIONS (SEA FILTERED) ==============================
@@ -2300,7 +2300,14 @@ local function GetSpawnedMobsList()
             AddMob(q.Mob, false)
         end
     end
-    table.sort(list)
+    table.sort(list, function(a, b)
+        local aSpawned = a:sub(1, 9) == "[Spawned]"
+        local bSpawned = b:sub(1, 9) == "[Spawned]"
+        if aSpawned ~= bSpawned then
+            return aSpawned
+        end
+        return a < b
+    end)
     return list
 end
 
@@ -2320,14 +2327,14 @@ local function GetSpawnedBossesList()
             if bData.Sea == CurrentSea and IsMobMatch(enemy.Name, bName) then
                 if not seen[bName] then
                     seen[bName] = true
-                    table.insert(list, bName)
+                    table.insert(list, "[Spawned] " .. bName)
                 end
                 break
             end
         end
     end
 
-    -- 1. Scan Workspace.Enemies (standard spawned mobs & bosses)
+    -- 1. Scan live Workspace.Enemies (currently rendered on island / streamed)
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
@@ -2335,7 +2342,7 @@ local function GetSpawnedBossesList()
         end
     end
 
-    -- 2. Scan Workspace.Characters (special/summoned bosses)
+    -- 2. Scan Workspace.Characters (special / summoned bosses)
     local chars = Workspace:FindFirstChild("Characters")
     if chars then
         for _, c in ipairs(chars:GetChildren()) do
@@ -2345,7 +2352,7 @@ local function GetSpawnedBossesList()
         end
     end
 
-    -- 3. Scan other mob containers
+    -- 3. Scan extra mob containers
     for _, fName in ipairs({"mobs", "Mobs", "SeaBeasts"}) do
         local f = Workspace:FindFirstChild(fName)
         if f then
@@ -2355,7 +2362,23 @@ local function GetSpawnedBossesList()
         end
     end
 
-    table.sort(list)
+    -- 4. Include all standard island quest bosses across entire map ready to spawn (unstreamed distant islands)
+    for bName, bData in pairs(BossesDB) do
+        if bData.Sea == CurrentSea and not seen[bName] and not bData.Special then
+            seen[bName] = true
+            table.insert(list, bName)
+        end
+    end
+
+    -- Sort [Spawned] bosses to the very top, followed by ready-to-spawn bosses alphabetically
+    table.sort(list, function(a, b)
+        local aSpawned = a:sub(1, 9) == "[Spawned]"
+        local bSpawned = b:sub(1, 9) == "[Spawned]"
+        if aSpawned ~= bSpawned then
+            return aSpawned
+        end
+        return a < b
+    end)
 
     if #list == 0 then
         return {"None Spawned (Click Refresh to Scan)"}
@@ -5784,9 +5807,13 @@ local function CreateUI()
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
         local updated = GetActiveBossesList()
         BossDrop:SetOptions(updated)
-        local count = #updated
-        if count == 1 and updated[1]:find("None Spawned") then count = 0 end
-        ShowLiveToast("BOSSES REFRESHED", "Found " .. count .. " active spawned bosses in " .. SeaName, Color3.fromRGB(255, 255, 255), 3)
+        local spawnedCount = 0
+        for _, b in ipairs(updated) do
+            if b:sub(1, 9) == "[Spawned]" then
+                spawnedCount = spawnedCount + 1
+            end
+        end
+        ShowLiveToast("BOSSES REFRESHED", "Found " .. spawnedCount .. " active spawned & " .. #updated .. " total bosses ready in " .. SeaName, Color3.fromRGB(255, 255, 255), 3)
     end)
     BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
         _G.Config.FarmSelectedBoss = v
