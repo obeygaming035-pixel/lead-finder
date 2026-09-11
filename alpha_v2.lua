@@ -1377,7 +1377,32 @@ local function TweenTo(targetCFrame, destName)
         return CurrentTween
     end
     
-    -- 2. LONG RANGE (> 150 studs): Platform-Stabilized Segmented Ocean Cruise
+    -- 2. RAID DIMENSION: Smooth direct linear glide at island height (Never ocean cruise!)
+    if root.Position.X > 50000 or (Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("RaidMap")) then
+        EnableNoclip()
+        hum.PlatformStand = false
+        
+        local bv = GetOrCreateBodyVelocity(root)
+        bv.MaxForce = Vector3.zero
+        root.AssemblyLinearVelocity = Vector3.zero
+        
+        local time = distance / speed
+        CurrentTween = TweenService:Create(root, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+        CurrentTween.Completed:Connect(function(playbackState)
+            CurrentTween = nil
+            if hum and hum.Parent then
+                hum.PlatformStand = false
+                hum.Sit = false
+            end
+            if playbackState == Enum.PlaybackState.Completed then
+                HoverLock(targetCFrame)
+            end
+        end)
+        CurrentTween:Play()
+        return CurrentTween
+    end
+    
+    -- 3. LONG RANGE (> 150 studs): Platform-Stabilized Segmented Ocean Cruise
     if IsTravelingSky then return CurrentTween end
     IsTravelingSky = true
     
@@ -3605,144 +3630,248 @@ local function StartChestFarmLoop()
 end
 
 
+local _currentRaidIsland = 1
+local _noMobStartTick = 0
+
+local function GetLocalRaidIsland(idx)
+    local root = GetRoot()
+    if not root then return nil end
+    local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
+    local map = Workspace:FindFirstChild("Map")
+    local raidMap = map and map:FindFirstChild("RaidMap")
+    
+    local candidates = {}
+    local pattern = "Island%s*" .. tostring(idx) .. "$"
+    local patternAlt = "RaidIsland%s*" .. tostring(idx) .. "$"
+    
+    -- 1. Search _WorldOrigin.Locations
+    if locs then
+        for _, l in ipairs(locs:GetChildren()) do
+            if l.Name:match(pattern) or l.Name == ("Island " .. idx) or l.Name == ("Island" .. idx) then
+                local p = l:IsA("BasePart") and l.Position or (l:IsA("Model") and l:GetPivot().Position)
+                if p then
+                    local d = (p - root.Position).Magnitude
+                    table.insert(candidates, {obj = l, pos = p, dist = d})
+                end
+            end
+        end
+    end
+    
+    -- 2. Search Map.RaidMap
+    if raidMap then
+        for _, r in ipairs(raidMap:GetChildren()) do
+            if r.Name:match(pattern) or r.Name:match(patternAlt) or r.Name == ("RaidIsland" .. idx) or r.Name == ("Island " .. idx) then
+                local p = r:IsA("BasePart") and r.Position or (r:IsA("Model") and (r.PrimaryPart and r.PrimaryPart.Position or (r:FindFirstChildWhichIsA("BasePart") and r:FindFirstChildWhichIsA("BasePart").Position)))
+                if p then
+                    local d = (p - root.Position).Magnitude
+                    table.insert(candidates, {obj = r, pos = p, dist = d})
+                end
+            end
+        end
+    end
+    
+    table.sort(candidates, function(a, b) return a.dist < b.dist end)
+    
+    -- Pick closest candidate within local raid arena (< 3500 studs)
+    for _, c in ipairs(candidates) do
+        if c.dist < 3500 then
+            return c.pos, c.obj
+        end
+    end
+    
+    -- Fallback: closest candidate
+    if #candidates > 0 and candidates[1].dist < 5000 then
+        return candidates[1].pos, candidates[1].obj
+    end
+    return nil, nil
+end
+
 local function StartAdvancedRaidEngine()
     task.spawn(function()
-        task.wait(2.5)
+        task.wait(2.0)
         while true do
-            task.wait(1.0)
+            task.wait(0.3)
             pcall(function()
                 local cf = CommF()
-                if not cf then return end
                 local root = GetRoot()
-                if not root then return end
+                local hum = GetHumanoid()
+                if not root or not hum or hum.Health <= 0 then return end
                 
-                local locs = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("Locations")
-                local inRaid = locs and (locs:FindFirstChild("Island 1") or locs:FindFirstChild("Island1")) ~= nil
+                local inRaid = (root.Position.X > 50000) or (Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("RaidMap") ~= nil)
                 
-                -- Auto Buy Raid Chip
-                if _G.Config.AutoBuyChip then
-                    pcall(function()
-                        cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip or "Flame")
-                    end)
-                end
-                
-                -- Auto Start Raid (when not yet in raid)
+                -- ================= AUTO START RAID (OUTSIDE RAID) =================
                 if _G.Config.AutoStartRaid and not inRaid then
-                    pcall(function()
-                        -- In Second Sea, raid room pod is at CircleIsland / Hot and Cold (-6473.5, 250.5, -4490.5)
-                        if CurrentSea == 2 then
-                            local podPos = Vector3.new(-6473.5, 250.5, -4490.5)
-                            if (root.Position - podPos).Magnitude > 25 then
-                                root.CFrame = CFrame.new(podPos + Vector3.new(0, 3, 0))
-                                root.AssemblyLinearVelocity = Vector3.zero
-                                task.wait(0.5)
+                    local char = LocalPlayer.Character
+                    local bp = LocalPlayer:FindFirstChild("Backpack")
+                    local hasChip = (char and char:FindFirstChild("Special Microchip")) or (bp and bp:FindFirstChild("Special Microchip"))
+                    
+                    -- Auto Buy Chip if enabled or if player has none
+                    if _G.Config.AutoBuyChip or not hasChip then
+                        pcall(function()
+                            if cf then cf:InvokeServer("RaidsNpc", "Select", _G.Config.SelectedChip or "Flame") end
+                        end)
+                    end
+                    
+                    if CurrentSea == 3 then
+                        -- Third Sea: Castle on the Sea Raid Lab
+                        local castlePortal = Vector3.new(-5035.43, 314.52, -2917.48)
+                        local raidPodCF = CFrame.new(-5014.28, 315.0, -2824.15)
+                        local distToCastle = (root.Position - castlePortal).Magnitude
+                        local distToPod = (root.Position - raidPodCF.Position).Magnitude
+                        
+                        if distToCastle > 1000 and distToPod > 300 then
+                            -- Fast server entrance teleport to Castle on the Sea
+                            local okEntrance = false
+                            if cf then
+                                okEntrance = pcall(function() return cf:InvokeServer("requestEntrance", castlePortal) end)
+                            end
+                            if not okEntrance or (root.Position - castlePortal).Magnitude > 500 then
+                                TweenTo(CFrame.new(castlePortal), "Castle on Sea")
+                            end
+                        elseif distToPod > 18 then
+                            TweenTo(raidPodCF, "Raid Pod")
+                        else
+                            -- Inside Castle raid tube! Lock position and start raid
+                            HoverLock(raidPodCF)
+                            if cf then
+                                pcall(function() cf:InvokeServer("RaidsNpc", "Start") end)
+                            end
+                            -- Also trigger any click detector inside the pod room
+                            for _, obj in ipairs(Workspace:GetDescendants()) do
+                                if obj:IsA("ClickDetector") and (obj.Parent.Position - root.Position).Magnitude < 20 then
+                                    pcall(function() fireclickdetector(obj) end)
+                                end
                             end
                         end
-                        cf:InvokeServer("RaidsNpc", "Start")
-                    end)
+                    elseif CurrentSea == 2 then
+                        -- Second Sea: Circle Island Lab (Cold/Hot)
+                        local podPos = Vector3.new(-6473.5, 250.5, -4490.5)
+                        local distToPod = (root.Position - podPos).Magnitude
+                        if distToPod > 25 then
+                            TweenTo(CFrame.new(podPos + Vector3.new(0, 3, 0)), "Raid Pod")
+                        else
+                            HoverLock(CFrame.new(podPos + Vector3.new(0, 3, 0)))
+                            if cf then pcall(function() cf:InvokeServer("RaidsNpc", "Start") end) end
+                        end
+                    end
                 end
                 
-                -- Auto Farm Raid & Next Island Transition
+                -- ================= AUTO FARM RAID (INSIDE RAID) =================
                 if _G.Config.AutoFarmRaid and inRaid then
                     local enemies = Workspace:FindFirstChild("Enemies")
-                    local targetMob = nil
+                    local islandPos, islandObj = GetLocalRaidIsland(_currentRaidIsland)
                     
-                    if enemies then
-                        for _, mob in ipairs(enemies:GetChildren()) do
-                            if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                                targetMob = mob
+                    -- If current island index not found, scan 1..5 to latch onto the active island
+                    if not islandPos then
+                        for i = 1, 5 do
+                            local p, obj = GetLocalRaidIsland(i)
+                            if p then
+                                _currentRaidIsland = i
+                                islandPos = p
+                                islandObj = obj
                                 break
                             end
                         end
                     end
                     
-                    if targetMob then
-                        -- Attack target mob from safe distance
-                        local farmPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, _G.Config.FarmDistance or 14, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                        TweenTo(farmPos)
-                        EquipWeapon(_G.Config.SelectedWeapon)
-                    else
-                        -- NO MOBS CURRENTLY ALIVE:
-                        -- Advance to the target island and WAIT THERE for mobs to spawn!
-                        local islandName = "Island " .. _currentRaidIsland
-                        local islandNameAlt = "Island" .. _currentRaidIsland
-                        local island = locs:FindFirstChild(islandName) or locs:FindFirstChild(islandNameAlt)
-                        
-                        if island then
-                            local islandPos = island.Position + Vector3.new(0, 30, 0)
-                            local dist = (islandPos - root.Position).Magnitude
-                            
-                            if dist > 35 then
-                                -- Fly to next island
-                                TweenTo(CFrame.new(islandPos), "Raid Island " .. _currentRaidIsland)
-                            else
-                                -- Arrived at island: HOVER DIRECTLY ON THE ISLAND AND WAIT FOR MOBS TO SPAWN!
-                                HoverLock(CFrame.new(islandPos))
-                                task.wait(1.5)
-                                
-                                -- Check if mobs have spawned yet
-                                local anySpawned = false
-                                if enemies then
-                                    for _, m in ipairs(enemies:GetChildren()) do
-                                        if m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then
-                                            anySpawned = true
-                                            break
-                                        end
+                    local anchorPos = islandPos or root.Position
+                    local islandHoverCF = CFrame.new(anchorPos.X, anchorPos.Y + 28, anchorPos.Z)
+                    
+                    -- Find ALIVE local mobs within 850 studs of this island
+                    local targetMob = nil
+                    local closestDist = math.huge
+                    local aliveCount = 0
+                    
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                                local mPos = mob.HumanoidRootPart.Position
+                                local distFromIsland = (mPos - anchorPos).Magnitude
+                                if distFromIsland < 850 then
+                                    aliveCount = aliveCount + 1
+                                    local distFromPlayer = (mPos - root.Position).Magnitude
+                                    if distFromPlayer < closestDist then
+                                        closestDist = distFromPlayer
+                                        targetMob = mob
                                     end
-                                end
-                                
-                                -- If still no mobs after waiting on island, check if island cleared or need next
-                                if not anySpawned and _currentRaidIsland < 5 then
-                                    -- Check if next island exists in locations
-                                    local nextIsl = locs:FindFirstChild("Island " .. (_currentRaidIsland + 1)) or locs:FindFirstChild("Island" .. (_currentRaidIsland + 1))
-                                    if nextIsl then
-                                        -- Wait an extra 3 seconds before concluding island is empty
-                                        task.wait(2.5)
-                                        local recheck = false
-                                        if enemies then
-                                            for _, m in ipairs(enemies:GetChildren()) do
-                                                if m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then recheck = true; break end
-                                            end
-                                        end
-                                        if not recheck then
-                                            _currentRaidIsland = _currentRaidIsland + 1
-                                        end
-                                    end
-                                end
-                            end
-                        else
-                            -- Island not found or raid completed, check island 1..5
-                            for i = 1, 5 do
-                                local isl = locs:FindFirstChild("Island " .. i) or locs:FindFirstChild("Island" .. i)
-                                if isl and (isl.Position - root.Position).Magnitude > 50 then
-                                    _currentRaidIsland = i
-                                    break
                                 end
                             end
                         end
                     end
+                    
+                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                        -- Mobs found: reset no-mob counter
+                        _noMobStartTick = 0
+                        
+                        -- Bring nearby mobs together on the island
+                        if _G.Config.BringMobs then
+                            for _, m in ipairs(enemies:GetChildren()) do
+                                if m ~= targetMob and m:IsA("Model") and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild("Humanoid") and m.Humanoid.Health > 0 then
+                                    local d = (m.HumanoidRootPart.Position - targetMob.HumanoidRootPart.Position).Magnitude
+                                    if d < 280 then
+                                        m.HumanoidRootPart.CFrame = targetMob.HumanoidRootPart.CFrame
+                                        m.HumanoidRootPart.CanCollide = false
+                                        m.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- Hover securely right above target mob and engage combat
+                        local fDist = _G.Config.FarmDistance or 12
+                        local farmCF = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, fDist, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                        HoverLock(farmCF)
+                        EquipWeapon(_G.Config.SelectedWeapon)
+                    else
+                        -- NO MOBS ALIVE ON THIS ISLAND:
+                        -- Anchor and hover securely right over the island center close to where mobs spawn!
+                        local distToIsland = (islandHoverCF.Position - root.Position).Magnitude
+                        if distToIsland > 35 then
+                            TweenTo(islandHoverCF, "Raid Island " .. _currentRaidIsland)
+                        else
+                            HoverLock(islandHoverCF)
+                        end
+                        
+                        if _noMobStartTick == 0 then
+                            _noMobStartTick = tick()
+                        end
+                        
+                        -- If no mobs for > 2.5s, check if next island has spawned
+                        if (tick() - _noMobStartTick) > 2.5 and _currentRaidIsland < 5 then
+                            local nextPos, nextObj = GetLocalRaidIsland(_currentRaidIsland + 1)
+                            if nextPos then
+                                -- Island cleared! Advance to next island
+                                _currentRaidIsland = _currentRaidIsland + 1
+                                _noMobStartTick = 0
+                                local nextHoverCF = CFrame.new(nextPos.X, nextPos.Y + 28, nextPos.Z)
+                                TweenTo(nextHoverCF, "Next Raid Island (" .. _currentRaidIsland .. ")")
+                            end
+                        end
+                    end
                 elseif not inRaid then
-                    -- Reset raid island index when outside raid
                     _currentRaidIsland = 1
+                    _noMobStartTick = 0
                 end
                 
                 -- Auto Awaken Fruit
                 if _G.Config.AutoAwaken and inRaid then
                     pcall(function()
-                        cf:InvokeServer("Awakener", "Check")
-                        cf:InvokeServer("Awakener", "Awaken")
+                        if cf then
+                            cf:InvokeServer("Awakener", "Check")
+                            cf:InvokeServer("Awakener", "Awaken")
+                        end
                     end)
                 end
                 
                 -- Auto Law / Order Raid
                 if _G.Config.AutoLawRaid then
-                    cf:InvokeServer("BlackbeardReward", "LawChip")
+                    if cf then cf:InvokeServer("BlackbeardReward", "LawChip") end
                     local enemies = Workspace:FindFirstChild("Enemies")
                     if enemies then
                         local order = enemies:FindFirstChild("Order")
                         if order and order:FindFirstChild("HumanoidRootPart") and order:FindFirstChild("Humanoid") and order.Humanoid.Health > 0 then
                             local farmPos = order.HumanoidRootPart.CFrame * CFrame.new(0, 25, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                            TweenTo(farmPos)
+                            HoverLock(farmPos)
                             EquipWeapon(_G.Config.SelectedWeapon)
                         end
                     end
