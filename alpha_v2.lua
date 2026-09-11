@@ -6059,39 +6059,6 @@ local function CreateUI()
         end)
     end)
     
-    MiscTab:AddSection("Diagnostics & Fixes")
-    MiscTab:AddButton("🔍 Run Movement Diagnostic (Copies to Clipboard)", function()
-        local root = GetRoot()
-        local hum = GetHumanoid()
-        local rPos = root and tostring(root.Position) or "N/A"
-        local bvs = root and root:FindFirstChildOfClass("BodyVelocity") and "YES (" .. root:FindFirstChildOfClass("BodyVelocity").Name .. ")" or "NONE"
-        local report = "ALPHA V2 DIAGNOSTIC SNAPSHOT\n"
-        report = report .. "Player Level: " .. GetPlayerLevel() .. "\n"
-        report = report .. "PlaceId: " .. PlaceId .. " (" .. SeaName .. ")\n"
-        report = report .. "Position: " .. rPos .. "\n"
-        report = report .. "Humanoid PlatformStand: " .. tostring(hum and hum.PlatformStand) .. "\n"
-        report = report .. "Root BodyVelocity: " .. bvs .. "\n"
-        report = report .. "Active Tweens: " .. tostring(CurrentTween ~= nil) .. "\n"
-        report = report .. "HasQuest: " .. tostring(HasQuest()) .. "\n"
-        report = report .. "IsTravelingSky: " .. tostring(IsTravelingSky) .. "\n"
-        report = report .. "TweenSpeed Config: " .. tostring(_G.Config.TweenSpeed) .. "\n"
-        report = report .. "Validator Safe Speed: " .. tostring(Validator.CurrentSafeSpeed) .. "\n"
-        report = report .. "Validator Stats: " .. Validator.GetStats() .. "\n"
-        pcall(function()
-            if setclipboard then
-                setclipboard(report)
-                print("[ALPHA] Diagnostic report copied to clipboard!")
-            end
-        end)
-    end)
-    MiscTab:AddButton("🛡️ View Smart Validator Status (Print + Clipboard)", function()
-        local stats = "[SMART VALIDATOR]\n" .. Validator.GetStats()
-        print(stats)
-        pcall(function()
-            if setclipboard then setclipboard(stats) end
-        end)
-    end)
-
     MiscTab:AddSection("Server Controls")
     MiscTab:AddButton("Server Hop (Low Population)", function()
         local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
