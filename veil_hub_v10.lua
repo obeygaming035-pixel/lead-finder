@@ -1768,14 +1768,6 @@ local function FastAttack()
         end
         
         pcall(function() tool:Activate() end)
-        local vim = game:GetService("VirtualInputManager")
-        if vim then
-            pcall(function()
-                vim:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                task.wait(0.015)
-                vim:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-            end)
-        end
     end
 end
 
@@ -4899,9 +4891,9 @@ local function CreateUI()
     LBLabel.Parent = LogoBadge
     
     local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(0, 240, 1, 0)
+    TitleLabel.Size = UDim2.new(0, 165, 1, 0)
     TitleLabel.Position = UDim2.new(0, 46, 0, 0)
-    TitleLabel.Text = "ALPHA // 3D CYBER EDITION v" .. SCRIPT_VERSION
+    TitleLabel.Text = "ALPHA // CYBER v" .. SCRIPT_VERSION
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextSize = 13
@@ -4913,7 +4905,7 @@ local function CreateUI()
     -- Status Pill Badges
     local SeaBadge = Instance.new("Frame")
     SeaBadge.Size = UDim2.new(0, 95, 0, 22)
-    SeaBadge.Position = UDim2.new(0, 246, 0, 11)
+    SeaBadge.Position = UDim2.new(0, 218, 0, 11)
     SeaBadge.BackgroundColor3 = Color3.fromRGB(22, 26, 38)
     SeaBadge.BorderSizePixel = 0
     SeaBadge.Parent = TopBar
@@ -4937,7 +4929,7 @@ local function CreateUI()
     -- Live Performance Monitor Badge (FPS & Ping)
     local PerfBadge = Instance.new("Frame")
     PerfBadge.Size = UDim2.new(0, 138, 0, 22)
-    PerfBadge.Position = UDim2.new(0, 348, 0, 11)
+    PerfBadge.Position = UDim2.new(0, 320, 0, 11)
     PerfBadge.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
     PerfBadge.BorderSizePixel = 0
     PerfBadge.Parent = TopBar
