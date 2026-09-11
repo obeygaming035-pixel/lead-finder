@@ -163,7 +163,6 @@ end
 _G.Config = {
     -- Farming
     AutoFarmLevel = false,
-    AutoDoubleQuest = false,
     FarmSelectedMob = false,
     FarmSelectedBoss = false,
     FarmAllBosses = false,
@@ -3150,7 +3149,7 @@ local function UpdatePlayerESP()
             local nameLabel = Instance.new("TextLabel")
             nameLabel.Size = UDim2.new(1, 0, 0, 18)
             nameLabel.BackgroundTransparency = 1
-            nameLabel.Text = (isMarine and "🛡️ " or "🏴‍☠️ ") .. plr.DisplayName .. " (@" .. plr.Name .. ")"
+            nameLabel.Text = (isMarine and "[Marine] " or "[Pirate] ") .. plr.DisplayName .. " (@" .. plr.Name .. ")"
             nameLabel.TextColor3 = teamColor
             nameLabel.Font = Enum.Font.GothamBold
             nameLabel.TextSize = 11
@@ -3203,7 +3202,7 @@ local function UpdateFruitESP()
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
-            label.Text = "🍇 " .. obj.Name .. "\n[" .. dist .. " studs]"
+            label.Text = "[Fruit] " .. obj.Name .. "\n[" .. dist .. " studs]"
             label.TextColor3 = GetFruitColor(obj.Name)
             label.Font = Enum.Font.GothamBold
             label.TextSize = 11
@@ -3314,7 +3313,7 @@ local function UpdateChestESP()
             local label = Instance.new("TextLabel")
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
-            label.Text = "🪙 " .. chest.Name .. " [" .. dist .. "m]"
+            label.Text = "[Chest] " .. chest.Name .. " [" .. dist .. "m]"
             label.TextColor3 = Color3.fromRGB(255, 215, 0)
             label.Font = Enum.Font.GothamMedium
             label.TextSize = 10
@@ -3346,7 +3345,7 @@ local function UpdateFlowerESP()
                 local label = Instance.new("TextLabel")
                 label.Size = UDim2.new(1, 0, 1, 0)
                 label.BackgroundTransparency = 1
-                label.Text = "🌸 " .. obj.Name .. " [" .. dist .. "m]"
+                label.Text = "[Flower] " .. obj.Name .. " [" .. dist .. "m]"
                 label.TextColor3 = col
                 label.Font = Enum.Font.GothamBold
                 label.TextSize = 11
@@ -3380,7 +3379,7 @@ local function UpdateSeaEventESP()
                 local label = Instance.new("TextLabel")
                 label.Size = UDim2.new(1, 0, 1, 0)
                 label.BackgroundTransparency = 1
-                label.Text = "🌙 MIRAGE ISLAND ACTIVE!\n[" .. dist .. " studs]"
+                label.Text = "MIRAGE ISLAND ACTIVE!\n[" .. dist .. " studs]"
                 label.TextColor3 = Color3.fromRGB(150, 110, 255)
                 label.Font = Enum.Font.GothamBold
                 label.TextSize = 12
@@ -3417,16 +3416,16 @@ local function UpdateSeaEventESP()
         local sbFolder = Workspace:FindFirstChild("SeaBeasts")
         if sbFolder then
             for _, sb in ipairs(sbFolder:GetChildren()) do
-                CheckSeaMob(sb, "🐉", Color3.fromRGB(0, 230, 255))
+                CheckSeaMob(sb, "[SB]", Color3.fromRGB(240, 240, 255))
             end
         end
         local enemies = Workspace:FindFirstChild("Enemies")
         if enemies then
             for _, mob in ipairs(enemies:GetChildren()) do
                 if string.find(mob.Name, "SeaBeast") or string.find(mob.Name, "Sea Beast") then
-                    CheckSeaMob(mob, "🐉", Color3.fromRGB(0, 230, 255))
+                    CheckSeaMob(mob, "[Sea Mob]", Color3.fromRGB(240, 240, 255))
                 elseif string.find(mob.Name, "Terror Shark") then
-                    CheckSeaMob(mob, "🦈", Color3.fromRGB(255, 45, 95))
+                    CheckSeaMob(mob, "[Shark]", Color3.fromRGB(240, 240, 255))
                 end
             end
         end
@@ -4267,7 +4266,7 @@ local function ShowLiveToast(title, message, accentColor, duration)
         IconLabel.Size = UDim2.new(0, 36, 0, 36)
         IconLabel.Position = UDim2.new(0, 8, 0.5, -18)
         IconLabel.BackgroundTransparency = 1
-        IconLabel.Text = "⚡"
+        IconLabel.Text = "α"
         IconLabel.TextSize = 22
         IconLabel.TextColor3 = accentColor
         IconLabel.Parent = ToastFrame
@@ -4456,7 +4455,7 @@ local function TriggerLiveReload(newVersion)
     if _isHotReloading then return end
     _isHotReloading = true
     
-    ShowLiveToast("⚡ CLOUD AUTO-UPDATE", "Hot-reloading to v" .. tostring(newVersion or "latest") .. " in real-time...", Color3.fromRGB(0, 255, 170), 4)
+    ShowLiveToast("CLOUD AUTO-UPDATE", "Hot-reloading to v" .. tostring(newVersion or "latest") .. " in real-time...", Color3.fromRGB(0, 255, 170), 4)
     task.wait(1.0)
     
     -- Terminate previous loops via instance token
@@ -4482,7 +4481,7 @@ local function TriggerLiveReload(newVersion)
         end)
         if not ok then
             warn("[ALPHA LIVE] Hot-reload error:", err)
-            ShowLiveToast("❌ Reload Error", tostring(err), Color3.fromRGB(255, 70, 70), 5)
+            ShowLiveToast("Reload Error", tostring(err), Color3.fromRGB(255, 70, 70), 5)
         end
     end)
 end
@@ -4574,7 +4573,7 @@ local function CreateUI()
     TravelFrame.Name = RNG()
     TravelFrame.Size = UDim2.new(0, 370, 0, 58)
     TravelFrame.Position = UDim2.new(0.5, -185, 0.5, -280)
-    TravelFrame.BackgroundColor3 = Color3.fromRGB(12, 13, 20)
+    TravelFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
     TravelFrame.BorderSizePixel = 0
     TravelFrame.Active = true
     TravelFrame.Selectable = true
@@ -4587,14 +4586,14 @@ local function CreateUI()
     TravelCorner.Parent = TravelFrame
     
     local TravelStroke = Instance.new("UIStroke")
-    TravelStroke.Color = Color3.fromRGB(0, 230, 255)
+    TravelStroke.Color = Color3.fromRGB(255, 255, 255)
     TravelStroke.Thickness = 1.6
     TravelStroke.Parent = TravelFrame
     
     local TravelGrad = Instance.new("UIGradient")
     TravelGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 28, 42)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 12, 18))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 24)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 8, 10))
     }
     TravelGrad.Rotation = 90
     TravelGrad.Parent = TravelFrame
@@ -4602,7 +4601,7 @@ local function CreateUI()
     local TravelTitle = Instance.new("TextLabel")
     TravelTitle.Size = UDim2.new(1, -95, 0, 22)
     TravelTitle.Position = UDim2.new(0, 14, 0, 6)
-    TravelTitle.Text = "✈️ FLYING TO: DESTINATION"
+    TravelTitle.Text = "FLYING TO: DESTINATION"
     TravelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     TravelTitle.Font = Enum.Font.GothamBold
     TravelTitle.TextSize = 12
@@ -4615,7 +4614,7 @@ local function CreateUI()
     TravelDist.Size = UDim2.new(1, -95, 0, 16)
     TravelDist.Position = UDim2.new(0, 14, 0, 26)
     TravelDist.Text = "Distance: 0 studs • Speed: 250 studs/s"
-    TravelDist.TextColor3 = Color3.fromRGB(170, 190, 220)
+    TravelDist.TextColor3 = Color3.fromRGB(180, 180, 190)
     TravelDist.Font = Enum.Font.Gotham
     TravelDist.TextSize = 10
     TravelDist.TextXAlignment = Enum.TextXAlignment.Left
@@ -4626,7 +4625,7 @@ local function CreateUI()
     local TravelProgressBar = Instance.new("Frame")
     TravelProgressBar.Size = UDim2.new(1, -110, 0, 4)
     TravelProgressBar.Position = UDim2.new(0, 14, 0, 44)
-    TravelProgressBar.BackgroundColor3 = Color3.fromRGB(30, 35, 50)
+    TravelProgressBar.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
     TravelProgressBar.BorderSizePixel = 0
     TravelProgressBar.ZIndex = 61
     TravelProgressBar.Parent = TravelFrame
@@ -4636,7 +4635,7 @@ local function CreateUI()
     
     local TravelProgressFill = Instance.new("Frame")
     TravelProgressFill.Size = UDim2.new(0, 0, 1, 0)
-    TravelProgressFill.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
+    TravelProgressFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     TravelProgressFill.BorderSizePixel = 0
     TravelProgressFill.ZIndex = 62
     TravelProgressFill.Parent = TravelProgressBar
@@ -4647,11 +4646,11 @@ local function CreateUI()
     local CancelFlightBtn = Instance.new("TextButton")
     CancelFlightBtn.Size = UDim2.new(0, 76, 0, 32)
     CancelFlightBtn.Position = UDim2.new(1, -86, 0.5, -16)
-    CancelFlightBtn.Text = "✕ CANCEL"
+    CancelFlightBtn.Text = "CANCEL"
     CancelFlightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     CancelFlightBtn.Font = Enum.Font.GothamBold
     CancelFlightBtn.TextSize = 10
-    CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(230, 40, 75)
+    CancelFlightBtn.BackgroundColor3 = Color3.fromRGB(200, 30, 60)
     CancelFlightBtn.BorderSizePixel = 0
     CancelFlightBtn.Active = true
     CancelFlightBtn.ZIndex = 62
@@ -4705,7 +4704,7 @@ local function CreateUI()
     local isTravelHUDActive = false
     SetTravelHUD = function(visible, destName, curDist, spd, totalDist)
         if visible then
-            TravelTitle.Text = "✈️ FLYING TO: " .. tostring(destName or "TARGET"):upper()
+            TravelTitle.Text = "FLYING TO: " .. tostring(destName or "TARGET"):upper()
             TravelDist.Text = "Distance: " .. math.floor(curDist or 0) .. " studs • Speed: " .. math.floor(spd or 250) .. " studs/s"
             if totalDist and totalDist > 0 then
                 local pct = math.clamp(1 - ((curDist or 0) / totalDist), 0, 1)
@@ -4745,8 +4744,8 @@ local function CreateUI()
     ShadowFrame.Name = RNG()
     ShadowFrame.Size = UDim2.new(0, 614, 0, 394)
     ShadowFrame.Position = UDim2.new(0.5, -297, 0.5, -182)
-    ShadowFrame.BackgroundColor3 = Color3.fromRGB(3, 4, 6)
-    ShadowFrame.BackgroundTransparency = 0.35
+    ShadowFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    ShadowFrame.BackgroundTransparency = 0.25
     ShadowFrame.BorderSizePixel = 0
     ShadowFrame.Parent = ScreenGui
     local ShadowCorner = Instance.new("UICorner")
@@ -4754,13 +4753,13 @@ local function CreateUI()
     ShadowCorner.Parent = ShadowFrame
     
     -- -------------------------------------------------------------
-    -- MAIN CONTAINER (3D Obsidian Cyber Glassmorphism)
+    -- MAIN CONTAINER (Obsidian Black & Glowing White Aesthetic)
     -- -------------------------------------------------------------
     MainFrame = Instance.new("Frame")
     MainFrame.Name = RNG()
     MainFrame.Size = UDim2.new(0, 600, 0, 380)
     MainFrame.Position = UDim2.new(0.5, -300, 0.5, -190)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(11, 12, 17)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 11)
     MainFrame.BorderSizePixel = 0
     MainFrame.ClipsDescendants = true
     MainFrame.Active = true
@@ -4790,34 +4789,37 @@ local function CreateUI()
     MainCorner.Parent = MainFrame
     
     local MainStroke = Instance.new("UIStroke")
-    MainStroke.Color = Color3.fromRGB(0, 230, 255)
-    MainStroke.Thickness = 1.6
-    MainStroke.Transparency = 0.15
+    MainStroke.Color = Color3.fromRGB(255, 255, 255)
+    MainStroke.Thickness = 1.8
+    MainStroke.Transparency = 0.12
     MainStroke.Parent = MainFrame
     
-    -- Dynamic rotating glowing border effect
+    -- Dynamic rotating & breathing glowing white border effect
     local StrokeGrad = Instance.new("UIGradient")
     StrokeGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 235, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 45, 95)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 235, 255))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(160, 165, 180)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
     }
     StrokeGrad.Parent = MainStroke
     
     task.spawn(function()
         local rot = 0
+        local t = 0
         while MainStroke.Parent do
-            rot = (rot + 2) % 360
+            rot = (rot + 3) % 360
+            t = t + 0.05
             StrokeGrad.Rotation = rot
-            task.wait(0.03)
+            MainStroke.Transparency = 0.1 + 0.15 * math.sin(t)
+            task.wait(0.02)
         end
     end)
     
-    -- 3D Top Bevel Highlight Line
+    -- Sleek Top Bevel Highlight Line
     local TopHighlight = Instance.new("Frame")
     TopHighlight.Size = UDim2.new(1, 0, 0, 1)
-    TopHighlight.BackgroundColor3 = Color3.fromRGB(150, 240, 255)
-    TopHighlight.BackgroundTransparency = 0.5
+    TopHighlight.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    TopHighlight.BackgroundTransparency = 0.65
     TopHighlight.BorderSizePixel = 0
     TopHighlight.ZIndex = 10
     TopHighlight.Parent = MainFrame
@@ -4849,33 +4851,33 @@ local function CreateUI()
         end
     end)
     
-    -- Top Bar with Metallic Gradient
+    -- Top Bar with Obsidian Gradient
     local TopBar = Instance.new("Frame")
     TopBar.Name = RNG()
     TopBar.Size = UDim2.new(1, 0, 0, 44)
-    TopBar.BackgroundColor3 = Color3.fromRGB(16, 18, 26)
+    TopBar.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
     TopBar.BorderSizePixel = 0
     TopBar.Active = true
     TopBar.Parent = MainFrame
     
     local TopBarGrad = Instance.new("UIGradient")
     TopBarGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 28, 40)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 16, 22))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 26)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 13))
     }
     TopBarGrad.Rotation = 90
     TopBarGrad.Parent = TopBar
     
     local TopStroke = Instance.new("UIStroke")
-    TopStroke.Color = Color3.fromRGB(34, 38, 54)
+    TopStroke.Color = Color3.fromRGB(36, 36, 44)
     TopStroke.Thickness = 1
     TopStroke.Parent = TopBar
     
-    -- 3D Logo Badge
+    -- Glowing White Logo Badge
     local LogoBadge = Instance.new("Frame")
     LogoBadge.Size = UDim2.new(0, 26, 0, 26)
     LogoBadge.Position = UDim2.new(0, 12, 0, 9)
-    LogoBadge.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
+    LogoBadge.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     LogoBadge.BorderSizePixel = 0
     LogoBadge.Parent = TopBar
     local LBCorner = Instance.new("UICorner")
@@ -4884,7 +4886,7 @@ local function CreateUI()
     local LBLabel = Instance.new("TextLabel")
     LBLabel.Size = UDim2.new(1, 0, 1, 0)
     LBLabel.Text = "α"
-    LBLabel.TextColor3 = Color3.fromRGB(10, 12, 18)
+    LBLabel.TextColor3 = Color3.fromRGB(10, 10, 12)
     LBLabel.Font = Enum.Font.GothamBold
     LBLabel.TextSize = 16
     LBLabel.BackgroundTransparency = 1
@@ -4902,49 +4904,49 @@ local function CreateUI()
     TitleLabel.Active = true
     TitleLabel.Parent = TopBar
     
-    -- Status Pill Badges
+    -- Status Pill Badges (Clean Typography - No Emojis)
     local SeaBadge = Instance.new("Frame")
     SeaBadge.Size = UDim2.new(0, 95, 0, 22)
     SeaBadge.Position = UDim2.new(0, 218, 0, 11)
-    SeaBadge.BackgroundColor3 = Color3.fromRGB(22, 26, 38)
+    SeaBadge.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
     SeaBadge.BorderSizePixel = 0
     SeaBadge.Parent = TopBar
     local SBCorner = Instance.new("UICorner")
     SBCorner.CornerRadius = UDim.new(1, 0)
     SBCorner.Parent = SeaBadge
     local SBStroke = Instance.new("UIStroke")
-    SBStroke.Color = Color3.fromRGB(0, 210, 255)
+    SBStroke.Color = Color3.fromRGB(255, 255, 255)
     SBStroke.Thickness = 1
-    SBStroke.Transparency = 0.4
+    SBStroke.Transparency = 0.5
     SBStroke.Parent = SeaBadge
     local SBLabel = Instance.new("TextLabel")
     SBLabel.Size = UDim2.new(1, 0, 1, 0)
-    SBLabel.Text = "🌊 " .. SeaName
-    SBLabel.TextColor3 = Color3.fromRGB(0, 230, 255)
+    SBLabel.Text = SeaName
+    SBLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
     SBLabel.Font = Enum.Font.GothamBold
     SBLabel.TextSize = 10
     SBLabel.BackgroundTransparency = 1
     SBLabel.Parent = SeaBadge
     
-    -- Live Performance Monitor Badge (FPS & Ping)
+    -- Live Performance Monitor Badge (Clean Typography - No Emojis)
     local PerfBadge = Instance.new("Frame")
     PerfBadge.Size = UDim2.new(0, 138, 0, 22)
     PerfBadge.Position = UDim2.new(0, 320, 0, 11)
-    PerfBadge.BackgroundColor3 = Color3.fromRGB(18, 22, 32)
+    PerfBadge.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
     PerfBadge.BorderSizePixel = 0
     PerfBadge.Parent = TopBar
     local PBCorner = Instance.new("UICorner")
     PBCorner.CornerRadius = UDim.new(1, 0)
     PBCorner.Parent = PerfBadge
     local PBStroke = Instance.new("UIStroke")
-    PBStroke.Color = Color3.fromRGB(0, 230, 160)
+    PBStroke.Color = Color3.fromRGB(255, 255, 255)
     PBStroke.Thickness = 1
-    PBStroke.Transparency = 0.4
+    PBStroke.Transparency = 0.5
     PBStroke.Parent = PerfBadge
     local PBLabel = Instance.new("TextLabel")
     PBLabel.Size = UDim2.new(1, 0, 1, 0)
-    PBLabel.Text = "🟢 60 FPS | 40ms"
-    PBLabel.TextColor3 = Color3.fromRGB(0, 240, 180)
+    PBLabel.Text = "60 FPS | 40ms"
+    PBLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
     PBLabel.Font = Enum.Font.GothamBold
     PBLabel.TextSize = 10
     PBLabel.BackgroundTransparency = 1
@@ -4974,17 +4976,14 @@ local function CreateUI()
                     end
                 end)
                 
-                local icon = "🟢"
-                local col = Color3.fromRGB(0, 240, 180)
+                local col = Color3.fromRGB(240, 240, 250)
                 if currentFPS < 30 or ping > 180 then
-                    icon = "🔴"
                     col = Color3.fromRGB(255, 75, 95)
                 elseif currentFPS < 45 or ping > 110 then
-                    icon = "🟡"
                     col = Color3.fromRGB(255, 200, 50)
                 end
                 
-                PBLabel.Text = string.format("%s %d FPS | %dms", icon, currentFPS, ping)
+                PBLabel.Text = string.format("%d FPS | %dms", currentFPS, ping)
                 PBLabel.TextColor3 = col
                 PBStroke.Color = col
             end
@@ -4995,10 +4994,10 @@ local function CreateUI()
     CloseBtn.Size = UDim2.new(0, 28, 0, 28)
     CloseBtn.Position = UDim2.new(1, -36, 0, 8)
     CloseBtn.Text = "✕"
-    CloseBtn.TextColor3 = Color3.fromRGB(220, 220, 235)
+    CloseBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
     CloseBtn.Font = Enum.Font.GothamBold
     CloseBtn.TextSize = 12
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(34, 22, 30)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
     CloseBtn.BorderSizePixel = 0
     CloseBtn.Active = true
     CloseBtn.Parent = TopBar
@@ -5010,7 +5009,7 @@ local function CreateUI()
         TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(225, 35, 70)}):Play()
     end)
     CloseBtn.MouseLeave:Connect(function()
-        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(34, 22, 30)}):Play()
+        TweenService:Create(CloseBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(24, 24, 28)}):Play()
     end)
     CloseBtn.MouseButton1Click:Connect(function()
         PlayClickSound()
@@ -5022,14 +5021,14 @@ local function CreateUI()
         MainFrame.Visible = false
     end)
     
-    -- Floating Draggable Cyber Orb Button
+    -- Floating Draggable Cyber Orb Button (Glowing White Breathing Border)
     local FloatingBtn = Instance.new("TextButton")
     FloatingBtn.Name = RNG()
     FloatingBtn.Size = UDim2.new(0, 52, 0, 52)
     FloatingBtn.Position = UDim2.new(0, 20, 0.5, -26)
-    FloatingBtn.BackgroundColor3 = Color3.fromRGB(14, 16, 24)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
     FloatingBtn.Text = "ALPHA"
-    FloatingBtn.TextColor3 = Color3.fromRGB(0, 235, 255)
+    FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     FloatingBtn.Font = Enum.Font.GothamBold
     FloatingBtn.TextSize = 11
     FloatingBtn.BorderSizePixel = 0
@@ -5039,16 +5038,16 @@ local function CreateUI()
     FloatCorner.CornerRadius = UDim.new(1, 0)
     FloatCorner.Parent = FloatingBtn
     local FloatStroke = Instance.new("UIStroke")
-    FloatStroke.Color = Color3.fromRGB(0, 230, 255)
+    FloatStroke.Color = Color3.fromRGB(255, 255, 255)
     FloatStroke.Thickness = 2
     FloatStroke.Parent = FloatingBtn
     
     task.spawn(function()
         while FloatStroke.Parent do
-            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65}):Play()
-            task.wait(1.2)
-            TweenService:Create(FloatStroke, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.1}):Play()
-            task.wait(1.2)
+            TweenService:Create(FloatStroke, TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65}):Play()
+            task.wait(1.0)
+            TweenService:Create(FloatStroke, TweenInfo.new(1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.05}):Play()
+            task.wait(1.0)
         end
     end)
     
@@ -5089,12 +5088,12 @@ local function CreateUI()
         end
     end)
     
-    -- Left Sidebar
+    -- Left Sidebar (Deep Obsidian)
     local Sidebar = Instance.new("ScrollingFrame")
     Sidebar.Name = RNG()
     Sidebar.Size = UDim2.new(0, 145, 1, -44)
     Sidebar.Position = UDim2.new(0, 0, 0, 44)
-    Sidebar.BackgroundColor3 = Color3.fromRGB(13, 15, 22)
+    Sidebar.BackgroundColor3 = Color3.fromRGB(10, 10, 13)
     Sidebar.BorderSizePixel = 0
     Sidebar.ScrollBarThickness = 2
     Sidebar.CanvasSize = UDim2.new(0, 0, 0, 440)
@@ -5110,12 +5109,12 @@ local function CreateUI()
     SidebarPad.PaddingTop = UDim.new(0, 6)
     SidebarPad.Parent = Sidebar
     
-    -- Content Container
+    -- Content Container (Deep Obsidian)
     local ContentHolder = Instance.new("Frame")
     ContentHolder.Name = RNG()
     ContentHolder.Size = UDim2.new(1, -145, 1, -44)
     ContentHolder.Position = UDim2.new(0, 145, 0, 44)
-    ContentHolder.BackgroundColor3 = Color3.fromRGB(11, 12, 17)
+    ContentHolder.BackgroundColor3 = Color3.fromRGB(8, 8, 11)
     ContentHolder.BorderSizePixel = 0
     ContentHolder.Active = true
     ContentHolder.Parent = MainFrame
@@ -5123,12 +5122,12 @@ local function CreateUI()
     local Tabs = {}
     local CurrentActiveTab = nil
     
-    -- Sliding Tab Indicator
+    -- Sliding Tab Indicator (Radiant Glowing White)
     local TabIndicator = Instance.new("Frame")
     TabIndicator.Name = "ActiveTabIndicator"
     TabIndicator.Size = UDim2.new(0, 4, 0, 24)
     TabIndicator.Position = UDim2.new(0, 2, 0, 8)
-    TabIndicator.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
+    TabIndicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     TabIndicator.BorderSizePixel = 0
     TabIndicator.ZIndex = 5
     TabIndicator.Parent = Sidebar
@@ -5144,7 +5143,7 @@ local function CreateUI()
                 page.Page.Visible = true
                 TweenService:Create(page.Page, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
                 if page.Btn then
-                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(0, 200, 240), TextColor3 = Color3.fromRGB(10, 12, 18)}):Play()
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(255, 255, 255), TextColor3 = Color3.fromRGB(10, 10, 12)}):Play()
                     TweenService:Create(TabIndicator, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                         Position = UDim2.new(0, 2, 0, page.Btn.Position.Y.Offset + 2)
                     }):Play()
@@ -5152,7 +5151,7 @@ local function CreateUI()
             else
                 page.Page.Visible = false
                 if page.Btn then
-                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(20, 22, 30), TextColor3 = Color3.fromRGB(150, 160, 180)}):Play()
+                    TweenService:Create(page.Btn, TweenInfo.new(0.18), {BackgroundColor3 = Color3.fromRGB(16, 16, 20), TextColor3 = Color3.fromRGB(160, 160, 175)}):Play()
                 end
             end
         end
@@ -5163,10 +5162,10 @@ local function CreateUI()
         local TabBtn = Instance.new("TextButton")
         TabBtn.Size = UDim2.new(1, -12, 0, 28)
         TabBtn.Text = name
-        TabBtn.TextColor3 = Color3.fromRGB(150, 160, 180)
+        TabBtn.TextColor3 = Color3.fromRGB(160, 160, 175)
         TabBtn.Font = Enum.Font.GothamMedium
         TabBtn.TextSize = 11
-        TabBtn.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+        TabBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
         TabBtn.BorderSizePixel = 0
         TabBtn.Active = true
         TabBtn.Parent = Sidebar
@@ -5176,12 +5175,12 @@ local function CreateUI()
         
         TabBtn.MouseEnter:Connect(function()
             if CurrentActiveTab ~= name then
-                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(28, 32, 44), TextColor3 = Color3.fromRGB(210, 220, 240)}):Play()
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(26, 26, 32), TextColor3 = Color3.fromRGB(240, 240, 250)}):Play()
             end
         end)
         TabBtn.MouseLeave:Connect(function()
             if CurrentActiveTab ~= name then
-                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 30), TextColor3 = Color3.fromRGB(150, 160, 180)}):Play()
+                TweenService:Create(TabBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 20), TextColor3 = Color3.fromRGB(160, 160, 175)}):Play()
             end
         end)
         
@@ -5228,7 +5227,7 @@ local function CreateUI()
             local SecLabel = Instance.new("TextLabel")
             SecLabel.Size = UDim2.new(1, 0, 1, 0)
             SecLabel.Text = "• " .. secName:upper()
-            SecLabel.TextColor3 = Color3.fromRGB(0, 230, 255)
+            SecLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
             SecLabel.Font = Enum.Font.GothamBold
             SecLabel.TextSize = 10
             SecLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -5240,23 +5239,23 @@ local function CreateUI()
         function TabAPI:AddNotice(text, color)
             local NFrame = Instance.new("Frame")
             NFrame.Size = UDim2.new(1, -16, 0, 32)
-            NFrame.BackgroundColor3 = Color3.fromRGB(20, 24, 34)
+            NFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)
             NFrame.BorderSizePixel = 0
             NFrame.Parent = Page
             local NCorner = Instance.new("UICorner")
             NCorner.CornerRadius = UDim.new(0, 6)
             NCorner.Parent = NFrame
             local NStroke = Instance.new("UIStroke")
-            NStroke.Color = color or Color3.fromRGB(255, 180, 50)
+            NStroke.Color = color or Color3.fromRGB(255, 255, 255)
             NStroke.Thickness = 1
-            NStroke.Transparency = 0.4
+            NStroke.Transparency = 0.5
             NStroke.Parent = NFrame
             
             local NText = Instance.new("TextLabel")
             NText.Size = UDim2.new(1, -16, 1, 0)
             NText.Position = UDim2.new(0, 8, 0, 0)
             NText.Text = text
-            NText.TextColor3 = color or Color3.fromRGB(255, 200, 80)
+            NText.TextColor3 = color or Color3.fromRGB(235, 235, 245)
             NText.Font = Enum.Font.GothamMedium
             NText.TextSize = 10
             NText.TextXAlignment = Enum.TextXAlignment.Left
@@ -5268,7 +5267,7 @@ local function CreateUI()
             local isChecked = defaultVal or false
             local ToggleFrame = Instance.new("Frame")
             ToggleFrame.Size = UDim2.new(1, -16, 0, 34)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+            ToggleFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
             ToggleFrame.BorderSizePixel = 0
             ToggleFrame.Active = true
             ToggleFrame.Parent = Page
@@ -5277,15 +5276,22 @@ local function CreateUI()
             TCorner.Parent = ToggleFrame
             
             local TStroke = Instance.new("UIStroke")
-            TStroke.Color = Color3.fromRGB(32, 36, 48)
+            TStroke.Color = Color3.fromRGB(28, 28, 36)
             TStroke.Thickness = 1
             TStroke.Parent = ToggleFrame
+            
+            ToggleFrame.MouseEnter:Connect(function()
+                TweenService:Create(TStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(55, 55, 70)}):Play()
+            end)
+            ToggleFrame.MouseLeave:Connect(function()
+                TweenService:Create(TStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(28, 28, 36)}):Play()
+            end)
             
             local TTitle = Instance.new("TextLabel")
             TTitle.Size = UDim2.new(1, -55, 1, 0)
             TTitle.Position = UDim2.new(0, 10, 0, 0)
             TTitle.Text = title
-            TTitle.TextColor3 = Color3.fromRGB(225, 225, 235)
+            TTitle.TextColor3 = Color3.fromRGB(230, 230, 240)
             TTitle.Font = Enum.Font.Gotham
             TTitle.TextSize = 11
             TTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -5296,7 +5302,7 @@ local function CreateUI()
             local Switch = Instance.new("TextButton")
             Switch.Size = UDim2.new(0, 38, 0, 20)
             Switch.Position = UDim2.new(1, -48, 0.5, -10)
-            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(38, 42, 54)
+            Switch.BackgroundColor3 = isChecked and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(28, 28, 36)
             Switch.Text = ""
             Switch.BorderSizePixel = 0
             Switch.Active = true
@@ -5308,7 +5314,7 @@ local function CreateUI()
             local Knob = Instance.new("Frame")
             Knob.Size = UDim2.new(0, 16, 0, 16)
             Knob.Position = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            Knob.BackgroundColor3 = isChecked and Color3.fromRGB(10, 12, 18) or Color3.fromRGB(240, 240, 245)
+            Knob.BackgroundColor3 = isChecked and Color3.fromRGB(10, 10, 12) or Color3.fromRGB(220, 220, 230)
             Knob.BorderSizePixel = 0
             Knob.Active = true
             Knob.Parent = Switch
@@ -5317,8 +5323,8 @@ local function CreateUI()
             KCorner.Parent = Knob
             
             local function UpdateToggle()
-                local targetBg = isChecked and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(38, 42, 54)
-                local targetKnobColor = isChecked and Color3.fromRGB(10, 12, 18) or Color3.fromRGB(240, 240, 245)
+                local targetBg = isChecked and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(28, 28, 36)
+                local targetKnobColor = isChecked and Color3.fromRGB(10, 10, 12) or Color3.fromRGB(220, 220, 230)
                 local targetPos = isChecked and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
                 TweenService:Create(Switch, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = targetBg}):Play()
                 TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = targetPos, BackgroundColor3 = targetKnobColor}):Play()
@@ -5343,9 +5349,9 @@ local function CreateUI()
         function TabAPI:AddButton(title, callback)
             local Btn = Instance.new("TextButton")
             Btn.Size = UDim2.new(1, -16, 0, 30)
-            Btn.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
+            Btn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
             Btn.Text = title
-            Btn.TextColor3 = Color3.fromRGB(235, 235, 245)
+            Btn.TextColor3 = Color3.fromRGB(240, 240, 245)
             Btn.Font = Enum.Font.GothamMedium
             Btn.TextSize = 11
             Btn.BorderSizePixel = 0
@@ -5355,21 +5361,23 @@ local function CreateUI()
             BCorner.CornerRadius = UDim.new(0, 5)
             BCorner.Parent = Btn
             local BStroke = Instance.new("UIStroke")
-            BStroke.Color = Color3.fromRGB(34, 38, 52)
+            BStroke.Color = Color3.fromRGB(36, 36, 46)
             BStroke.Thickness = 1
             BStroke.Parent = Btn
             
             Btn.MouseEnter:Connect(function()
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(30, 36, 52)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(26, 26, 36)}):Play()
+                TweenService:Create(BStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(255, 255, 255)}):Play()
             end)
             Btn.MouseLeave:Connect(function()
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+                TweenService:Create(BStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(36, 36, 46)}):Play()
             end)
             Btn.MouseButton1Click:Connect(function()
                 PlayClickSound()
-                TweenService:Create(Btn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(0, 230, 255)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.08), {BackgroundColor3 = Color3.fromRGB(255, 255, 255), TextColor3 = Color3.fromRGB(10, 10, 12)}):Play()
                 task.wait(0.1)
-                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
+                TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22), TextColor3 = Color3.fromRGB(240, 240, 245)}):Play()
                 if callback then pcall(callback) end
             end)
         end
@@ -5381,7 +5389,7 @@ local function CreateUI()
             
             local DropFrame = Instance.new("Frame")
             DropFrame.Size = UDim2.new(1, -16, 0, 34)
-            DropFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+            DropFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
             DropFrame.BorderSizePixel = 0
             DropFrame.ClipsDescendants = true
             DropFrame.Active = true
@@ -5390,7 +5398,7 @@ local function CreateUI()
             DCorner.CornerRadius = UDim.new(0, 6)
             DCorner.Parent = DropFrame
             local DStroke = Instance.new("UIStroke")
-            DStroke.Color = Color3.fromRGB(34, 38, 50)
+            DStroke.Color = Color3.fromRGB(28, 28, 36)
             DStroke.Thickness = 1
             DStroke.Parent = DropFrame
             
@@ -5398,7 +5406,7 @@ local function CreateUI()
             DTitle.Size = UDim2.new(0, 150, 0, 34)
             DTitle.Position = UDim2.new(0, 10, 0, 0)
             DTitle.Text = title
-            DTitle.TextColor3 = Color3.fromRGB(220, 220, 230)
+            DTitle.TextColor3 = Color3.fromRGB(230, 230, 240)
             DTitle.Font = Enum.Font.Gotham
             DTitle.TextSize = 11
             DTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -5410,10 +5418,10 @@ local function CreateUI()
             SelectBtn.Size = UDim2.new(0, 215, 0, 24)
             SelectBtn.Position = UDim2.new(1, -225, 0, 5)
             SelectBtn.Text = tostring(selected) .. " ▾"
-            SelectBtn.TextColor3 = Color3.fromRGB(0, 230, 255)
+            SelectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             SelectBtn.Font = Enum.Font.GothamMedium
             SelectBtn.TextSize = 10
-            SelectBtn.BackgroundColor3 = Color3.fromRGB(26, 30, 42)
+            SelectBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
             SelectBtn.BorderSizePixel = 0
             SelectBtn.Active = true
             SelectBtn.Parent = DropFrame
@@ -5423,82 +5431,94 @@ local function CreateUI()
             
             local SearchBox = Instance.new("TextBox")
             SearchBox.Size = UDim2.new(1, -16, 0, 24)
-            SearchBox.Position = UDim2.new(0, 8, 0, 36)
-            SearchBox.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
-            SearchBox.PlaceholderText = "🔍 Type to filter " .. title .. "..."
-            SearchBox.PlaceholderColor3 = Color3.fromRGB(110, 120, 140)
-            SearchBox.Text = ""
+            SearchBox.Position = UDim2.new(0, 8, 0, 38)
+            SearchBox.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+            SearchBox.BorderSizePixel = 0
+            SearchBox.PlaceholderText = "Type to filter " .. title .. "..."
+            SearchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 135)
             SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
             SearchBox.Font = Enum.Font.Gotham
             SearchBox.TextSize = 10
             SearchBox.ClearTextOnFocus = false
-            SearchBox.BorderSizePixel = 0
             SearchBox.Active = true
-            SearchBox.Visible = false
             SearchBox.Parent = DropFrame
             local SearchCorner = Instance.new("UICorner")
             SearchCorner.CornerRadius = UDim.new(0, 4)
             SearchCorner.Parent = SearchBox
             local SearchStroke = Instance.new("UIStroke")
-            SearchStroke.Color = Color3.fromRGB(0, 230, 255)
-            SearchStroke.Thickness = 0.8
+            SearchStroke.Color = Color3.fromRGB(255, 255, 255)
+            SearchStroke.Thickness = 1
             SearchStroke.Transparency = 0.5
             SearchStroke.Parent = SearchBox
             
             local ListScroll = Instance.new("ScrollingFrame")
-            ListScroll.Size = UDim2.new(1, -16, 0, 115)
-            ListScroll.Position = UDim2.new(0, 8, 0, 65)
-            ListScroll.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+            ListScroll.Size = UDim2.new(1, -16, 0, 110)
+            ListScroll.Position = UDim2.new(0, 8, 0, 68)
+            ListScroll.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
             ListScroll.BorderSizePixel = 0
             ListScroll.ScrollBarThickness = 2
-            ListScroll.Visible = false
             ListScroll.Active = true
             ListScroll.Parent = DropFrame
             local LCorner = Instance.new("UICorner")
             LCorner.CornerRadius = UDim.new(0, 4)
             LCorner.Parent = ListScroll
+            
             local LLayout = Instance.new("UIListLayout")
             LLayout.Padding = UDim.new(0, 2)
+            LLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            LLayout.SortOrder = Enum.SortOrder.LayoutOrder
             LLayout.Parent = ListScroll
             
-            local isOpen = false
-            local function Populate(opts)
+            local function RenderOptions()
                 for _, child in ipairs(ListScroll:GetChildren()) do
                     if child:IsA("TextButton") then child:Destroy() end
                 end
-                for _, opt in ipairs(opts) do
+                for _, opt in ipairs(filteredOptions) do
                     local OptBtn = Instance.new("TextButton")
-                    OptBtn.Size = UDim2.new(1, 0, 0, 22)
+                    OptBtn.Size = UDim2.new(1, -8, 0, 22)
                     OptBtn.Text = tostring(opt)
-                    OptBtn.TextColor3 = (opt == selected) and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(205, 205, 215)
-                    OptBtn.Font = (opt == selected) and Enum.Font.GothamBold or Enum.Font.Gotham
+                    OptBtn.TextColor3 = (opt == selected) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 210)
+                    OptBtn.Font = Enum.Font.Gotham
                     OptBtn.TextSize = 10
-                    OptBtn.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
+                    OptBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
                     OptBtn.BorderSizePixel = 0
                     OptBtn.Active = true
                     OptBtn.Parent = ListScroll
+                    local OCorner = Instance.new("UICorner")
+                    OCorner.CornerRadius = UDim.new(0, 3)
+                    OCorner.Parent = OptBtn
                     
                     OptBtn.MouseEnter:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(34, 38, 54)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 38)}):Play()
                     end)
                     OptBtn.MouseLeave:Connect(function()
-                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(20, 22, 32)}):Play()
+                        TweenService:Create(OptBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
                     end)
-                    
                     OptBtn.MouseButton1Click:Connect(function()
                         PlayClickSound()
                         selected = opt
                         SelectBtn.Text = tostring(selected) .. " ▾"
+                        TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Size = UDim2.new(1, -16, 0, 34)}):Play()
                         isOpen = false
-                        TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 34)}):Play()
-                        task.wait(0.2)
-                        SearchBox.Visible = false
-                        ListScroll.Visible = false
                         if callback then pcall(callback, selected) end
                     end)
                 end
-                ListScroll.CanvasSize = UDim2.new(0, 0, 0, #opts * 24)
+                ListScroll.CanvasSize = UDim2.new(0, 0, 0, #filteredOptions * 24 + 4)
             end
+            
+            local isOpen = false
+            SelectBtn.MouseButton1Click:Connect(function()
+                PlayClickSound()
+                isOpen = not isOpen
+                if isOpen then
+                    filteredOptions = allOptions
+                    SearchBox.Text = ""
+                    RenderOptions()
+                    TweenService:Create(DropFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart), {Size = UDim2.new(1, -16, 0, 186)}):Play()
+                else
+                    TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Size = UDim2.new(1, -16, 0, 34)}):Play()
+                end
+            end)
             
             SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
                 local query = SearchBox.Text:lower()
@@ -5507,37 +5527,14 @@ local function CreateUI()
                 else
                     filteredOptions = {}
                     for _, opt in ipairs(allOptions) do
-                        if tostring(opt):lower():find(query) then
+                        if tostring(opt):lower():find(query, 1, true) then
                             table.insert(filteredOptions, opt)
                         end
                     end
                 end
-                Populate(filteredOptions)
+                RenderOptions()
             end)
             
-            SelectBtn.MouseButton1Click:Connect(function()
-                PlayClickSound()
-                isOpen = not isOpen
-                if isOpen then
-                    SearchBox.Visible = true
-                    ListScroll.Visible = true
-                    SearchBox.Text = ""
-                    filteredOptions = allOptions
-                    Populate(filteredOptions)
-                    TweenService:Create(DropFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 188)}):Play()
-                else
-                    TweenService:Create(DropFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -16, 0, 34)}):Play()
-                    task.wait(0.2)
-                    if not isOpen then
-                        SearchBox.Visible = false
-                        ListScroll.Visible = false
-                    end
-                end
-            end)
-            
-            Populate(allOptions)
-            
-            -- Ensure callback is executed on initialization so _G.Config keys are never empty strings
             if callback and selected ~= "" then
                 pcall(callback, selected)
             end
@@ -5547,36 +5544,23 @@ local function CreateUI()
                 allOptions = newOpts or {}
                 filteredOptions = allOptions
                 if #allOptions > 0 then
-                    local cleanSelected = tostring(selected):gsub("^%[Spawned%] ", "")
                     local found = false
-                    local matchedOpt = nil
                     for _, opt in ipairs(allOptions) do
-                        local cleanOpt = tostring(opt):gsub("^%[Spawned%] ", "")
-                        if opt == selected or (cleanSelected ~= "" and cleanOpt == cleanSelected) then
-                            found = true
-                            matchedOpt = opt
-                            break
+                        if opt == selected then found = true; break end
+                    end
+                    if not found then
+                        local matchedOpt = nil
+                        for _, opt in ipairs(allOptions) do
+                            if opt:find(_G.Config.SelectedWeapon or "Melee") or opt:find("Pirate") or opt:find("Bandit") then
+                                matchedOpt = opt; break
+                            end
                         end
-                    end
-                    if found and matchedOpt then
-                        selected = matchedOpt
-                        SelectBtn.Text = tostring(selected) .. " ▾"
-                        if callback then pcall(callback, selected) end
-                    else
-                        selected = allOptions[1]
+                        selected = matchedOpt or allOptions[1]
                         SelectBtn.Text = tostring(selected) .. " ▾"
                         if callback then pcall(callback, selected) end
                     end
-                else
-                    selected = ""
-                    SelectBtn.Text = "None ▾"
                 end
-                Populate(allOptions)
-            end
-            function DropAPI:Set(val)
-                selected = val
-                SelectBtn.Text = tostring(val) .. " ▾"
-                if callback then pcall(callback, val) end
+                RenderOptions()
             end
             function DropAPI:Get()
                 return selected
@@ -5592,7 +5576,7 @@ local function CreateUI()
             local current = defaultVal or min
             local SliderFrame = Instance.new("Frame")
             SliderFrame.Size = UDim2.new(1, -16, 0, 44)
-            SliderFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
             SliderFrame.BorderSizePixel = 0
             SliderFrame.Active = true
             SliderFrame.Parent = Page
@@ -5600,7 +5584,7 @@ local function CreateUI()
             SlCorner.CornerRadius = UDim.new(0, 6)
             SlCorner.Parent = SliderFrame
             local SlStroke = Instance.new("UIStroke")
-            SlStroke.Color = Color3.fromRGB(34, 38, 50)
+            SlStroke.Color = Color3.fromRGB(28, 28, 36)
             SlStroke.Thickness = 1
             SlStroke.Parent = SliderFrame
             
@@ -5608,7 +5592,7 @@ local function CreateUI()
             STitle.Size = UDim2.new(0, 220, 0, 20)
             STitle.Position = UDim2.new(0, 10, 0, 4)
             STitle.Text = title
-            STitle.TextColor3 = Color3.fromRGB(220, 220, 230)
+            STitle.TextColor3 = Color3.fromRGB(230, 230, 240)
             STitle.Font = Enum.Font.Gotham
             STitle.TextSize = 11
             STitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -5620,7 +5604,7 @@ local function CreateUI()
             SValue.Size = UDim2.new(0, 60, 0, 20)
             SValue.Position = UDim2.new(1, -70, 0, 4)
             SValue.Text = tostring(current)
-            SValue.TextColor3 = Color3.fromRGB(0, 230, 255)
+            SValue.TextColor3 = Color3.fromRGB(255, 255, 255)
             SValue.Font = Enum.Font.GothamBold
             SValue.TextSize = 11
             SValue.TextXAlignment = Enum.TextXAlignment.Right
@@ -5631,7 +5615,7 @@ local function CreateUI()
             local Bar = Instance.new("Frame")
             Bar.Size = UDim2.new(1, -20, 0, 6)
             Bar.Position = UDim2.new(0, 10, 0, 30)
-            Bar.BackgroundColor3 = Color3.fromRGB(32, 36, 48)
+            Bar.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
             Bar.BorderSizePixel = 0
             Bar.Active = true
             Bar.Parent = SliderFrame
@@ -5642,7 +5626,7 @@ local function CreateUI()
             local Fill = Instance.new("Frame")
             local pct = math.clamp((current - min) / (max - min), 0, 1)
             Fill.Size = UDim2.new(pct, 0, 1, 0)
-            Fill.BackgroundColor3 = Color3.fromRGB(0, 230, 255)
+            Fill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             Fill.BorderSizePixel = 0
             Fill.Active = true
             Fill.Parent = Bar
@@ -5690,22 +5674,37 @@ local function CreateUI()
         
         return TabAPI
     end
-    
     -- ==================== TAB INITIALIZATION ====================
-    local FarmTab = CreateTab("⚔️ Main Farm")
-    local BossTab = CreateTab("👑 Boss Farm")
-    local RaidTab = CreateTab("🌀 Raids")
-    local FruitTab = CreateTab("🍇 Devil Fruit")
-    local SeaTab = CreateTab("🌊 Sea Events")
-    local V4Tab = CreateTab("🧬 Race V4")
-    local VisualTab = CreateTab("👁️ Visuals & ESP")
-    local ItemTab = CreateTab("📜 Quests")
-    local StatsTab = CreateTab("⚡ Stats")
-    local ShopTab = CreateTab("🛒 Shop")
-    local TeleportTab = CreateTab("🚀 Teleports")
-    local MiscTab = CreateTab("⚙️ Settings")
+    local FarmTab = CreateTab("Main Farm")
+    local BossTab = CreateTab("Boss Farm")
+    local RaidTab = CreateTab("Raids")
+    local FruitTab = CreateTab("Devil Fruit")
+    local SeaTab = CreateTab("Sea Events")
+    local V4Tab = CreateTab("Race V4")
+    local VisualTab = CreateTab("Visuals & ESP")
+    local ItemTab = CreateTab("Quests")
+    local StatsTab = CreateTab("Stats")
+    local ShopTab = CreateTab("Shop")
+    local TeleportTab = CreateTab("Teleports")
+    local MiscTab = CreateTab("Settings")
     
     -- ==================== 1. MAIN FARM TAB ====================
+    FarmTab:AddSection("Auto Farming")
+    FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
+        _G.Config.AutoFarmLevel = v
+        if not v then ClearHover() end
+    end)
+    FarmTab:AddToggle("Auto Chest Farm", false, function(v)
+        _G.Config.AutoChestFarm = v
+        if v then
+            _collectedChests = {}
+            _chestCircuitIndex = 1
+        else
+            ClearHover()
+            StopTween()
+        end
+    end)
+    
     FarmTab:AddSection("Weapon & Combat Mode")
     FarmTab:AddDropdown("Select Weapon", {"Melee", "Sword", "Gun", "Fruit"}, "Melee", function(v)
         _G.Config.SelectedWeapon = v
@@ -5735,32 +5734,14 @@ local function CreateUI()
     FarmTab:AddSlider("Mob Distance (Studs)", 6, 25, 14, function(v) _G.Config.MobFarmDistance = v end)
     FarmTab:AddSlider("Boss Distance (Studs)", 10, 35, 20, function(v) _G.Config.BossFarmDistance = v end)
     
-    FarmTab:AddSection("Level Farming")
-    FarmTab:AddToggle("Auto Farm Level (Auto Quest + Mob)", false, function(v)
-        _G.Config.AutoFarmLevel = v
-        if not v then ClearHover() end
-    end)
-    FarmTab:AddToggle("Auto Double Quest", false, function(v) _G.Config.AutoDoubleQuest = v end)
-    FarmTab:AddToggle("Auto Chest Farm", false, function(v)
-        _G.Config.AutoChestFarm = v
-        if v then
-            _collectedChests = {}
-            _chestCircuitIndex = 1
-        else
-            ClearHover()
-            StopTween()
-        end
-    end)
-
-    
     FarmTab:AddSection("Selected Mob Farming (" .. SeaName .. ")")
     local mobList = GetSpawnedMobsList()
     if mobList and mobList[1] then _G.Config.SelectedMob = mobList[1] end
     local MobDrop = FarmTab:AddSearchDropdown("Select Mob (" .. SeaName .. ")", mobList, mobList[1], function(v) _G.Config.SelectedMob = v end)
-    FarmTab:AddButton("🔄 Refresh Mobs List (" .. SeaName .. ")", function()
+    FarmTab:AddButton("Refresh Mobs List (" .. SeaName .. ")", function()
         local updated = GetSpawnedMobsList()
         MobDrop:SetOptions(updated)
-        ShowLiveToast("MOBS REFRESHED", "Loaded " .. #updated .. " mobs for " .. SeaName, Color3.fromRGB(0, 230, 255), 3)
+        ShowLiveToast("MOBS REFRESHED", "Loaded " .. #updated .. " mobs for " .. SeaName, Color3.fromRGB(255, 255, 255), 3)
     end)
     FarmTab:AddToggle("Auto Farm Selected Mob", false, function(v)
         _G.Config.FarmSelectedMob = v
@@ -5772,7 +5753,7 @@ local function CreateUI()
     local bossList = GetActiveBossesList()
     if bossList and bossList[1] then _G.Config.SelectedBoss = bossList[1] end
     local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v) _G.Config.SelectedBoss = v end)
-    BossTab:AddButton("🔄 Refresh Bosses List (Scan Active)", function()
+    BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
         local updated = GetActiveBossesList()
         BossDrop:SetOptions(updated)
         ShowLiveToast("BOSSES REFRESHED", "Found " .. #updated .. " active bosses in " .. SeaName, Color3.fromRGB(255, 180, 0), 3)
@@ -5806,7 +5787,7 @@ local function CreateUI()
     -- ==================== 3. DUNGEON & RAIDS ====================
     RaidTab:AddSection("Raid Controls")
     if Sea1 then
-        RaidTab:AddNotice("🔒 Raids unlock at Level 1100 in Second Sea.", Color3.fromRGB(255, 150, 70))
+        RaidTab:AddNotice("Raids unlock at Level 1100 in Second Sea.", Color3.fromRGB(255, 150, 70))
     else
         RaidTab:AddSearchDropdown("Select Raid Chip", {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Phoenix", "Dough"}, "Flame", function(v) _G.Config.SelectedChip = v end)
         RaidTab:AddToggle("Auto Buy Raid Chip", false, function(v) _G.Config.AutoBuyChip = v end)
@@ -5835,7 +5816,7 @@ local function CreateUI()
     -- ==================== 5. SEA EVENTS ====================
     SeaTab:AddSection("Sea Events & Hunting")
     if Sea1 then
-        SeaTab:AddNotice("🔒 Sea Events unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
+        SeaTab:AddNotice("Sea Events unlock in Second & Third Sea.", Color3.fromRGB(100, 180, 255))
     else
         SeaTab:AddToggle("Auto Kill Sharks", false, function(v) _G.Config.AutoKillShark = v; if not v then ClearHover() end end)
         SeaTab:AddToggle("Auto Kill Terror Shark", false, function(v) _G.Config.AutoKillTerrorShark = v; if not v then ClearHover() end end)
@@ -5855,7 +5836,7 @@ local function CreateUI()
     -- ==================== 6. RACE V4 TAB ====================
     V4Tab:AddSection("Temple of Time & Trials")
     if not Sea3 then
-        V4Tab:AddNotice("🔒 Race V4 is exclusive to Third Sea (Temple of Time).", Color3.fromRGB(255, 140, 70))
+        V4Tab:AddNotice("Race V4 is exclusive to Third Sea (Temple of Time).", Color3.fromRGB(255, 140, 70))
     else
         V4Tab:AddButton("Teleport to Temple of Time", function()
             TweenTo(CFrame.new(28282.57, 14896.85, 105.10))
@@ -5988,7 +5969,7 @@ local function CreateUI()
     local SelIsland = islandKeys[1] or "Pirate Starter"
     
     local IslandDrop = TeleportTab:AddSearchDropdown("Select Island", islandKeys, islandKeys[1], function(v) SelIsland = v end)
-    TeleportTab:AddButton("🚀 Teleport to Selected Island", function()
+    TeleportTab:AddButton("Teleport to Selected Island", function()
         _G.Config.AutoFarmLevel = false
         _G.Config.FarmSelectedMob = false
         _G.Config.FarmSelectedBoss = false
@@ -5996,12 +5977,12 @@ local function CreateUI()
         local tcf = CurrentIslands[SelIsland]
         if tcf then TeleportToIsland(tcf, SelIsland) end
     end)
-    TeleportTab:AddButton("🛑 Stop Travel & Hover Here", function()
+    TeleportTab:AddButton("Stop Travel & Hover Here", function()
         StopTween()
         local root = GetRoot()
         if root then HoverLock(root.CFrame) end
     end)
-    TeleportTab:AddButton("🚶 Stop Travel & Land (Normal Ground)", function()
+    TeleportTab:AddButton("Stop Travel & Land (Normal Ground)", function()
         ClearHover()
     end)
     
@@ -6015,7 +5996,7 @@ local function CreateUI()
     TeleportTab:AddToggle("Segmented Chunk Streaming (Anti-Lag)", _G.Config.WaypointFlight ~= false, function(v)
         _G.Config.WaypointFlight = v
     end)
-    TeleportTab:AddButton("⚡ Force Anti-Desync Handshake", function()
+    TeleportTab:AddButton("Force Anti-Desync Handshake", function()
         local root = GetRoot()
         if root then
             RecoverFromPhantomDesync(root.CFrame)
@@ -6024,17 +6005,17 @@ local function CreateUI()
     end)
     
     TeleportTab:AddSection("Inter-Sea Travel")
-    TeleportTab:AddButton("🌊 Travel to First Sea (Sea 1)", function()
+    TeleportTab:AddButton("Travel to First Sea (Sea 1)", function()
         ShowLiveToast("SEA TRAVEL", "Traveling to First Sea...", Color3.fromRGB(0, 200, 255), 5)
         local cf = CommF()
         if cf then pcall(function() cf:InvokeServer("TravelMain") end) end
     end)
-    TeleportTab:AddButton("⚔️ Travel to Second Sea (Sea 2)", function()
+    TeleportTab:AddButton("Travel to Second Sea (Sea 2)", function()
         ShowLiveToast("SEA TRAVEL", "Traveling to Second Sea...", Color3.fromRGB(0, 200, 255), 5)
         local cf = CommF()
         if cf then pcall(function() cf:InvokeServer("TravelDressrosa") end) end
     end)
-    TeleportTab:AddButton("⚡ Travel to Third Sea (Sea 3)", function()
+    TeleportTab:AddButton("Travel to Third Sea (Sea 3)", function()
         ShowLiveToast("SEA TRAVEL", "Traveling to Third Sea...", Color3.fromRGB(0, 200, 255), 5)
         local cf = CommF()
         if cf then pcall(function() cf:InvokeServer("TravelZou") end) end
@@ -6043,7 +6024,7 @@ local function CreateUI()
     -- ==================== 12. SETTINGS ====================
     MiscTab:AddSection("Live Cloud & Auto-Updater")
     MiscTab:AddNotice("Connected to GitHub Live Engine (v" .. SCRIPT_VERSION .. ")", Color3.fromRGB(0, 230, 255))
-    MiscTab:AddButton("🔄 Check for Live Updates Now", function()
+    MiscTab:AddButton("Check for Live Updates Now", function()
         ShowLiveToast("CLOUD CHECK", "Polling GitHub live endpoint...", Color3.fromRGB(0, 230, 255), 3)
         task.spawn(function()
             local cfg = FetchRemoteConfig()
@@ -6060,20 +6041,90 @@ local function CreateUI()
     end)
     
     MiscTab:AddSection("Server Controls")
-    MiscTab:AddButton("Server Hop (Low Population)", function()
-        local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local res = safeRequest({Url = url, Method = "GET"})
-        if res and res.Body then
-            local json = HttpService:JSONDecode(res.Body)
-            if json and json.data then
-                for _, s in ipairs(json.data) do
-                    if s.playing < s.maxPlayers and s.id ~= game.JobId then
-                        TeleportService:TeleportToPlaceInstance(PlaceId, s.id, LocalPlayer)
+    MiscTab:AddButton("Server Hop (Lowest Pop & Best Ping)", function()
+        task.spawn(function()
+            ShowLiveToast("SERVER HOP", "Scanning servers for lowest population & best ping...", Color3.fromRGB(255, 255, 255), 3)
+            local cursor = ""
+            local candidates = {}
+            local attempts = 0
+            
+            while #candidates < 20 and attempts < 4 do
+                attempts = attempts + 1
+                local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor ~= "" and ("&cursor=" .. cursor) or "")
+                local res = safeRequest and safeRequest({Url = url, Method = "GET"})
+                if res and res.Body then
+                    local ok, json = pcall(function() return HttpService:JSONDecode(res.Body) end)
+                    if ok and json and json.data then
+                        for _, s in ipairs(json.data) do
+                            local playing = tonumber(s.playing) or 0
+                            local maxP = tonumber(s.maxPlayers) or 12
+                            -- Exclude private/empty/full/current servers
+                            if playing >= 1 and playing < (maxP - 1) and s.id and s.id ~= game.JobId then
+                                table.insert(candidates, s)
+                            end
+                        end
+                        if json.nextPageCursor then
+                            cursor = json.nextPageCursor
+                        else
+                            break
+                        end
+                    else
                         break
                     end
+                else
+                    break
+                end
+                task.wait(0.3)
+            end
+            
+            if #candidates == 0 then
+                ShowLiveToast("SERVER HOP", "No suitable public servers found, retrying...", Color3.fromRGB(255, 100, 100), 3)
+                return
+            end
+            
+            -- Sort by lowest population first, then best ping
+            table.sort(candidates, function(a, b)
+                local pingA = tonumber(a.ping) or 120
+                local pingB = tonumber(b.ping) or 120
+                local popA = tonumber(a.playing) or 99
+                local popB = tonumber(b.playing) or 99
+                if math.abs(popA - popB) <= 2 then
+                    return pingA < pingB
+                end
+                return popA < popB
+            end)
+            
+            -- Keep trying best candidates until successfully connected
+            for idx, target in ipairs(candidates) do
+                local pVal = target.ping and (tostring(target.ping) .. "ms") or "Good"
+                ShowLiveToast("CONNECTING", string.format("Joining #%d (%d players | %s)...", idx, target.playing, pVal), Color3.fromRGB(255, 255, 255), 4)
+                
+                local failed = false
+                local failConn
+                failConn = TeleportService.TeleportInitFailed:Connect(function()
+                    failed = true
+                end)
+                
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceId, target.id, LocalPlayer)
+                end)
+                
+                local t0 = tick()
+                while (tick() - t0) < 4.5 do
+                    if failed then break end
+                    task.wait(0.2)
+                end
+                
+                if failConn then failConn:Disconnect() end
+                
+                if not failed then
+                    break
+                else
+                    ShowLiveToast("HOP RETRY", "Target unavailable, switching to next best server...", Color3.fromRGB(255, 200, 100), 2)
+                    task.wait(0.5)
                 end
             end
-        end
+        end)
     end)
     MiscTab:AddButton("Rejoin Current Server", function()
         TeleportService:Teleport(PlaceId, LocalPlayer)
@@ -6098,7 +6149,7 @@ local function CreateUI()
         if hum then hum.JumpPower = v end
     end)
     
-    SwitchTab("⚔️ Main Farm")
+    SwitchTab("Main Farm")
 end
 
 
