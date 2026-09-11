@@ -1912,6 +1912,22 @@ local function StartCombatLoop()
     end)
 end
 
+-- Robust mob name matcher (exact-normalized: strips tags, trims whitespace, case-insensitive)
+local function IsMobMatch(mobName, targetName)
+    if not mobName or not targetName then return false end
+    if mobName == targetName then return true end
+    local mLower = mobName:lower()
+    local tLower = targetName:lower()
+    if mLower == tLower then return true end
+    
+    -- Strip bracketed tags e.g. [Lv. 70], [Boss], [Spawned]
+    local cleanMob = mLower:gsub("%s*%[.-%]%s*", " "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    local cleanTarget = tLower:gsub("%s*%[.-%]%s*", " "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    if cleanMob == cleanTarget then return true end
+    
+    return false
+end
+
 --============================== BRING MOBS SYSTEM (CAPPED SIM RADIUS) ==============================
 local _simRadiusSet = false
 
@@ -2289,38 +2305,62 @@ local function GetSpawnedMobsList()
 end
 
 local function GetSpawnedBossesList()
+    CurrentSea = DetectSea()
+    SeaName = (CurrentSea == 3 and "Third Sea") or (CurrentSea == 2 and "Second Sea") or "First Sea"
+
     local list = {}
     local seen = {}
+
+    local function CheckBossModel(enemy)
+        if not enemy or not enemy:IsA("Model") then return end
+        local hum = enemy:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+
+        for bName, bData in pairs(BossesDB) do
+            if bData.Sea == CurrentSea and IsMobMatch(enemy.Name, bName) then
+                if not seen[bName] then
+                    seen[bName] = true
+                    table.insert(list, bName)
+                end
+                break
+            end
+        end
+    end
+
+    -- 1. Scan Workspace.Enemies (standard spawned mobs & bosses)
     local enemies = Workspace:FindFirstChild("Enemies")
     if enemies then
         for _, enemy in ipairs(enemies:GetChildren()) do
-            if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                local bData = BossesDB[enemy.Name]
-                if bData and bData.Sea == CurrentSea and not seen[enemy.Name] then
-                    seen[enemy.Name] = true
-                    table.insert(list, "[Spawned] " .. enemy.Name)
-                end
+            CheckBossModel(enemy)
+        end
+    end
+
+    -- 2. Scan Workspace.Characters (special/summoned bosses)
+    local chars = Workspace:FindFirstChild("Characters")
+    if chars then
+        for _, c in ipairs(chars:GetChildren()) do
+            if not Players:GetPlayerFromCharacter(c) then
+                CheckBossModel(c)
             end
         end
     end
-    local spawnsFolder = Workspace:FindFirstChild("_WorldOrigin") and Workspace._WorldOrigin:FindFirstChild("EnemySpawns")
-    if spawnsFolder then
-        for _, s in ipairs(spawnsFolder:GetChildren()) do
-            if s.Name:find("Boss") or s.Name:find("boss") then
-                local clean = s.Name:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
-                if clean ~= "" and not seen[clean] then
-                    seen[clean] = true
-                    table.insert(list, clean)
-                end
+
+    -- 3. Scan other mob containers
+    for _, fName in ipairs({"mobs", "Mobs", "SeaBeasts"}) do
+        local f = Workspace:FindFirstChild(fName)
+        if f then
+            for _, m in ipairs(f:GetChildren()) do
+                CheckBossModel(m)
             end
         end
     end
-    for bName, bData in pairs(BossesDB) do
-        if bData.Sea == CurrentSea and not seen[bName] then
-            table.insert(list, bName)
-        end
-    end
+
     table.sort(list)
+
+    if #list == 0 then
+        return {"None Spawned (Click Refresh to Scan)"}
+    end
+
     return list
 end
 
@@ -2328,24 +2368,6 @@ end
 local GetActiveBossesList = GetSpawnedBossesList
 
 -- ClearHover and FullResetMovement are defined above
-
--- Robust mob name matcher (handles exact names, stripped level tags, case insensitivity)
-local function IsMobMatch(mobName, targetName)
-    if not mobName or not targetName then return false end
-    if mobName == targetName then return true end
-    local mLower = mobName:lower()
-    local tLower = targetName:lower()
-    if mLower == tLower then return true end
-    
-    -- Strip bracketed tags e.g. [Lv. 70], [Boss]
-    local cleanMob = mLower:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
-    local cleanTarget = tLower:gsub("%s*%[.-%]%s*", " "):gsub("^%s+", ""):gsub("%s+$", "")
-    if cleanMob == cleanTarget then return true end
-    if cleanMob:find(cleanTarget, 1, true) or cleanTarget:find(cleanMob, 1, true) then
-        return true
-    end
-    return false
-end
 
 local _knownMobPositions = {}
 local _lockedMobSpawn = {}
@@ -2692,13 +2714,13 @@ local function StartAutoFarmSelectedBoss()
         while true do
             task.wait(0.25)
             if _G.Config.FarmSelectedBoss then
-                if not _G.Config.SelectedBoss or _G.Config.SelectedBoss == "" then
+                if not _G.Config.SelectedBoss or _G.Config.SelectedBoss == "" or _G.Config.SelectedBoss:find("None Spawned") then
                     local spawned = GetSpawnedBossesList()
-                    if spawned and #spawned > 0 then
+                    if spawned and #spawned > 0 and not spawned[1]:find("None Spawned") then
                         _G.Config.SelectedBoss = spawned[1]
                     end
                 end
-                if _G.Config.SelectedBoss and _G.Config.SelectedBoss ~= "" then
+                if _G.Config.SelectedBoss and _G.Config.SelectedBoss ~= "" and not _G.Config.SelectedBoss:find("None Spawned") then
                     pcall(function()
                         local bossName = _G.Config.SelectedBoss:gsub("^%[Spawned%] ", "")
                         local bossData = BossesDB[bossName]
@@ -5751,12 +5773,20 @@ local function CreateUI()
     -- ==================== 2. BOSS FARM TAB ====================
     BossTab:AddSection("Boss Selection (" .. SeaName .. ")")
     local bossList = GetActiveBossesList()
-    if bossList and bossList[1] then _G.Config.SelectedBoss = bossList[1] end
-    local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v) _G.Config.SelectedBoss = v end)
+    if bossList and bossList[1] and not bossList[1]:find("None Spawned") then
+        _G.Config.SelectedBoss = bossList[1]
+    end
+    local BossDrop = BossTab:AddSearchDropdown("Select Boss", bossList, bossList[1], function(v)
+        if not v:find("None Spawned") then
+            _G.Config.SelectedBoss = v
+        end
+    end)
     BossTab:AddButton("Refresh Bosses List (Scan Active)", function()
         local updated = GetActiveBossesList()
         BossDrop:SetOptions(updated)
-        ShowLiveToast("BOSSES REFRESHED", "Found " .. #updated .. " active bosses in " .. SeaName, Color3.fromRGB(255, 180, 0), 3)
+        local count = #updated
+        if count == 1 and updated[1]:find("None Spawned") then count = 0 end
+        ShowLiveToast("BOSSES REFRESHED", "Found " .. count .. " active spawned bosses in " .. SeaName, Color3.fromRGB(255, 255, 255), 3)
     end)
     BossTab:AddToggle("Auto Farm Selected Boss", false, function(v)
         _G.Config.FarmSelectedBoss = v
